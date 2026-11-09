@@ -1,0 +1,135 @@
+//@version=6
+indicator("Big Ben AI | Read-only MTF FIX v2", overlay=true, max_labels_count=100, max_lines_count=100)
+rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
+side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
+lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
+swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
+showLevels = input.bool(true, "Show latest scenario levels")
+cooldownBars = input.int(8, "Minimum bars between trade signals", minval=0, maxval=100)
+webhookHeartbeat = input.bool(false, "Enable JSON webhook heartbeat (separate alert)")
+webhookToken = input.string("", "Private webhook token (keep script private)")
+minStopATR = input.float(0.4, "Min stop distance in ATR", minval=0.0, maxval=10.0, step=0.1)
+maxStopATR = input.float(4.0, "Max stop distance in ATR", minval=0.5, maxval=20.0, step=0.25)
+minBodyATR = input.float(0.25, "Min breakout candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
+minBreakoutATR = input.float(0.05, "Min breakout distance / ATR", minval=0.0, maxval=3.0, step=0.05)
+f_trend() =>
+    ma10 = ta.sma(close, 10)
+    ma20 = ta.sma(close, 20)
+    close > ma20 and ma10 > ma20 ? 1 : close < ma20 and ma10 < ma20 ? -1 : 0
+// Use only the previous, closed higher-timeframe candle to avoid HTF repainting.
+t15 = request.security(syminfo.tickerid, "15", f_trend()[1], lookahead=barmerge.lookahead_on)
+t60 = request.security(syminfo.tickerid, "60", f_trend()[1], lookahead=barmerge.lookahead_on)
+t240 = request.security(syminfo.tickerid, "240", f_trend()[1], lookahead=barmerge.lookahead_on)
+tD = request.security(syminfo.tickerid, "D", f_trend()[1], lookahead=barmerge.lookahead_on)
+trend = f_trend()
+atr = ta.atr(14)
+upperRange = ta.highest(high[1], lookback)
+lowerRange = ta.lowest(low[1], lookback)
+bodyOK = math.abs(close - open) >= atr * minBodyATR
+up = close > upperRange + atr * minBreakoutATR and close > open and bodyOK
+down = close < lowerRange - atr * minBreakoutATR and close < open and bodyOK
+allowBuy = side != "Sell"
+allowSell = side != "Buy"
+htfBuy = t15 == 1 and t60 == 1 and t240 == 1
+htfSell = t15 == -1 and t60 == -1 and t240 == -1
+buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy
+sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell
+stopBuy = ta.lowest(low, swing) - atr * 0.2
+stopSell = ta.highest(high, swing) + atr * 0.2
+riskBuy = close - stopBuy
+riskSell = stopSell - close
+buy := buy and riskBuy > syminfo.mintick and riskBuy >= atr * minStopATR and riskBuy <= atr * maxStopATR
+sell := sell and riskSell > syminfo.mintick and riskSell >= atr * minStopATR and riskSell <= atr * maxStopATR
+// Suppress repeated breakout signals for the configured number of closed M5 bars.
+var int lastTradeSignalBar = na
+signalReady = na(lastTradeSignalBar) or bar_index - lastTradeSignalBar > cooldownBars
+buy := buy and signalReady
+sell := sell and signalReady
+if buy or sell
+    lastTradeSignalBar := bar_index
+plotshape(buy, title="Buy setup", style=shape.labelup, location=location.belowbar, text="BUY", color=color.new(color.green,0), textcolor=color.white, size=size.tiny)
+plotshape(sell, title="Sell setup", style=shape.labeldown, location=location.abovebar, text="SELL", color=color.new(color.red,0), textcolor=color.white, size=size.tiny)
+var line[] levels = array.new_line()
+var label[] notes = array.new_label()
+if (buy or sell) and showLevels
+    for l in levels
+        line.delete(l)
+    array.clear(levels)
+    for n in notes
+        label.delete(n)
+    array.clear(notes)
+    d = buy ? 1.0 : -1.0
+    entry = close
+    stop = buy ? stopBuy : stopSell
+    risk = math.abs(entry - stop)
+    prices = array.from(entry, stop, entry + d*risk*rr/3, entry + d*risk*rr*2/3, entry + d*risk*rr)
+    names = array.from("Entry", "SL", "TP1", "TP2", "TP3")
+    for i = 0 to 4
+        price = array.get(prices, i)
+        clr = i == 1 ? color.red : i == 0 ? color.yellow : color.aqua
+        array.push(levels, line.new(bar_index, price, bar_index+20, price, color=clr, width=1))
+        array.push(notes, label.new(bar_index+20, price, array.get(names,i)+" "+str.tostring(price, format.mintick), color=color.new(color.black,80), textcolor=clr, style=label.style_label_left, size=size.tiny))
+// Remember the latest confirmed setup separately from the current candle status.
+var string lastSetupSide = "NONE"
+var float lastSetupEntry = na
+var float lastSetupStop = na
+var float lastSetupTp3 = na
+if buy or sell
+    lastSetupSide := buy ? "BUY" : "SELL"
+    lastSetupEntry := close
+    lastSetupStop := buy ? stopBuy : stopSell
+    lastSetupTp3 := close + (buy ? 1.0 : -1.0) * math.abs(close - lastSetupStop) * rr
+f_label(t) => t == 1 ? "UP" : t == -1 ? "DOWN" : "NEUTRAL"
+var table panel = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black,25), border_width=1)
+if barstate.islast
+    table.cell(panel,0,0,"Big Ben AI",text_color=color.white)
+    table.cell(panel,1,0,timeframe.period == "5" ? "M5" : "USE M5",text_color=timeframe.period == "5" ? color.lime : color.orange)
+    table.cell(panel,0,1,"M15",text_color=color.white)
+    table.cell(panel,1,1,f_label(t15),text_color=color.white)
+    table.cell(panel,0,2,"H1",text_color=color.white)
+    table.cell(panel,1,2,f_label(t60),text_color=color.white)
+    table.cell(panel,0,3,"H4",text_color=color.white)
+    table.cell(panel,1,3,f_label(t240),text_color=color.white)
+    table.cell(panel,0,4,"D1",text_color=color.white)
+    table.cell(panel,1,4,f_label(tD),text_color=color.white)
+    table.cell(panel,0,5,"Status",text_color=color.white)
+    table.cell(panel,1,5,buy ? "BUY SETUP" : sell ? "SELL SETUP" : "WAIT (new)",text_color=buy ? color.lime : sell ? color.red : color.orange)
+    table.cell(panel,0,6,"Last setup",text_color=color.white)
+    table.cell(panel,1,6,lastSetupSide,text_color=lastSetupSide == "BUY" ? color.lime : lastSetupSide == "SELL" ? color.red : color.gray)
+    table.cell(panel,0,7,"Last Entry / SL",text_color=color.white)
+    table.cell(panel,1,7,na(lastSetupEntry) ? "NONE" : str.tostring(lastSetupEntry,format.mintick)+" / "+str.tostring(lastSetupStop,format.mintick),text_color=color.white)
+// Transport heartbeat on each confirmed M5 candle, with BUY/SELL only when setup is valid.
+// No orders, broker actions, or user notifications are generated by this script.
+f_market() =>
+    str.contains(syminfo.ticker, "XAU") or str.contains(syminfo.ticker, "XAG") ? "gold" : syminfo.type == "futures" ? "futures" : syminfo.type == "forex" ? "forex" : syminfo.type == "crypto" ? "crypto" : syminfo.type == "index" ? "index" : syminfo.type == "cfd" ? "cfd" : "other"
+f_dir(t) => t == 1 ? "buy" : t == -1 ? "sell" : "neutral"
+// Render currently accepts only forex, futures and gold market types.
+// Other market categories still produce TradingView app alerts, but no JSON heartbeat.
+marketKind = f_market()
+serverSupported = marketKind == "forex" or marketKind == "futures" or marketKind == "gold"
+if webhookHeartbeat and serverSupported and barstate.isconfirmed and timeframe.period == "5" and webhookToken != ""
+    isSetup = buy or sell
+    d = buy ? 1.0 : -1.0
+    e = close
+    st = buy ? stopBuy : stopSell
+    r = math.abs(e - st)
+    // Null levels on WAIT: never fabricate trade targets.
+    en = isSetup ? str.tostring(e, format.mintick) : "null"
+    sl = isSetup ? str.tostring(st, format.mintick) : "null"
+    p1 = isSetup ? str.tostring(e+d*r*rr/3, format.mintick) : "null"
+    p2 = isSetup ? str.tostring(e+d*r*rr*2/3, format.mintick) : "null"
+    p3 = isSetup ? str.tostring(e+d*r*rr, format.mintick) : "null"
+    msg = '{"secret":"' + webhookToken + '","symbol":"' + syminfo.tickerid + '","type":"' + marketKind + '","signal":"' + (buy ? "buy" : sell ? "sell" : "wait") + '","entry":' + en + ',"stop":' + sl + ',"tp1":' + p1 + ',"tp2":' + p2 + ',"tp3":' + p3 + ',"m15":"' + f_dir(t15) + '","h1":"' + f_dir(t60) + '","h4":"' + f_dir(t240) + '","d1":"' + f_dir(tD) + '","bar_time":"' + str.tostring(time) + '"}'
+    alert(msg, alert.freq_once_per_bar_close)
+
+
+// Mobile-app trade alerts send plain text. In TradingView: Notify in app ON, Webhook URL OFF.\n// Only the separately enabled JSON heartbeat alert may use the Render Webhook URL.
+// In TradingView create alerts for "Big Ben BUY setup" and "Big Ben SELL setup"
+// with "Notify in app" enabled and Webhook URL disabled.
+plot(buy or sell ? close : na, title="BB Alert Entry", display=display.none)
+plot(buy ? stopBuy : sell ? stopSell : na, title="BB Alert SL", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr / 3 : na, title="BB Alert TP1", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr * 2 / 3 : na, title="BB Alert TP2", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr : na, title="BB Alert TP3", display=display.none)
+alertcondition(buy, title="Big Ben BUY setup", message='Big Ben AI BUY | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP1: {{plot("BB Alert TP1")}} | TP2: {{plot("BB Alert TP2")}} | TP3: {{plot("BB Alert TP3")}}')
+alertcondition(sell, title="Big Ben SELL setup", message='Big Ben AI SELL | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP1: {{plot("BB Alert TP1")}} | TP2: {{plot("BB Alert TP2")}} | TP3: {{plot("BB Alert TP3")}}')

@@ -5,6 +5,7 @@ side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
 lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
 swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
 showLevels = input.bool(true, "Show latest scenario levels")
+webhookToken = input.string("", "Private webhook token (keep script private)")
 f_trend() =>
     ma10 = ta.sma(close, 10)
     ma20 = ta.sma(close, 20)
@@ -67,4 +68,16 @@ if barstate.islast
     table.cell(panel,1,4,f_label(tD),text_color=color.white)
     table.cell(panel,0,5,"Status",text_color=color.white)
     table.cell(panel,1,5,buy ? "BUY SETUP" : sell ? "SELL SETUP" : "WAIT",text_color=buy ? color.lime : sell ? color.red : color.orange)
-// No alerts, orders, webhooks, or broker actions.
+// Silent webhook transport only; configure TradingView alert to disable all notifications.
+// No orders or broker integration. This emits only on confirmed M5 setups.
+f_market() =>
+    syminfo.type == "futures" ? "futures" : str.contains(syminfo.ticker, "XAU") or str.contains(syminfo.ticker, "XAG") ? "gold" : "forex"
+f_dir(t) => t == 1 ? "buy" : t == -1 ? "sell" : "neutral"
+if (buy or sell) and webhookToken != ""
+    d = buy ? 1.0 : -1.0
+    e = close
+    st = buy ? stopBuy : stopSell
+    r = math.abs(e-st)
+    msg = '{"secret":"' + webhookToken + '","symbol":"' + syminfo.tickerid + '","type":"' + f_market() + '","signal":"' + (buy ? "buy" : "sell") + '","entry":' + str.tostring(e) + ',"stop":' + str.tostring(st) + ',"tp1":' + str.tostring(e+d*r*rr/3) + ',"tp2":' + str.tostring(e+d*r*rr*2/3) + ',"tp3":' + str.tostring(e+d*r*rr) + ',"m15":"' + f_dir(t15) + '","h1":"' + f_dir(t60) + '","h4":"' + f_dir(t240) + '","d1":"' + f_dir(tD) + '","bar_time":"' + str.tostring(time) + '"}'
+    alert(msg, alert.freq_once_per_bar_close)
+// No orders, no broker execution. TradingView alert notifications must be disabled manually.

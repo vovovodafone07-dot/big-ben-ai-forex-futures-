@@ -15,6 +15,17 @@ def provider_error(payload, default='Market data unavailable'):
     msg=msg[:260]
     return ('Twelve Data '+str(code)+': ' if isinstance(code,int) else 'Twelve Data: ')+msg
 
+def lookup_symbol(symbol):
+    """Look up exact instrument symbols without silently substituting CFDs/ETFs."""
+    try:
+        url='https://api.twelvedata.com/symbol_search?'+urllib.parse.urlencode({'symbol':symbol,'outputsize':20,'apikey':KEY})
+        with urllib.request.urlopen(url,timeout=8) as res: result=json.load(res)
+        rows=result.get('data',[]) if isinstance(result,dict) else []
+        return [{'symbol':str(x.get('symbol',''))[:32], 'name':str(x.get('instrument_name',''))[:90],
+                 'exchange':str(x.get('exchange',''))[:50], 'type':str(x.get('instrument_type',''))[:40]}
+                for x in rows[:10] if isinstance(x,dict)]
+    except Exception:return []
+
 def analyze(bars,rr,direction):
     b=[{'o':float(x['open']),'h':float(x['high']),'l':float(x['low']),'c':float(x['close'])} for x in reversed(bars)]
     if len(b)<35: raise ValueError('Not enough candles')
@@ -86,7 +97,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except urllib.error.HTTPError as e:
             try: detail=provider_error(json.loads(e.read(4096).decode('utf-8','replace')))
             except Exception: detail='No additional provider details'
-            return self.sendjson({'error':f'Twelve Data HTTP {e.code}: {detail}', 'provider_status':e.code},502)
+            return self.sendjson({'error':f'Twelve Data HTTP {e.code}: {detail}' + (' | لم يتعرف المزود على رمز عقد الفيوتشرز. يجب تحديد رمز عقد مدعوم من المصدر، ولا يمكن استخدام بديل مختلف دون موافقتك.' if e.code==404 and typ=='futures' else ''), 'provider_status':e.code, 'symbol':provider_symbol, 'symbol_matches':lookup_symbol(symbol) if e.code==404 and typ=='futures' else []},422 if e.code==404 else 502)
         except (urllib.error.URLError, TimeoutError):return self.sendjson({'error':'تعذر الاتصال بمزود البيانات أو انتهت مهلة الطلب'},502)
         except ValueError as e:
             return self.sendjson({'error':str(e)[:300]},422)

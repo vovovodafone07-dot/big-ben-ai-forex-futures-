@@ -1,10 +1,15 @@
 //@version=6
-indicator("Big Ben AI V2 | Filtered MTF", overlay=true, max_labels_count=100, max_lines_count=100)
+indicator("Big Ben AI V2.1 | Breakout Quality", overlay=true, max_labels_count=100, max_lines_count=100)
 rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
 side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
 lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
 swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
 showLevels = input.bool(true, "Show latest scenario levels")
+// Breakout-quality filters: reject weak closes and long rejection wicks.
+minClosePosition = input.float(0.75, "Breakout close location (0.5-1.0)", minval=0.5, maxval=1.0, step=0.05)
+maxOppositeWick = input.float(0.25, "Max rejection wick / candle range", minval=0.0, maxval=1.0, step=0.05)
+breakoutBufferAtr = input.float(0.10, "Minimum breakout distance / ATR", minval=0.0, maxval=2.0, step=0.05)
+maxCandleAtr = input.float(2.5, "Max breakout candle range / ATR", minval=0.5, maxval=10.0, step=0.25)
 minBodyAtr = input.float(0.35, "Min candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
 minAtrPct = input.float(0.02, "Min ATR as % of price", minval=0.0, maxval=10.0, step=0.01)
 maxAtrPct = input.float(2.0, "Max ATR as % of price", minval=0.01, maxval=20.0, step=0.05)
@@ -26,8 +31,20 @@ t240 = request.security(syminfo.tickerid, "240", f_trend()[1], lookahead=barmerg
 tD = request.security(syminfo.tickerid, "D", f_trend()[1], lookahead=barmerge.lookahead_on)
 trend = f_trend()
 atr = ta.atr(14)
-up = close > ta.highest(high[1], lookback)
-down = close < ta.lowest(low[1], lookback)
+priorHigh = ta.highest(high[1], lookback)
+priorLow = ta.lowest(low[1], lookback)
+candleRange = high - low
+safeRange = math.max(candleRange, syminfo.mintick)
+bodyTop = math.max(open,close)
+bodyBottom = math.min(open,close)
+upperWickRatio = (high-bodyTop)/safeRange
+lowerWickRatio = (bodyBottom-low)/safeRange
+closePosition = (close-low)/safeRange
+rangeOk = candleRange > syminfo.mintick and candleRange <= atr*maxCandleAtr
+qualityBuy = rangeOk and closePosition >= minClosePosition and upperWickRatio <= maxOppositeWick
+qualitySell = rangeOk and closePosition <= 1.0-minClosePosition and lowerWickRatio <= maxOppositeWick
+up = close > priorHigh + atr*breakoutBufferAtr
+down = close < priorLow - atr*breakoutBufferAtr
 allowBuy = side != "Sell"
 allowSell = side != "Buy"
 htfBuy = t15 == 1 and t60 == 1 and t240 == 1
@@ -40,8 +57,8 @@ volumeOk = not useVolumeFilter or (not na(volume) and not na(avgVolume) and volu
 sessionOk = not useSessionFilter or not na(time(timeframe.period,tradeSession))
 var int lastSetupBar = na
 cooldownOk = na(lastSetupBar) or bar_index-lastSetupBar > cooldownBars
-buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy and close > open and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
-sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell and close < open and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
+buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy and close > open and qualityBuy and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
+sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell and close < open and qualitySell and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
 stopBuy = ta.lowest(low, swing) - atr * 0.2
 stopSell = ta.highest(high, swing) + atr * 0.2
 riskBuy = close - stopBuy
@@ -85,7 +102,7 @@ if buy or sell
 f_label(t) => t == 1 ? "UP" : t == -1 ? "DOWN" : "NEUTRAL"
 var table panel = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black,25), border_width=1)
 if barstate.islast
-    table.cell(panel,0,0,"Big Ben AI V2",text_color=color.white)
+    table.cell(panel,0,0,"Big Ben AI V2.1",text_color=color.white)
     table.cell(panel,1,0,timeframe.period == "5" ? "M5" : "USE M5",text_color=timeframe.period == "5" ? color.lime : color.orange)
     table.cell(panel,0,1,"M15",text_color=color.white)
     table.cell(panel,1,1,f_label(t15),text_color=color.white)

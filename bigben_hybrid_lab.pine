@@ -1,0 +1,87 @@
+//@version=6
+indicator("Big Ben AI | HYBRID LAB (TEST ONLY)", overlay=true, max_labels_count=100, max_lines_count=100)
+// Isolated research prototype. No orders, alert(), alertcondition(), or webhook.
+// Heuristic definitions of ICT/SMC/CRT/SMT; not an official implementation or validated edge.
+rr = input.float(2.0, "RR (experimental)", minval=0.5, maxval=10, step=0.25)
+swingLen = input.int(5, "Structure pivot bars", minval=2, maxval=20)
+liqLen = input.int(12, "Liquidity lookback", minval=5, maxval=60)
+atrLen = input.int(14, "ATR length", minval=5, maxval=50)
+minScore = input.int(3, "Minimum confluence score", minval=2, maxval=5)
+useSMT = input.bool(false, "Enable SMT comparison (choose correlated instrument)")
+smtSymbol = input.symbol("CME_MINI:ES1!", "SMT comparison symbol (e.g. ES for NQ)")
+showLevels = input.bool(true, "Draw latest test levels")
+f_bias() =>
+    fast = ta.ema(close, 20)
+    slow = ta.ema(close, 50)
+    fast > slow and close > slow ? 1 : fast < slow and close < slow ? -1 : 0
+// Confirmed higher-timeframe candles only.
+h1 = request.security(syminfo.tickerid, "60", f_bias()[1], lookahead=barmerge.lookahead_on)
+h4 = request.security(syminfo.tickerid, "240", f_bias()[1], lookahead=barmerge.lookahead_on)
+refHi = request.security(syminfo.tickerid, "60", high[1], lookahead=barmerge.lookahead_on)
+refLo = request.security(syminfo.tickerid, "60", low[1], lookahead=barmerge.lookahead_on)
+atr = ta.atr(atrLen)
+// ICT-style sweep: trade through previous liquidity and close back inside.
+sweepLow = low < ta.lowest(low[1], liqLen) and close > ta.lowest(low[1], liqLen)
+sweepHigh = high > ta.highest(high[1], liqLen) and close < ta.highest(high[1], liqLen)
+// CRT proxy: previous closed H1 candle range, false break and reclaim.
+crtBuy = low < refLo and close > refLo and close < refHi
+crtSell = high > refHi and close < refHi and close > refLo
+// SMC proxy: confirmed pivots and structural close beyond most recent pivot.
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low, swingLen, swingLen)
+lastHigh = ta.valuewhen(not na(ph), ph, 0)
+lastLow = ta.valuewhen(not na(pl), pl, 0)
+bosBuy = not na(lastHigh) and close > lastHigh and close[1] <= lastHigh
+bosSell = not na(lastLow) and close < lastLow and close[1] >= lastLow
+// ICT-style 3-candle fair-value gap plus displacement filter.
+fvgBuy = low > high[2] and close > open and math.abs(close-open) >= atr * 0.55
+fvgSell = high < low[2] and close < open and math.abs(close-open) >= atr * 0.55
+// SMT proxy: opposing relative highs/lows over the same confirmed window.
+// Only enable for appropriately correlated symbols with aligned trading sessions.
+otherHigh = request.security(smtSymbol, timeframe.period, high, ignore_invalid_symbol=true)
+otherLow = request.security(smtSymbol, timeframe.period, low, ignore_invalid_symbol=true)
+smtBuy = useSMT and not na(otherLow) and low < ta.lowest(low[1], liqLen) and otherLow >= ta.lowest(otherLow[1], liqLen)
+smtSell = useSMT and not na(otherHigh) and high > ta.highest(high[1], liqLen) and otherHigh <= ta.highest(otherHigh[1], liqLen)
+// Mandatory context + liquidity, with structural/displacement confirmation.
+buyScore = (sweepLow ? 1 : 0) + (crtBuy ? 1 : 0) + (bosBuy ? 1 : 0) + (fvgBuy ? 1 : 0) + (smtBuy ? 1 : 0)
+sellScore = (sweepHigh ? 1 : 0) + (crtSell ? 1 : 0) + (bosSell ? 1 : 0) + (fvgSell ? 1 : 0) + (smtSell ? 1 : 0)
+bullContext = h1 == 1 and h4 == 1
+bearContext = h1 == -1 and h4 == -1
+longStop = ta.lowest(low, swingLen + 2) - atr * 0.3
+shortStop = ta.highest(high, swingLen + 2) + atr * 0.3
+longRisk = close - longStop
+shortRisk = shortStop - close
+validLongRisk = longRisk >= atr * 0.5 and longRisk <= atr * 3.0
+validShortRisk = shortRisk >= atr * 0.5 and shortRisk <= atr * 3.0
+buy = barstate.isconfirmed and timeframe.period == "5" and bullContext and (sweepLow or crtBuy) and (bosBuy or fvgBuy) and buyScore >= minScore and validLongRisk
+sell = barstate.isconfirmed and timeframe.period == "5" and bearContext and (sweepHigh or crtSell) and (bosSell or fvgSell) and sellScore >= minScore and validShortRisk
+plotshape(buy, title="HYBRID TEST BUY", text="TEST BUY", style=shape.labelup, location=location.belowbar, color=color.teal, textcolor=color.white, size=size.tiny)
+plotshape(sell, title="HYBRID TEST SELL", text="TEST SELL", style=shape.labeldown, location=location.abovebar, color=color.maroon, textcolor=color.white, size=size.tiny)
+var line[] levels = array.new_line()
+if (buy or sell) and showLevels
+    for ln in levels
+        line.delete(ln)
+    array.clear(levels)
+    entry = close
+    stop = buy ? longStop : shortStop
+    direction = buy ? 1.0 : -1.0
+    risk = math.abs(entry - stop)
+    array.push(levels, line.new(bar_index, entry, bar_index + 15, entry, color=color.yellow))
+    array.push(levels, line.new(bar_index, stop, bar_index + 15, stop, color=color.red))
+    for n = 1 to 3
+        target = entry + direction * risk * rr * n / 3
+        array.push(levels, line.new(bar_index, target, bar_index + 15, target, color=color.aqua))
+var table info = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 20))
+if barstate.islast
+    table.cell(info, 0, 0, "HYBRID LAB", text_color=color.white)
+    table.cell(info, 1, 0, "TEST ONLY", text_color=color.orange)
+    table.cell(info, 0, 1, "H1 / H4", text_color=color.white)
+    table.cell(info, 1, 1, str.tostring(h1) + " / " + str.tostring(h4), text_color=color.white)
+    table.cell(info, 0, 2, "SMT", text_color=color.white)
+    table.cell(info, 1, 2, useSMT ? "ON" : "OFF", text_color=color.white)
+    table.cell(info, 0, 3, "BUY score", text_color=color.white)
+    table.cell(info, 1, 3, str.tostring(buyScore), text_color=color.white)
+    table.cell(info, 0, 4, "SELL score", text_color=color.white)
+    table.cell(info, 1, 4, str.tostring(sellScore), text_color=color.white)
+    table.cell(info, 0, 5, "Status", text_color=color.white)
+    table.cell(info, 1, 5, buy ? "TEST BUY" : sell ? "TEST SELL" : "WAIT", text_color=buy ? color.lime : sell ? color.red : color.orange)

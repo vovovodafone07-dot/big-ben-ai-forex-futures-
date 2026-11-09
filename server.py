@@ -49,9 +49,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         q=urllib.parse.parse_qs(p.query);symbol=q.get('symbol',[''])[0].upper().split(':')[-1].replace('!','');typ=q.get('type',['forex'])[0];tf=q.get('tf',['M5'])[0];direction=q.get('direction',['both'])[0]
         try:rr=float(q.get('rr',['3'])[0])
         except:rr=3
-        if typ not in ('forex','futures') or tf not in ('M1','M5','M15','M30') or direction not in ('both','buy','sell') or not (.5<=rr<=20) or not re.fullmatch(r'[A-Z0-9]{2,16}',symbol) or any(x in symbol for x in ('XAU','GOLD','GC','XAG','SILVER','SI')):return self.sendjson({'error':'Invalid market parameters'},400)
-        if typ=='forex':
-            if len(symbol)!=6 or not symbol.isalpha():return self.sendjson({'error':'Forex symbols must be six letters'},400)
+        if typ not in ('forex','futures','gold') or tf not in ('M1','M5','M15','M30') or direction not in ('both','buy','sell') or not (.5<=rr<=20) or not re.fullmatch(r'[A-Z0-9]{2,16}',symbol) :return self.sendjson({'error':'Invalid market parameters'},400)
+        if typ in ('forex','gold'):
+            if len(symbol)!=6 or not symbol.isalpha():return self.sendjson({'error':'Currency and spot metal symbols must be six letters'},400)
             provider_symbol=symbol[:3]+'/'+symbol[3:]
         else:provider_symbol=FUTURES.get(symbol,symbol)
         intervals={'M1':'1min','M5':'5min','M15':'15min','M30':'30min','H1':'1h','H4':'4h','D1':'1day'}

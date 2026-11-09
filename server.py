@@ -71,7 +71,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             signal=str(payload.get('signal','wait')).lower()
             if signal not in TV_ALLOWED:return self.sendjson({'error':'Invalid signal'},400)
             kind=str(payload.get('type','futures')).lower()
-            if kind not in TV_TYPES:return self.sendjson({'error':'Invalid market type'},400)
+            # Older TradingView alert snapshots can carry a chart-type label instead
+            # of our market classification. Normalize only recognizable symbols.
+            if kind not in TV_TYPES:
+                base=symbol.split(':')[-1]
+                if base.startswith(('XAU','XAG')):kind='gold'
+                elif re.fullmatch(r'[A-Z]{6}',base):kind='forex'
+                elif re.fullmatch(r'(?:M?ES|M?NQ|M?YM|M?RTY|6[A-Z]|CL|GC|SI|MBT|BTC)[A-Z0-9!]*',base):kind='futures'
+                else:return self.sendjson({'error':'Invalid market type; recreate TradingView alert'},400)
             def number(key):
                 v=payload.get(key)
                 if v is None or v=='':return None

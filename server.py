@@ -68,7 +68,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     bars=payload['values'];CACHE[cachekey]=(time.time(),bars)
                 out[frame]=analyze(bars,rr,direction)
             return self.sendjson({'symbol':symbol,'type':typ,'provider':'Twelve Data','frames':out,'entryFrame':tf,'retrievedAt':int(time.time()),'warning':'Market data may be delayed. This is rule-based analysis, not a verified trade signal.'})
-        except (urllib.error.URLError, TimeoutError):return self.sendjson({'error':'تعذر الوصول إلى مزود البيانات'},502)
+        except urllib.error.HTTPError as e:
+            return self.sendjson({'error':f'مزود البيانات أعاد HTTP {e.code}. تحقق من تغطية الرمز وحدود الاشتراك أو حالة الخدمة'},502)
+        except (urllib.error.URLError, TimeoutError):return self.sendjson({'error':'تعذر الاتصال بمزود البيانات أو انتهت مهلة الطلب'},502)
         except ValueError as e:
             # Provider errors may contain details not suitable for public display.
             return self.sendjson({'error':'الرمز أو الإطار غير متاح ضمن خطة البيانات؛ تحقق من الاشتراك والرمز'},422)

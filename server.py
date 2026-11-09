@@ -6,6 +6,15 @@ LOCK=threading.Lock()
 LAST_CALLS={}
 CACHE={}
 FUTURES={'ES':'ES','NQ':'NQ','YM':'YM','RTY':'RTY','6E':'6E','6B':'6B','6J':'6J','CL':'CL'}
+def provider_error(payload, default='Market data unavailable'):
+    # Do not expose provider request URLs, API credentials or arbitrary provider text.
+    if not isinstance(payload,dict):return default
+    code=payload.get('code')
+    msg=str(payload.get('message',default))
+    msg=re.sub(r'(?i)(apikey|api_key|token|secret|authorization)[=: ]+[^\\s&,]+',r'\\1=[hidden]',msg)
+    msg=msg[:260]
+    return ('Twelve Data '+str(code)+': ' if isinstance(code,int) else 'Twelve Data: ')+msg
+
 def analyze(bars,rr,direction):
     b=[{'o':float(x['open']),'h':float(x['high']),'l':float(x['low']),'c':float(x['close'])} for x in reversed(bars)]
     if len(b)<35: raise ValueError('Not enough candles')
@@ -29,6 +38,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
     def sendjson(self,body,status=200):
         raw=json.dumps(body,ensure_ascii=False).encode();self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def do_HEAD(self):
+        p=urllib.parse.urlsplit(self.path)
+        if p.path not in ('/', '/index.html'):
+            self.send_response(404);self.end_headers();return
+        self.path='/index.html'
+        return super().do_HEAD()
     def do_GET(self):
         p=urllib.parse.urlsplit(self.path)
         if p.path=='/health':return self.sendjson({'ok':True})
@@ -64,16 +79,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 else:
                     url='https://api.twelvedata.com/time_series?'+urllib.parse.urlencode({'symbol':provider_symbol,'interval':intervals[frame],'outputsize':60,'apikey':KEY})
                     with urllib.request.urlopen(url,timeout=12) as res:payload=json.load(res)
-                    if payload.get('status')=='error' or 'values' not in payload:raise ValueError(payload.get('message','Market data unavailable'))
+                    if payload.get('status')=='error' or 'values' not in payload:raise ValueError(provider_error(payload))
                     bars=payload['values'];CACHE[cachekey]=(time.time(),bars)
                 out[frame]=analyze(bars,rr,direction)
             return self.sendjson({'symbol':symbol,'type':typ,'provider':'Twelve Data','frames':out,'entryFrame':tf,'retrievedAt':int(time.time()),'warning':'Market data may be delayed. This is rule-based analysis, not a verified trade signal.'})
         except urllib.error.HTTPError as e:
-            return self.sendjson({'error':f'مزود البيانات أعاد HTTP {e.code}. تحقق من تغطية الرمز وحدود الاشتراك أو حالة الخدمة'},502)
+            try: detail=provider_error(json.loads(e.read(4096).decode('utf-8','replace')))
+            except Exception: detail='No additional provider details'
+            return self.sendjson({'error':f'Twelve Data HTTP {e.code}: {detail}', 'provider_status':e.code},502)
         except (urllib.error.URLError, TimeoutError):return self.sendjson({'error':'تعذر الاتصال بمزود البيانات أو انتهت مهلة الطلب'},502)
         except ValueError as e:
-            # Provider errors may contain details not suitable for public display.
-            return self.sendjson({'error':'الرمز أو الإطار غير متاح ضمن خطة البيانات؛ تحقق من الاشتراك والرمز'},422)
+            return self.sendjson({'error':str(e)[:300]},422)
         except Exception:return self.sendjson({'error':'تعذر إكمال التحليل؛ راجع سجلات الخادم'},502)
 if __name__=='__main__':
     port=int(os.getenv('PORT','8000'));print(f'Big Ben read-only dashboard on port {port}');http.server.ThreadingHTTPServer(('0.0.0.0',port),Handler).serve_forever()

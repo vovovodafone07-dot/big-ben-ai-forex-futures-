@@ -33,7 +33,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         p=urllib.parse.urlsplit(self.path)
         if p.path=='/health':return self.sendjson({'ok':True})
         if p.path=='/api/status':return self.sendjson({'connected':bool(KEY),'provider':'Twelve Data','note':'API key configured; not proof of successful provider connection or futures coverage'})
-        if p.path!='/api/analyze':return super().do_GET()
+        if p.path not in ('/api/analyze',):
+            if p.path in ('/', '/index.html'):
+                self.path='/index.html'
+                return super().do_GET()
+            return self.sendjson({'error':'Not found'},404)
         if not KEY:return self.sendjson({'error':'لم يتم إعداد مفتاح مزود البيانات على الخادم'},503)
         # Small per-client limiter to protect provider quota; no proxy trust assumptions.
         client=self.client_address[0]; now=time.monotonic()

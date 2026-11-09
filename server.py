@@ -55,21 +55,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
     def sendjson(self,body,status=200):
         raw=json.dumps(body,ensure_ascii=False).encode();self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def webhook_reject(self, reason, status=400):
+        # Log only a fixed diagnostic code. Never log request body or secret.
+        print('TV_WEBHOOK_REJECT reason='+reason+' status='+str(status), flush=True)
+        return self.sendjson({'error':reason},status)
     def do_POST(self):
         p=urllib.parse.urlsplit(self.path)
         if p.path!='/api/tradingview/webhook':return self.sendjson({'error':'Not found'},404)
-        if not WEBHOOK_SECRET:return self.sendjson({'error':'Webhook not configured'},503)
+        if not WEBHOOK_SECRET:return self.webhook_reject('Webhook not configured',503)
         try:
             length=int(self.headers.get('Content-Length','0'))
-            if not 1<=length<=4096:return self.sendjson({'error':'Invalid payload length'},413)
+            if not 1<=length<=4096:return self.webhook_reject('Invalid payload length',413)
             payload=json.loads(self.rfile.read(length))
-            if not isinstance(payload,dict):return self.sendjson({'error':'Invalid JSON'},400)
+            if not isinstance(payload,dict):return self.webhook_reject('Invalid JSON',400)
             import hmac
-            if not hmac.compare_digest(str(payload.get('secret','')),WEBHOOK_SECRET):return self.sendjson({'error':'Unauthorized'},401)
+            if not hmac.compare_digest(str(payload.get('secret','')),WEBHOOK_SECRET):return self.webhook_reject('Unauthorized',401)
             symbol=str(payload.get('symbol','')).upper().strip()
-            if not re.fullmatch(r'[A-Z0-9_:.!/-]{2,40}',symbol):return self.sendjson({'error':'Invalid symbol'},400)
+            if not re.fullmatch(r'[A-Z0-9_:.!/-]{2,40}',symbol):return self.webhook_reject('Invalid symbol',400)
             signal=str(payload.get('signal','wait')).lower()
-            if signal not in TV_ALLOWED:return self.sendjson({'error':'Invalid signal'},400)
+            if signal not in TV_ALLOWED:return self.webhook_reject('Invalid signal',400)
             kind=str(payload.get('type','futures')).lower()
             # Older TradingView alert snapshots can carry a chart-type label instead
             # of our market classification. Normalize only recognizable symbols.
@@ -78,7 +82,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if base.startswith(('XAU','XAG')):kind='gold'
                 elif re.fullmatch(r'[A-Z]{6}',base):kind='forex'
                 elif re.fullmatch(r'(?:M?ES|M?NQ|M?YM|M?RTY|6[A-Z]|CL|GC|SI|MBT|BTC)[A-Z0-9!]*',base):kind='futures'
-                else:return self.sendjson({'error':'Invalid market type; recreate TradingView alert'},400)
+                else:return self.webhook_reject('Invalid market type',400)
             def number(key):
                 v=payload.get(key)
                 if v is None or v=='':return None
@@ -87,17 +91,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return f
             entry=number('entry');stop=number('stop');targets=[number('tp1'),number('tp2'),number('tp3')]
             if signal!='wait' and (entry is None or stop is None or any(v is None for v in targets)):
-                return self.sendjson({'error':'Missing setup levels'},400)
+                return self.webhook_reject('Missing setup levels',400)
             trends={k:str(payload.get(k,'neutral')).lower() for k in ('m15','h1','h4','d1')}
-            if any(v not in ('buy','sell','neutral') for v in trends.values()):return self.sendjson({'error':'Invalid trend'},400)
+            if any(v not in ('buy','sell','neutral') for v in trends.values()):return self.webhook_reject('Invalid trend',400)
             event={'symbol':symbol,'type':kind,'signal':signal,'entry':entry,'stop':stop,'targets':targets,'trends':trends,'bar_time':str(payload.get('bar_time',''))[:60],'received_at':int(time.time()),'source':'TradingView webhook'}
             with TV_EVENTS_LOCK:
                 TV_EVENTS[symbol]=event
                 if signal!='wait':TV_EVENTS[symbol+'#last_setup']=event
                 if len(TV_EVENTS)>250:
                     oldest=min(TV_EVENTS,key=lambda k:TV_EVENTS[k]['received_at']);TV_EVENTS.pop(oldest,None)
+            print('TV_WEBHOOK_ACCEPT symbol='+symbol+' signal='+signal, flush=True)
             return self.sendjson({'ok':True,'symbol':symbol,'signal':signal})
-        except (ValueError,TypeError,UnicodeDecodeError,json.JSONDecodeError):return self.sendjson({'error':'Invalid payload'},400)
+        except (ValueError,TypeError,UnicodeDecodeError,json.JSONDecodeError):return self.webhook_reject('Invalid payload',400)
+        except (BrokenPipeError, ConnectionResetError):
+            print('TV_WEBHOOK_CLIENT_DISCONNECTED', flush=True)
     def do_HEAD(self):
         p=urllib.parse.urlsplit(self.path)
         if p.path not in ('/', '/index.html'):

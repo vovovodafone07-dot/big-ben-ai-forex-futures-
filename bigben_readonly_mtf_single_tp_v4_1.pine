@@ -1,16 +1,17 @@
 //@version=6
-indicator("Big Ben AI | TradingView Only v5", overlay=true, max_labels_count=100, max_lines_count=100)
+indicator("Big Ben AI | TradingView Only v5.2", overlay=true, max_labels_count=100, max_lines_count=100)
 rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
 side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
-lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
+lookback = input.int(10, "Breakout lookback", minval=3, maxval=100)
+filterMode = input.string("Balanced", "Signal filter", options=["Balanced","Strict"])
 swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
 showLevels = input.bool(true, "Show latest scenario levels")
 cooldownBars = input.int(0, "Bars to wait AFTER trade closes", minval=0, maxval=100)
 showClosedLevels = input.bool(true, "Keep completed trade lines")
 minStopATR = input.float(0.4, "Min stop distance in ATR", minval=0.0, maxval=10.0, step=0.1)
 maxStopATR = input.float(4.0, "Max stop distance in ATR", minval=0.5, maxval=20.0, step=0.25)
-minBodyATR = input.float(0.25, "Min breakout candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
-minBreakoutATR = input.float(0.05, "Min breakout distance / ATR", minval=0.0, maxval=3.0, step=0.05)
+minBodyATR = input.float(0.10, "Min breakout candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
+minBreakoutATR = input.float(0.0, "Min breakout distance / ATR", minval=0.0, maxval=3.0, step=0.05)
 f_trend() =>
     ma10 = ta.sma(close, 10)
     ma20 = ta.sma(close, 20)
@@ -29,16 +30,16 @@ up = close > upperRange + atr * minBreakoutATR and close > open and bodyOK
 down = close < lowerRange - atr * minBreakoutATR and close < open and bodyOK
 allowBuy = side != "Sell"
 allowSell = side != "Buy"
-htfBuy = t15 == 1 and t60 == 1 and t240 == 1
-htfSell = t15 == -1 and t60 == -1 and t240 == -1
+htfBuy = filterMode == "Strict" ? (t15 == 1 and t60 == 1 and t240 == 1) : (t15 == 1 and t60 != -1)
+htfSell = filterMode == "Strict" ? (t15 == -1 and t60 == -1 and t240 == -1) : (t15 == -1 and t60 != 1)
 buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy
 sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell
 stopBuy = ta.lowest(low, swing) - atr * 0.2
 stopSell = ta.highest(high, swing) + atr * 0.2
 riskBuy = close - stopBuy
 riskSell = stopSell - close
-buy := buy and riskBuy > syminfo.mintick and riskBuy >= atr * minStopATR and riskBuy <= atr * maxStopATR
-sell := sell and riskSell > syminfo.mintick and riskSell >= atr * minStopATR and riskSell <= atr * maxStopATR
+buy := buy and riskBuy > syminfo.mintick and (filterMode == "Balanced" or (riskBuy >= atr * minStopATR and riskBuy <= atr * maxStopATR))
+sell := sell and riskSell > syminfo.mintick and (filterMode == "Balanced" or (riskSell >= atr * minStopATR and riskSell <= atr * maxStopATR))
 // One tracked hypothetical setup per symbol/chart. No broker position is read or executed.
 // Entry is assumed at the signal candle CLOSE; intrabar gaps/slippage are not modeled.
 var int tradeDir = 0
@@ -135,7 +136,7 @@ if barstate.islast
     table.cell(panel,0,7,"Last Entry / SL",text_color=color.white)
     table.cell(panel,1,7,na(lastSetupEntry) ? "NONE" : str.tostring(lastSetupEntry,format.mintick)+" / "+str.tostring(lastSetupStop,format.mintick),text_color=color.white)
     table.cell(panel,0,8,"Trade state",text_color=color.white)
-    table.cell(panel,1,8,tradeStatus,text_color=tradeDir != 0 ? color.lime : color.orange)
+    table.cell(panel,1,8,tradeStatus + " | " + filterMode,text_color=tradeDir != 0 ? color.lime : color.orange)
     table.cell(panel,0,9,"Last TP",text_color=color.white)
     table.cell(panel,1,9,na(lastSetupTarget) ? "NO SETUP YET" : str.tostring(lastSetupTarget,format.mintick),text_color=color.aqua)
     table.cell(panel,0,10,"RR",text_color=color.white)

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bigben-ai-readonly
+    runtime: python
+    plan: free
+    buildCommand: "python -m compileall -q server.py"
+    startCommand: "python server.py"
+    healthCheckPath: /health
+    envVars:
+      - key: TWELVEDATA_API_KEY
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"

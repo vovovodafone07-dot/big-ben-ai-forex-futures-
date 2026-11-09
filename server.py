@@ -11,7 +11,7 @@ def provider_error(payload, default='Market data unavailable'):
     if not isinstance(payload,dict):return default
     code=payload.get('code')
     msg=str(payload.get('message',default))
-    msg=re.sub(r'(?i)(apikey|api_key|token|secret|authorization)[=: ]+[^\\s&,]+',r'\\1=[hidden]',msg)
+    msg=re.sub(r'(?i)(apikey|api_key|token|secret|authorization)[=: ]+[^\s&,]+',r'\1=[hidden]',msg)
     msg=msg[:260]
     return ('Twelve Data '+str(code)+': ' if isinstance(code,int) else 'Twelve Data: ')+msg
 

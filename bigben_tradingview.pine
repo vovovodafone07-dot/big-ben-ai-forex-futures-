@@ -1,10 +1,19 @@
 //@version=6
-indicator("Big Ben AI | Read-only MTF", overlay=true, max_labels_count=100, max_lines_count=100)
+indicator("Big Ben AI V2 | Filtered MTF", overlay=true, max_labels_count=100, max_lines_count=100)
 rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
 side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
 lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
 swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
 showLevels = input.bool(true, "Show latest scenario levels")
+minBodyAtr = input.float(0.35, "Min candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
+minAtrPct = input.float(0.02, "Min ATR as % of price", minval=0.0, maxval=10.0, step=0.01)
+maxAtrPct = input.float(2.0, "Max ATR as % of price", minval=0.01, maxval=20.0, step=0.05)
+maxRiskAtr = input.float(3.0, "Max stop distance / ATR", minval=0.5, maxval=15.0, step=0.25)
+cooldownBars = input.int(6, "Bars between new setups", minval=0, maxval=100)
+useVolumeFilter = input.bool(false, "Require above-average volume (if reliable)")
+volumeFactor = input.float(1.1, "Volume / 20-bar average", minval=0.5, maxval=5.0, step=0.1)
+useSessionFilter = input.bool(false, "Limit signals to selected exchange-time session")
+tradeSession = input.session("0800-1700", "Signal session (exchange timezone)")
 webhookToken = input.string("", "Private webhook token (keep script private)")
 f_trend() =>
     ma10 = ta.sma(close, 10)
@@ -23,14 +32,24 @@ allowBuy = side != "Sell"
 allowSell = side != "Buy"
 htfBuy = t15 == 1 and t60 == 1 and t240 == 1
 htfSell = t15 == -1 and t60 == -1 and t240 == -1
-buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy
-sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell
+bodyOk = math.abs(close-open) >= atr*minBodyAtr
+atrPct = atr / math.max(math.abs(close),syminfo.mintick)*100.0
+volatilityOk = not na(atrPct) and atrPct >= minAtrPct and atrPct <= maxAtrPct
+avgVolume = ta.sma(volume,20)
+volumeOk = not useVolumeFilter or (not na(volume) and not na(avgVolume) and volume >= avgVolume*volumeFactor)
+sessionOk = not useSessionFilter or not na(time(timeframe.period,tradeSession))
+var int lastSetupBar = na
+cooldownOk = na(lastSetupBar) or bar_index-lastSetupBar > cooldownBars
+buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy and close > open and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
+sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell and close < open and bodyOk and volatilityOk and volumeOk and sessionOk and cooldownOk
 stopBuy = ta.lowest(low, swing) - atr * 0.2
 stopSell = ta.highest(high, swing) + atr * 0.2
 riskBuy = close - stopBuy
 riskSell = stopSell - close
-buy := buy and riskBuy > syminfo.mintick
-sell := sell and riskSell > syminfo.mintick
+buy := buy and riskBuy > syminfo.mintick and riskBuy <= atr*maxRiskAtr
+sell := sell and riskSell > syminfo.mintick and riskSell <= atr*maxRiskAtr
+if buy or sell
+    lastSetupBar := bar_index
 plotshape(buy, title="Buy setup", style=shape.labelup, location=location.belowbar, text="BUY", color=color.new(color.green,0), textcolor=color.white, size=size.tiny)
 plotshape(sell, title="Sell setup", style=shape.labeldown, location=location.abovebar, text="SELL", color=color.new(color.red,0), textcolor=color.white, size=size.tiny)
 var line[] levels = array.new_line()
@@ -66,7 +85,7 @@ if buy or sell
 f_label(t) => t == 1 ? "UP" : t == -1 ? "DOWN" : "NEUTRAL"
 var table panel = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black,25), border_width=1)
 if barstate.islast
-    table.cell(panel,0,0,"Big Ben AI",text_color=color.white)
+    table.cell(panel,0,0,"Big Ben AI V2",text_color=color.white)
     table.cell(panel,1,0,timeframe.period == "5" ? "M5" : "USE M5",text_color=timeframe.period == "5" ? color.lime : color.orange)
     table.cell(panel,0,1,"M15",text_color=color.white)
     table.cell(panel,1,1,f_label(t15),text_color=color.white)

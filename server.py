@@ -70,7 +70,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if not isinstance(payload,dict):return self.webhook_reject('Invalid JSON',400)
             import hmac
             if not hmac.compare_digest(str(payload.get('secret','')),WEBHOOK_SECRET):return self.webhook_reject('Unauthorized',401)
-            symbol=str(payload.get('symbol','')).upper().strip()
+            # TradingView may send a modified ticker ID as a JSON-encoded string,
+            # e.g. {"settlement-as-close":true,"symbol":"CME_MINI:MNQ1!"}.
+            # Extract only the canonical symbol; never trust arbitrary nested data.
+            raw_symbol=payload.get('symbol','')
+            if isinstance(raw_symbol,str) and raw_symbol.lstrip().startswith('{'):
+                try:
+                    modified=json.loads(raw_symbol)
+                    raw_symbol=modified.get('symbol','') if isinstance(modified,dict) else ''
+                except (ValueError,TypeError):
+                    return self.webhook_reject('Invalid modified ticker',400)
+            symbol=raw_symbol.upper().strip() if isinstance(raw_symbol,str) else ''
             if not re.fullmatch(r'[A-Z0-9_:.!/-]{2,40}',symbol):return self.webhook_reject('Invalid symbol',400)
             signal=str(payload.get('signal','wait')).lower()
             if signal not in TV_ALLOWED:return self.webhook_reject('Invalid signal',400)

@@ -101,3 +101,15 @@ if barstate.isconfirmed and timeframe.period == "5" and webhookToken != ""
     p3 = isSetup ? str.tostring(e+d*r*rr, format.mintick) : "null"
     msg = '{"secret":"' + webhookToken + '","symbol":"' + syminfo.tickerid + '","type":"' + f_market() + '","signal":"' + (buy ? "buy" : sell ? "sell" : "wait") + '","entry":' + en + ',"stop":' + sl + ',"tp1":' + p1 + ',"tp2":' + p2 + ',"tp3":' + p3 + ',"m15":"' + f_dir(t15) + '","h1":"' + f_dir(t60) + '","h4":"' + f_dir(t240) + '","d1":"' + f_dir(tD) + '","bar_time":"' + str.tostring(time) + '"}'
     alert(msg, alert.freq_once_per_bar_close)
+
+
+// Separate mobile-app trade alerts. These do NOT change the existing silent webhook heartbeat.
+// In TradingView create alerts for "Big Ben BUY setup" and "Big Ben SELL setup"
+// with "Notify in app" enabled and Webhook URL disabled.
+plot(buy or sell ? close : na, title="BB Alert Entry", display=display.none)
+plot(buy ? stopBuy : sell ? stopSell : na, title="BB Alert SL", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr / 3 : na, title="BB Alert TP1", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr * 2 / 3 : na, title="BB Alert TP2", display=display.none)
+plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr : na, title="BB Alert TP3", display=display.none)
+alertcondition(buy, title="Big Ben BUY setup", message='Big Ben AI BUY | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP1: {{plot("BB Alert TP1")}} | TP2: {{plot("BB Alert TP2")}} | TP3: {{plot("BB Alert TP3")}}')
+alertcondition(sell, title="Big Ben SELL setup", message='Big Ben AI SELL | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP1: {{plot("BB Alert TP1")}} | TP2: {{plot("BB Alert TP2")}} | TP3: {{plot("BB Alert TP3")}}')

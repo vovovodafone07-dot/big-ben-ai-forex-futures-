@@ -6,7 +6,7 @@ lookback = input.int(20, "Breakout lookback", minval=5, maxval=100)
 swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
 showLevels = input.bool(true, "Show latest scenario levels")
 cooldownBars = input.int(0, "Bars to wait AFTER trade closes", minval=0, maxval=100)
-showClosedLevels = input.bool(false, "Keep completed trade lines")
+showClosedLevels = input.bool(true, "Keep completed trade lines")
 minStopATR = input.float(0.4, "Min stop distance in ATR", minval=0.0, maxval=10.0, step=0.1)
 maxStopATR = input.float(4.0, "Max stop distance in ATR", minval=0.5, maxval=20.0, step=0.25)
 minBodyATR = input.float(0.25, "Min breakout candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
@@ -116,7 +116,7 @@ if buy or sell
     lastSetupStop := buy ? stopBuy : stopSell
     lastSetupTarget := close + (buy ? 1.0 : -1.0) * math.abs(close - lastSetupStop) * rr
 f_label(t) => t == 1 ? "UP" : t == -1 ? "DOWN" : "NEUTRAL"
-var table panel = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black,25), border_width=1)
+var table panel = table.new(position.top_right, 2, 13, bgcolor=color.new(color.black,25), border_width=1)
 if barstate.islast
     table.cell(panel,0,0,"Big Ben AI",text_color=color.white)
     table.cell(panel,1,0,timeframe.period == "5" ? "M5" : "USE M5",text_color=timeframe.period == "5" ? color.lime : color.orange)
@@ -136,6 +136,14 @@ if barstate.islast
     table.cell(panel,1,7,na(lastSetupEntry) ? "NONE" : str.tostring(lastSetupEntry,format.mintick)+" / "+str.tostring(lastSetupStop,format.mintick),text_color=color.white)
     table.cell(panel,0,8,"Trade state",text_color=color.white)
     table.cell(panel,1,8,tradeStatus,text_color=tradeDir != 0 ? color.lime : color.orange)
+    table.cell(panel,0,9,"Last TP",text_color=color.white)
+    table.cell(panel,1,9,na(lastSetupTarget) ? "NO SETUP YET" : str.tostring(lastSetupTarget,format.mintick),text_color=color.aqua)
+    table.cell(panel,0,10,"RR",text_color=color.white)
+    table.cell(panel,1,10,str.tostring(rr),text_color=color.white)
+    table.cell(panel,0,11,"Potential BUY TP",text_color=color.white)
+    table.cell(panel,1,11,na(stopBuy) or riskBuy <= syminfo.mintick ? "N/A" : str.tostring(close + riskBuy * rr,format.mintick),text_color=color.aqua)
+    table.cell(panel,0,12,"Potential SELL TP",text_color=color.white)
+    table.cell(panel,1,12,na(stopSell) or riskSell <= syminfo.mintick ? "N/A" : str.tostring(close - riskSell * rr,format.mintick),text_color=color.aqua)
 // TradingView-only: no server, webhook, external data provider or broker orders.
 // Alerts fire only on confirmed M5 BUY/SELL setups.
 // Mobile-app trade alerts: Notify in app ON; Webhook URL OFF.

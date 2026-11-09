@@ -86,6 +86,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             event={'symbol':symbol,'type':kind,'signal':signal,'entry':entry,'stop':stop,'targets':targets,'trends':trends,'bar_time':str(payload.get('bar_time',''))[:60],'received_at':int(time.time()),'source':'TradingView webhook'}
             with TV_EVENTS_LOCK:
                 TV_EVENTS[symbol]=event
+                if signal!='wait':TV_EVENTS[symbol+'#last_setup']=event
                 if len(TV_EVENTS)>250:
                     oldest=min(TV_EVENTS,key=lambda k:TV_EVENTS[k]['received_at']);TV_EVENTS.pop(oldest,None)
             return self.sendjson({'ok':True,'symbol':symbol,'signal':signal})
@@ -100,7 +101,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         p=urllib.parse.urlsplit(self.path)
         if p.path=='/health':return self.sendjson({'ok':True})
         if p.path=='/api/tradingview/latest':
-            with TV_EVENTS_LOCK:events=list(TV_EVENTS.values())
+            with TV_EVENTS_LOCK:events=sorted(TV_EVENTS.values(),key=lambda x:x['received_at'],reverse=True)
             return self.sendjson({'connected':bool(WEBHOOK_SECRET),'events':events,'note':'In-memory data resets on deploy/restart. Events only arrive from configured TradingView alerts.'})
         if p.path=='/api/status':return self.sendjson({'connected':bool(KEY),'provider':'Twelve Data','note':'API key configured; not proof of successful provider connection or futures coverage'})
         if p.path not in ('/api/analyze',):

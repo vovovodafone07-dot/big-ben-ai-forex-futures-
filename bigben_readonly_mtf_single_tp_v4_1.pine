@@ -1,5 +1,5 @@
 //@version=6
-indicator("Big Ben AI | Clean Signals v6.1", overlay=true, max_lines_count=100, max_labels_count=100)
+indicator("Big Ben AI | Clean Signals v6.2", overlay=true, max_lines_count=100, max_labels_count=100)
 rr = input.float(2.0, "Risk / Reward", minval=0.5, maxval=10, step=0.5)
 direction = input.string("Both", "Direction", options=["Both","Buy","Sell"])
 lookback = input.int(15, "Breakout lookback", minval=5, maxval=100)
@@ -8,7 +8,9 @@ atrLen = input.int(14, "ATR period", minval=5)
 maxBodyATR = input.float(1.4, "Maximum signal body / ATR", minval=0.2, step=0.1)
 maxRiskATR = input.float(2.5, "Maximum stop distance / ATR", minval=0.5, step=0.25)
 minRiskATR = input.float(0.3, "Minimum stop distance / ATR", minval=0.1, step=0.1)
-cooldown = input.int(3, "Bars after exit", minval=1, maxval=50)
+cooldown = input.int(5, "Bars after exit", minval=1, maxval=50)
+retestToleranceATR = input.float(0.25, "Retest tolerance ATR", minval=0.05, maxval=1, step=0.05)
+maxEntryDistanceATR = input.float(0.6, "Max entry distance from retest ATR", minval=0.1, maxval=2, step=0.1)
 showLevels = input.bool(false, "Draw Entry / SL / TP lines (optional)")
 f_trend() =>
     fast = ta.ema(close, 20)
@@ -23,8 +25,8 @@ ema50 = ta.ema(close,50)
 upper = ta.highest(high[1],lookback)
 lower = ta.lowest(low[1],lookback)
 isM5 = timeframe.isminutes and timeframe.multiplier == 5
-bullTrend = ema20 > ema50 and close > ema20 and t15 == 1 and t60 == 1 and t240 != -1
-bearTrend = ema20 < ema50 and close < ema20 and t15 == -1 and t60 == -1 and t240 != 1
+bullTrend = ema20 > ema50 and close > ema20 and t15 == 1 and t60 == 1 and t240 == 1
+bearTrend = ema20 < ema50 and close < ema20 and t15 == -1 and t60 == -1 and t240 == -1
 // Breakout creates a candidate, not an immediate trade.
 var int pendingDir = 0
 var float pendingLevel = na
@@ -64,8 +66,8 @@ if barstate.isconfirmed and isM5
         sellStop = ta.highest(high,5) + atr*0.15
         riskBuy = close-buyStop
         riskSell = sellStop-close
-        buy := pendingDir == 1 and bullTrend and direction != "Sell" and low <= pendingLevel + atr*0.15 and close > pendingLevel and close > open and close > ema20 and riskBuy >= atr*minRiskATR and riskBuy <= atr*maxRiskATR
-        sell := pendingDir == -1 and bearTrend and direction != "Buy" and high >= pendingLevel - atr*0.15 and close < pendingLevel and close < open and close < ema20 and riskSell >= atr*minRiskATR and riskSell <= atr*maxRiskATR
+        buy := pendingDir == 1 and bullTrend and direction != "Sell" and low <= pendingLevel + atr*retestToleranceATR and low >= pendingLevel - atr*retestToleranceATR and close > pendingLevel and close - pendingLevel <= atr*maxEntryDistanceATR and close > open and close > ema20 and riskBuy >= atr*minRiskATR and riskBuy <= atr*maxRiskATR
+        sell := pendingDir == -1 and bearTrend and direction != "Buy" and high >= pendingLevel - atr*retestToleranceATR and high <= pendingLevel + atr*retestToleranceATR and close < pendingLevel and pendingLevel - close <= atr*maxEntryDistanceATR and close < open and close < ema20 and riskSell >= atr*minRiskATR and riskSell <= atr*maxRiskATR
         if buy or sell
             tradeDir := buy ? 1 : -1
             entryBar := bar_index

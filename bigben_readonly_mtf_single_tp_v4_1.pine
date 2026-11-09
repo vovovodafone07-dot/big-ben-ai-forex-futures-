@@ -1,158 +1,126 @@
 //@version=6
-indicator("Big Ben AI | TradingView Only v5.2", overlay=true, max_labels_count=100, max_lines_count=100)
-rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
-side = input.string("Both", "Allowed direction", options=["Both","Buy","Sell"])
-lookback = input.int(10, "Breakout lookback", minval=3, maxval=100)
-filterMode = input.string("Balanced", "Signal filter", options=["Balanced","Strict"])
-swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
-showLevels = input.bool(true, "Show latest scenario levels")
-cooldownBars = input.int(0, "Bars to wait AFTER trade closes", minval=0, maxval=100)
-showClosedLevels = input.bool(true, "Keep completed trade lines")
-minStopATR = input.float(0.4, "Min stop distance in ATR", minval=0.0, maxval=10.0, step=0.1)
-maxStopATR = input.float(4.0, "Max stop distance in ATR", minval=0.5, maxval=20.0, step=0.25)
-minBodyATR = input.float(0.10, "Min breakout candle body / ATR", minval=0.0, maxval=3.0, step=0.05)
-minBreakoutATR = input.float(0.0, "Min breakout distance / ATR", minval=0.0, maxval=3.0, step=0.05)
+indicator("Big Ben AI | Confirmed Retest v6", overlay=true, max_lines_count=100, max_labels_count=100)
+rr = input.float(2.0, "Risk / Reward", minval=0.5, maxval=10, step=0.5)
+direction = input.string("Both", "Direction", options=["Both","Buy","Sell"])
+lookback = input.int(15, "Breakout lookback", minval=5, maxval=100)
+retestBars = input.int(6, "Maximum bars to retest", minval=1, maxval=30)
+atrLen = input.int(14, "ATR period", minval=5)
+maxBodyATR = input.float(1.4, "Maximum signal body / ATR", minval=0.2, step=0.1)
+maxRiskATR = input.float(2.5, "Maximum stop distance / ATR", minval=0.5, step=0.25)
+minRiskATR = input.float(0.3, "Minimum stop distance / ATR", minval=0.1, step=0.1)
+cooldown = input.int(3, "Bars after exit", minval=1, maxval=50)
+showLevels = input.bool(true, "Draw Entry / SL / TP")
 f_trend() =>
-    ma10 = ta.sma(close, 10)
-    ma20 = ta.sma(close, 20)
-    close > ma20 and ma10 > ma20 ? 1 : close < ma20 and ma10 < ma20 ? -1 : 0
-// Use only the previous, closed higher-timeframe candle to avoid HTF repainting.
+    fast = ta.ema(close, 20)
+    slow = ta.ema(close, 50)
+    close > fast and fast > slow ? 1 : close < fast and fast < slow ? -1 : 0
 t15 = request.security(syminfo.tickerid, "15", f_trend()[1], lookahead=barmerge.lookahead_on)
 t60 = request.security(syminfo.tickerid, "60", f_trend()[1], lookahead=barmerge.lookahead_on)
 t240 = request.security(syminfo.tickerid, "240", f_trend()[1], lookahead=barmerge.lookahead_on)
-tD = request.security(syminfo.tickerid, "D", f_trend()[1], lookahead=barmerge.lookahead_on)
-trend = f_trend()
-atr = ta.atr(14)
-upperRange = ta.highest(high[1], lookback)
-lowerRange = ta.lowest(low[1], lookback)
-bodyOK = math.abs(close - open) >= atr * minBodyATR
-up = close > upperRange + atr * minBreakoutATR and close > open and bodyOK
-down = close < lowerRange - atr * minBreakoutATR and close < open and bodyOK
-allowBuy = side != "Sell"
-allowSell = side != "Buy"
-htfBuy = filterMode == "Strict" ? (t15 == 1 and t60 == 1 and t240 == 1) : (t15 == 1 and t60 != -1)
-htfSell = filterMode == "Strict" ? (t15 == -1 and t60 == -1 and t240 == -1) : (t15 == -1 and t60 != 1)
-buy = barstate.isconfirmed and timeframe.period == "5" and up and trend == 1 and htfBuy and allowBuy
-sell = barstate.isconfirmed and timeframe.period == "5" and down and trend == -1 and htfSell and allowSell
-stopBuy = ta.lowest(low, swing) - atr * 0.2
-stopSell = ta.highest(high, swing) + atr * 0.2
-riskBuy = close - stopBuy
-riskSell = stopSell - close
-buy := buy and riskBuy > syminfo.mintick and (filterMode == "Balanced" or (riskBuy >= atr * minStopATR and riskBuy <= atr * maxStopATR))
-sell := sell and riskSell > syminfo.mintick and (filterMode == "Balanced" or (riskSell >= atr * minStopATR and riskSell <= atr * maxStopATR))
-// One tracked hypothetical setup per symbol/chart. No broker position is read or executed.
-// Entry is assumed at the signal candle CLOSE; intrabar gaps/slippage are not modeled.
+atr = ta.atr(atrLen)
+ema20 = ta.ema(close,20)
+ema50 = ta.ema(close,50)
+upper = ta.highest(high[1],lookback)
+lower = ta.lowest(low[1],lookback)
+isM5 = timeframe.isminutes and timeframe.multiplier == 5
+bullTrend = ema20 > ema50 and close > ema20 and t15 == 1 and t60 == 1 and t240 != -1
+bearTrend = ema20 < ema50 and close < ema20 and t15 == -1 and t60 == -1 and t240 != 1
+// Breakout creates a candidate, not an immediate trade.
+var int pendingDir = 0
+var float pendingLevel = na
+var int pendingBar = na
 var int tradeDir = 0
 var int entryBar = na
-var int lastExitBar = na
-var float liveEntry = na
-var float liveStop = na
-var float liveTarget = na
-var string tradeStatus = "NONE"
-var line[] levels = array.new_line()
-var label[] notes = array.new_label()
-bool exitSL = false
-bool exitTP = false
-// Only evaluate exit from the candle AFTER entry.
-// If SL and TP are both touched in one bar, conservatively count SL first.
-if tradeDir != 0 and bar_index > entryBar
-    stopHit = tradeDir == 1 ? low <= liveStop : high >= liveStop
-    finalHit = tradeDir == 1 ? high >= liveTarget : low <= liveTarget
-    if stopHit
-        tradeStatus := "SL HIT"
-        exitSL := true
-    else if finalHit
-        tradeStatus := "TP HIT"
-        exitTP := true
-    if exitSL or exitTP
-        tradeDir := 0
-        lastExitBar := bar_index
-        if not showClosedLevels
-            for ln in levels
-                line.delete(ln)
-            array.clear(levels)
-            for nt in notes
-                label.delete(nt)
-            array.clear(notes)
-canOpen = tradeDir == 0 and (na(lastExitBar) or bar_index - lastExitBar > cooldownBars)
-buy := buy and canOpen
-sell := sell and canOpen
-if buy or sell
-    tradeDir := buy ? 1 : -1
-    entryBar := bar_index
-    liveEntry := close
-    liveStop := buy ? stopBuy : stopSell
-    dist = math.abs(liveEntry - liveStop)
-    sign = buy ? 1.0 : -1.0
-    liveTarget := liveEntry + sign * dist * rr
-    tradeStatus := buy ? "BUY ACTIVE" : "SELL ACTIVE"
-plotshape(buy, title="Buy setup", style=shape.labelup, location=location.belowbar, text="BUY", color=color.new(color.green,0), textcolor=color.white, size=size.tiny)
-plotshape(sell, title="Sell setup", style=shape.labeldown, location=location.abovebar, text="SELL", color=color.new(color.red,0), textcolor=color.white, size=size.tiny)
-if (buy or sell) and showLevels
-    for l in levels
-        line.delete(l)
-    array.clear(levels)
-    for n in notes
-        label.delete(n)
-    array.clear(notes)
-    d = buy ? 1.0 : -1.0
-    entry = close
-    stop = buy ? stopBuy : stopSell
-    risk = math.abs(entry - stop)
-    prices = array.from(entry, stop, entry + d*risk*rr)
-    names = array.from("Entry", "SL", "TP")
-    for i = 0 to 2
-        price = array.get(prices, i)
-        clr = i == 1 ? color.red : i == 0 ? color.yellow : color.aqua
-        array.push(levels, line.new(bar_index, price, bar_index+20, price, color=clr, width=1))
-        array.push(notes, label.new(bar_index+20, price, array.get(names,i)+" "+str.tostring(price, format.mintick), color=color.new(color.black,80), textcolor=clr, style=label.style_label_left, size=size.tiny))
-// Remember the latest confirmed setup separately from the current candle status.
-var string lastSetupSide = "NONE"
-var float lastSetupEntry = na
-var float lastSetupStop = na
-var float lastSetupTarget = na
-if buy or sell
-    lastSetupSide := buy ? "BUY" : "SELL"
-    lastSetupEntry := close
-    lastSetupStop := buy ? stopBuy : stopSell
-    lastSetupTarget := close + (buy ? 1.0 : -1.0) * math.abs(close - lastSetupStop) * rr
-f_label(t) => t == 1 ? "UP" : t == -1 ? "DOWN" : "NEUTRAL"
-var table panel = table.new(position.top_right, 2, 13, bgcolor=color.new(color.black,25), border_width=1)
+var int exitBar = na
+var float entry = na
+var float stop = na
+var float target = na
+var string tradeState = "WAIT"
+var line entryLine = na
+var line stopLine = na
+var line tpLine = na
+var label entryLabel = na
+var label stopLabel = na
+var label tpLabel = na
+bool buy = false
+bool sell = false
+if barstate.isconfirmed and isM5
+    // Exit checks start on the bar after the signal.
+    if tradeDir != 0 and bar_index > entryBar
+        slHit = tradeDir == 1 ? low <= stop : high >= stop
+        tpHit = tradeDir == 1 ? high >= target : low <= target
+        if slHit or tpHit
+            tradeState := slHit ? "SL HIT" : "TP HIT"
+            tradeDir := 0
+            exitBar := bar_index
+    if pendingDir != 0 and (bar_index - pendingBar > retestBars or (pendingDir == 1 and not bullTrend) or (pendingDir == -1 and not bearTrend))
+        pendingDir := 0
+        pendingLevel := na
+    canEnter = tradeDir == 0 and (na(exitBar) or bar_index - exitBar > cooldown)
+    // Confirm the retest only on a later bar; the signal candle closes beyond the broken level.
+    bodyOK = math.abs(close-open) <= atr*maxBodyATR
+    if canEnter and pendingDir != 0 and bar_index > pendingBar and bodyOK
+        buyStop = ta.lowest(low,5) - atr*0.15
+        sellStop = ta.highest(high,5) + atr*0.15
+        riskBuy = close-buyStop
+        riskSell = sellStop-close
+        buy := pendingDir == 1 and bullTrend and direction != "Sell" and low <= pendingLevel + atr*0.15 and close > pendingLevel and close > open and close > ema20 and riskBuy >= atr*minRiskATR and riskBuy <= atr*maxRiskATR
+        sell := pendingDir == -1 and bearTrend and direction != "Buy" and high >= pendingLevel - atr*0.15 and close < pendingLevel and close < open and close < ema20 and riskSell >= atr*minRiskATR and riskSell <= atr*maxRiskATR
+        if buy or sell
+            tradeDir := buy ? 1 : -1
+            entryBar := bar_index
+            entry := close
+            stop := buy ? buyStop : sellStop
+            target := entry + tradeDir*math.abs(entry-stop)*rr
+            tradeState := buy ? "BUY ACTIVE" : "SELL ACTIVE"
+            pendingDir := 0
+            pendingLevel := na
+            if showLevels
+                line.delete(entryLine)
+                line.delete(stopLine)
+                line.delete(tpLine)
+                label.delete(entryLabel)
+                label.delete(stopLabel)
+                label.delete(tpLabel)
+                entryLine := line.new(bar_index,entry,bar_index+20,entry,extend=extend.right,color=color.yellow,width=2)
+                stopLine := line.new(bar_index,stop,bar_index+20,stop,extend=extend.right,color=color.red,width=2)
+                tpLine := line.new(bar_index,target,bar_index+20,target,extend=extend.right,color=color.aqua,width=2)
+                entryLabel := label.new(bar_index,entry,"Entry "+str.tostring(entry,format.mintick),style=label.style_label_left,color=color.new(color.black,70),textcolor=color.yellow)
+                stopLabel := label.new(bar_index,stop,"SL "+str.tostring(stop,format.mintick),style=label.style_label_left,color=color.new(color.black,70),textcolor=color.red)
+                tpLabel := label.new(bar_index,target,"TP "+str.tostring(target,format.mintick),style=label.style_label_left,color=color.new(color.black,70),textcolor=color.aqua)
+    // New breakout candidate only if not already waiting or trading.
+    if canEnter and tradeDir == 0 and pendingDir == 0 and not (buy or sell)
+        if bullTrend and direction != "Sell" and close > upper and close > open and math.abs(close-open) <= atr*maxBodyATR
+            pendingDir := 1
+            pendingLevel := upper
+            pendingBar := bar_index
+        else if bearTrend and direction != "Buy" and close < lower and close < open and math.abs(close-open) <= atr*maxBodyATR
+            pendingDir := -1
+            pendingLevel := lower
+            pendingBar := bar_index
+plot(ema20,"EMA 20",color=color.orange)
+plot(ema50,"EMA 50",color=color.blue)
+plot(pendingDir != 0 ? pendingLevel : na,"Retest level",color=color.new(color.purple,0),style=plot.style_linebr)
+plotshape(buy,title="BUY",style=shape.labelup,location=location.belowbar,text="BUY",color=color.green,textcolor=color.white,size=size.small)
+plotshape(sell,title="SELL",style=shape.labeldown,location=location.abovebar,text="SELL",color=color.red,textcolor=color.white,size=size.small)
+var table info = table.new(position.top_right,2,7,bgcolor=color.new(color.black,20))
 if barstate.islast
-    table.cell(panel,0,0,"Big Ben AI",text_color=color.white)
-    table.cell(panel,1,0,timeframe.period == "5" ? "M5" : "USE M5",text_color=timeframe.period == "5" ? color.lime : color.orange)
-    table.cell(panel,0,1,"M15",text_color=color.white)
-    table.cell(panel,1,1,f_label(t15),text_color=color.white)
-    table.cell(panel,0,2,"H1",text_color=color.white)
-    table.cell(panel,1,2,f_label(t60),text_color=color.white)
-    table.cell(panel,0,3,"H4",text_color=color.white)
-    table.cell(panel,1,3,f_label(t240),text_color=color.white)
-    table.cell(panel,0,4,"D1",text_color=color.white)
-    table.cell(panel,1,4,f_label(tD),text_color=color.white)
-    table.cell(panel,0,5,"Status",text_color=color.white)
-    table.cell(panel,1,5,buy ? "BUY SETUP" : sell ? "SELL SETUP" : tradeDir == 1 ? "BUY ACTIVE" : tradeDir == -1 ? "SELL ACTIVE" : "WAIT (new)",text_color=buy ? color.lime : sell ? color.red : color.orange)
-    table.cell(panel,0,6,"Last setup",text_color=color.white)
-    table.cell(panel,1,6,lastSetupSide,text_color=lastSetupSide == "BUY" ? color.lime : lastSetupSide == "SELL" ? color.red : color.gray)
-    table.cell(panel,0,7,"Last Entry / SL",text_color=color.white)
-    table.cell(panel,1,7,na(lastSetupEntry) ? "NONE" : str.tostring(lastSetupEntry,format.mintick)+" / "+str.tostring(lastSetupStop,format.mintick),text_color=color.white)
-    table.cell(panel,0,8,"Trade state",text_color=color.white)
-    table.cell(panel,1,8,tradeStatus + " | " + filterMode,text_color=tradeDir != 0 ? color.lime : color.orange)
-    table.cell(panel,0,9,"Last TP",text_color=color.white)
-    table.cell(panel,1,9,na(lastSetupTarget) ? "NO SETUP YET" : str.tostring(lastSetupTarget,format.mintick),text_color=color.aqua)
-    table.cell(panel,0,10,"RR",text_color=color.white)
-    table.cell(panel,1,10,str.tostring(rr),text_color=color.white)
-    table.cell(panel,0,11,"Potential BUY TP",text_color=color.white)
-    table.cell(panel,1,11,na(stopBuy) or riskBuy <= syminfo.mintick ? "N/A" : str.tostring(close + riskBuy * rr,format.mintick),text_color=color.aqua)
-    table.cell(panel,0,12,"Potential SELL TP",text_color=color.white)
-    table.cell(panel,1,12,na(stopSell) or riskSell <= syminfo.mintick ? "N/A" : str.tostring(close - riskSell * rr,format.mintick),text_color=color.aqua)
-// TradingView-only: no server, webhook, external data provider or broker orders.
-// Alerts fire only on confirmed M5 BUY/SELL setups.
-// Mobile-app trade alerts: Notify in app ON; Webhook URL OFF.
-// In TradingView create alerts for "Big Ben BUY setup" and "Big Ben SELL setup"
-// with "Notify in app" enabled and Webhook URL disabled.
-plot(buy or sell ? close : na, title="BB Alert Entry", display=display.none)
-plot(buy ? stopBuy : sell ? stopSell : na, title="BB Alert SL", display=display.none)
-plot(buy or sell ? close + (buy ? 1.0 : -1.0) * math.abs(close - (buy ? stopBuy : stopSell)) * rr : na, title="BB Alert TP", display=display.none)
-alertcondition(buy, title="Big Ben BUY setup", message='Big Ben AI BUY | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP: {{plot("BB Alert TP")}}')
-alertcondition(sell, title="Big Ben SELL setup", message='Big Ben AI SELL | {{ticker}} | M5 | Entry: {{plot("BB Alert Entry")}} | SL: {{plot("BB Alert SL")}} | TP: {{plot("BB Alert TP")}}')
-
+    table.cell(info,0,0,"Big Ben v6",text_color=color.white)
+    table.cell(info,1,0,isM5 ? "M5 READY" : "USE M5",text_color=isM5 ? color.lime : color.orange)
+    table.cell(info,0,1,"M15 / H1 / H4",text_color=color.white)
+    table.cell(info,1,1,str.tostring(t15)+" / "+str.tostring(t60)+" / "+str.tostring(t240),text_color=color.white)
+    table.cell(info,0,2,"Retest",text_color=color.white)
+    table.cell(info,1,2,pendingDir == 1 ? "WAIT BUY RETEST" : pendingDir == -1 ? "WAIT SELL RETEST" : "NONE",text_color=color.orange)
+    table.cell(info,0,3,"Trade",text_color=color.white)
+    table.cell(info,1,3,tradeState,text_color=color.white)
+    table.cell(info,0,4,"Entry",text_color=color.white)
+    table.cell(info,1,4,na(entry) ? "—" : str.tostring(entry,format.mintick),text_color=color.yellow)
+    table.cell(info,0,5,"SL",text_color=color.white)
+    table.cell(info,1,5,na(stop) ? "—" : str.tostring(stop,format.mintick),text_color=color.red)
+    table.cell(info,0,6,"TP",text_color=color.white)
+    table.cell(info,1,6,na(target) ? "—" : str.tostring(target,format.mintick),text_color=color.aqua)
+plot(buy or sell ? entry : na,title="Alert Entry",display=display.none)
+plot(buy or sell ? stop : na,title="Alert SL",display=display.none)
+plot(buy or sell ? target : na,title="Alert TP",display=display.none)
+alertcondition(buy,title="Big Ben BUY setup",message='Big Ben BUY {{ticker}} M5 Entry {{plot("Alert Entry")}} SL {{plot("Alert SL")}} TP {{plot("Alert TP")}}')
+alertcondition(sell,title="Big Ben SELL setup",message='Big Ben SELL {{ticker}} M5 Entry {{plot("Alert Entry")}} SL {{plot("Alert SL")}} TP {{plot("Alert TP")}}')

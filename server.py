@@ -3,6 +3,12 @@ import os, json, urllib.request, urllib.error, urllib.parse, http.server, pathli
 ROOT=pathlib.Path(__file__).parent
 KEY=os.getenv('TWELVEDATA_API_KEY','').strip()
 LOCK=threading.Lock()
+WEBHOOK_SECRET=os.getenv('TV_WEBHOOK_SECRET','').strip()
+TV_EVENTS={}
+TV_EVENTS_LOCK=threading.Lock()
+TV_ALLOWED={'buy','sell','wait'}
+TV_TYPES={'forex','futures','gold'}
+
 LAST_CALLS={}
 CACHE={}
 FUTURES={'ES':'ES','NQ':'NQ','YM':'YM','RTY':'RTY','6E':'6E','6B':'6B','6J':'6J','CL':'CL'}
@@ -49,6 +55,41 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
     def sendjson(self,body,status=200):
         raw=json.dumps(body,ensure_ascii=False).encode();self.send_response(status);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+    def do_POST(self):
+        p=urllib.parse.urlsplit(self.path)
+        if p.path!='/api/tradingview/webhook':return self.sendjson({'error':'Not found'},404)
+        if not WEBHOOK_SECRET:return self.sendjson({'error':'Webhook not configured'},503)
+        try:
+            length=int(self.headers.get('Content-Length','0'))
+            if not 1<=length<=4096:return self.sendjson({'error':'Invalid payload length'},413)
+            payload=json.loads(self.rfile.read(length))
+            if not isinstance(payload,dict):return self.sendjson({'error':'Invalid JSON'},400)
+            import hmac
+            if not hmac.compare_digest(str(payload.get('secret','')),WEBHOOK_SECRET):return self.sendjson({'error':'Unauthorized'},401)
+            symbol=str(payload.get('symbol','')).upper().strip()
+            if not re.fullmatch(r'[A-Z0-9_:.!/-]{2,40}',symbol):return self.sendjson({'error':'Invalid symbol'},400)
+            signal=str(payload.get('signal','wait')).lower()
+            if signal not in TV_ALLOWED:return self.sendjson({'error':'Invalid signal'},400)
+            kind=str(payload.get('type','futures')).lower()
+            if kind not in TV_TYPES:return self.sendjson({'error':'Invalid market type'},400)
+            def number(key):
+                v=payload.get(key)
+                if v is None or v=='':return None
+                f=float(v)
+                if not (-1e12<f<1e12):raise ValueError('Invalid price')
+                return f
+            entry=number('entry');stop=number('stop');targets=[number('tp1'),number('tp2'),number('tp3')]
+            if signal!='wait' and (entry is None or stop is None or any(v is None for v in targets)):
+                return self.sendjson({'error':'Missing setup levels'},400)
+            trends={k:str(payload.get(k,'neutral')).lower() for k in ('m15','h1','h4','d1')}
+            if any(v not in ('buy','sell','neutral') for v in trends.values()):return self.sendjson({'error':'Invalid trend'},400)
+            event={'symbol':symbol,'type':kind,'signal':signal,'entry':entry,'stop':stop,'targets':targets,'trends':trends,'bar_time':str(payload.get('bar_time',''))[:60],'received_at':int(time.time()),'source':'TradingView webhook'}
+            with TV_EVENTS_LOCK:
+                TV_EVENTS[symbol]=event
+                if len(TV_EVENTS)>250:
+                    oldest=min(TV_EVENTS,key=lambda k:TV_EVENTS[k]['received_at']);TV_EVENTS.pop(oldest,None)
+            return self.sendjson({'ok':True,'symbol':symbol,'signal':signal})
+        except (ValueError,TypeError,UnicodeDecodeError,json.JSONDecodeError):return self.sendjson({'error':'Invalid payload'},400)
     def do_HEAD(self):
         p=urllib.parse.urlsplit(self.path)
         if p.path not in ('/', '/index.html'):
@@ -58,6 +99,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         p=urllib.parse.urlsplit(self.path)
         if p.path=='/health':return self.sendjson({'ok':True})
+        if p.path=='/api/tradingview/latest':
+            with TV_EVENTS_LOCK:events=list(TV_EVENTS.values())
+            return self.sendjson({'connected':bool(WEBHOOK_SECRET),'events':events,'note':'In-memory data resets on deploy/restart. Events only arrive from configured TradingView alerts.'})
         if p.path=='/api/status':return self.sendjson({'connected':bool(KEY),'provider':'Twelve Data','note':'API key configured; not proof of successful provider connection or futures coverage'})
         if p.path not in ('/api/analyze',):
             if p.path in ('/', '/index.html'):

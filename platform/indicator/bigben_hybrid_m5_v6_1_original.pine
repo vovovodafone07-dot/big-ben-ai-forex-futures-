@@ -1,0 +1,157 @@
+//@version=6
+indicator("Big Ben AI | Hybrid M5 v6.1 | Pro Webhook", overlay=true, max_labels_count=300, max_lines_count=150, max_boxes_count=80)
+// Read-only analysis; no broker orders. v6.0 and existing alerts remain untouched.
+// Create a NEW TradingView alert: Any alert() function call; enable webhook URL in Notifications.
+// https://bigben-ai-pro-api.onrender.com/v1/tradingview/events
+groupCore = "01 | Big Ben"
+rr = input.float(3.0, "One target RR", minval=0.5, maxval=20, step=0.5, group=groupCore)
+side = input.string("Both", "Direction", options=["Both","Buy","Sell"], group=groupCore)
+mode = input.string("Breakout + Retest", "Entry model", options=["Breakout + Retest","Confirmed breakout"], group=groupCore)
+lookback = input.int(20, "Range bars", minval=5, maxval=100, group=groupCore)
+retestBars = input.int(6, "Retest timeout bars", minval=1, maxval=30, group=groupCore)
+swing = input.int(8, "Stop swing", minval=3, maxval=30, group=groupCore)
+cooldown = input.int(8, "Bars between entries", minval=0, maxval=100, group=groupCore)
+minBody = input.float(0.25, "Min breakout candle body / ATR", minval=0, maxval=3, step=0.05, group=groupCore)
+breakBuffer = input.float(0.05, "Breakout buffer / ATR", minval=0, maxval=2, step=0.05, group=groupCore)
+maxRiskATR = input.float(4.0, "Max stop distance / ATR", minval=0.5, maxval=20, group=groupCore)
+groupHTF = "02 | Higher timeframe"
+htfMode = input.string("Balanced", "M15/H1/H4 guard", options=["Balanced","Strict","Off"], group=groupHTF)
+groupHybrid = "03 | Hybrid evidence"
+useHybrid = input.bool(true, "Require additional evidence", group=groupHybrid)
+minEvidence = input.int(1, "Minimum evidence votes", minval=1, maxval=6, group=groupHybrid)
+pivotLen = input.int(3, "Swing pivot length", minval=2, maxval=15, group=groupHybrid)
+enableSMT = input.bool(false, "Enable SMT comparison (optional)", group=groupHybrid)
+smtSymbol = input.symbol("CME_MINI:ES1!", "SMT comparison symbol (choose correlated market)", group=groupHybrid)
+groupDisplay = "04 | Display & alerts"
+showBoxes = input.bool(true, "Entry / risk / reward boxes", group=groupDisplay)
+showPatterns = input.bool(true, "Show detected pattern labels", group=groupDisplay)
+bridgeEnabled = input.bool(true, "Webhook JSON via alert() (requires token)", group=groupDisplay)
+bridgeToken = input.string("", "Private webhook token (do not share)", group=groupDisplay)
+f_bias() =>
+    fast = ta.ema(close, 10)
+    slow = ta.ema(close, 20)
+    fast > slow and close > slow ? 1 : fast < slow and close < slow ? -1 : 0
+b15 = request.security(syminfo.tickerid, "15", f_bias()[1], lookahead=barmerge.lookahead_on)
+b60 = request.security(syminfo.tickerid, "60", f_bias()[1], lookahead=barmerge.lookahead_on)
+b240 = request.security(syminfo.tickerid, "240", f_bias()[1], lookahead=barmerge.lookahead_on)
+htfLong = htfMode=="Off" or (htfMode=="Strict" ? b15==1 and b60==1 and b240==1 : b15==1 and b60!=-1)
+htfShort = htfMode=="Off" or (htfMode=="Strict" ? b15==-1 and b60==-1 and b240==-1 : b15==-1 and b60!=1)
+atr = ta.atr(14)
+rangeHi = ta.highest(high[1], lookback)
+rangeLo = ta.lowest(low[1], lookback)
+bodyOK = math.abs(close-open) >= atr*minBody
+breakUp = barstate.isconfirmed and close > rangeHi+atr*breakBuffer and close>open and bodyOK and close[1]<=rangeHi[1]
+breakDn = barstate.isconfirmed and close < rangeLo-atr*breakBuffer and close<open and bodyOK and close[1]>=rangeLo[1]
+// SMC/ICT primitives: confirmed pivot break (BOS), 3-candle fair value gap, and liquidity sweep.
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+bosUp = not na(lastPH) and close>lastPH and close[1]<=lastPH
+bosDn = not na(lastPL) and close<lastPL and close[1]>=lastPL
+fvgUp = low>high[2]
+fvgDn = high<low[2]
+sweepLow = not na(lastPL) and low<lastPL and close>lastPL
+sweepHigh = not na(lastPH) and high>lastPH and close<lastPH
+// Turtle Soup: sweep of the prior lookback range followed by closing back inside.
+turtleBuy = low<rangeLo and close>rangeLo and close>open
+turtleSell = high>rangeHi and close<rangeHi and close<open
+// CRT proxy: previous candle is a mother candle; current candle raids one extreme and closes inside.
+crtBuy = low<low[1] and close>low[1] and close<high[1] and close>open
+crtSell = high>high[1] and close<high[1] and close>low[1] and close<open
+// CISD proxy: close crosses the open of the most recent opposite candle.
+cisdBuy = close>open[1] and close[1]<open[1] and close>open
+cisdSell = close<open[1] and close[1]>open[1] and close<open
+// QM proxy: shift in swing structure after an opposite break. Not a complete discretionary QM model.
+qmBuy = bosUp and ta.lowest(low, pivotLen*2)>ta.lowest(low, pivotLen*4)[pivotLen*2]
+qmSell = bosDn and ta.highest(high, pivotLen*2)<ta.highest(high, pivotLen*4)[pivotLen*2]
+// SMT: compare directional divergence of latest lookback extremes against a user-selected correlated symbol.
+peerHigh = request.security(smtSymbol, timeframe.period, ta.highest(high, lookback), ignore_invalid_symbol=true)
+peerLow = request.security(smtSymbol, timeframe.period, ta.lowest(low, lookback), ignore_invalid_symbol=true)
+smtBuy = enableSMT and not na(peerLow) and low<rangeLo and peerLow>=peerLow[1]
+smtSell = enableSMT and not na(peerHigh) and high>rangeHi and peerHigh<=peerHigh[1]
+votesBuy = (bosUp?1:0)+(fvgUp?1:0)+(sweepLow?1:0)+(turtleBuy?1:0)+(crtBuy?1:0)+(cisdBuy?1:0)+(qmBuy?1:0)+(smtBuy?1:0)
+votesSell = (bosDn?1:0)+(fvgDn?1:0)+(sweepHigh?1:0)+(turtleSell?1:0)+(crtSell?1:0)+(cisdSell?1:0)+(qmSell?1:0)+(smtSell?1:0)
+var int pendingDir = 0
+var int pendingBar = na
+var float pendingLevel = na
+if breakUp
+    pendingDir:=1
+    pendingBar:=bar_index
+    pendingLevel:=rangeHi
+if breakDn
+    pendingDir:=-1
+    pendingBar:=bar_index
+    pendingLevel:=rangeLo
+if pendingDir!=0 and bar_index-pendingBar>retestBars
+    pendingDir:=0
+// Retest must be on a later candle, reclaim breakout level and close in breakout direction.
+retestBuy = pendingDir==1 and bar_index>pendingBar and low<=pendingLevel+atr*0.2 and close>pendingLevel and close>open
+retestSell = pendingDir==-1 and bar_index>pendingBar and high>=pendingLevel-atr*0.2 and close<pendingLevel and close<open
+triggerBuy = mode=="Confirmed breakout" ? breakUp : retestBuy
+triggerSell = mode=="Confirmed breakout" ? breakDn : retestSell
+// Evidence evaluated on trigger and (for retest) on breakout candle; does not repaint future pivots.
+evidenceBuy = votesBuy + (mode=="Breakout + Retest" and bar_index>pendingBar ? nz(votesBuy[1]) : 0)
+evidenceSell = votesSell + (mode=="Breakout + Retest" and bar_index>pendingBar ? nz(votesSell[1]) : 0)
+stopBuy = ta.lowest(low,swing)-atr*0.2
+stopSell = ta.highest(high,swing)+atr*0.2
+riskBuy = close-stopBuy
+riskSell = stopSell-close
+validBuy = riskBuy>syminfo.mintick and riskBuy<=atr*maxRiskATR
+validSell = riskSell>syminfo.mintick and riskSell<=atr*maxRiskATR
+var int lastEntryBar = na
+var int tradeDir = 0
+var float entry = na
+var float stop = na
+var float target = na
+if tradeDir!=0 and barstate.isconfirmed and bar_index>lastEntryBar
+    if (tradeDir==1 and (low<=stop or high>=target)) or (tradeDir==-1 and (high>=stop or low<=target))
+        tradeDir:=0
+ready = tradeDir==0 and (na(lastEntryBar) or bar_index-lastEntryBar>cooldown)
+isM5 = timeframe.isminutes and timeframe.multiplier==5
+buy = barstate.isconfirmed and isM5 and ready and triggerBuy and htfLong and validBuy and side!="Sell" and (not useHybrid or evidenceBuy>=minEvidence)
+sell = barstate.isconfirmed and isM5 and ready and triggerSell and htfShort and validSell and side!="Buy" and (not useHybrid or evidenceSell>=minEvidence)
+var box riskBox = na
+var box rewardBox = na
+var line entryLine = na
+var label setupLabel = na
+if buy or sell
+    tradeDir:=buy?1:-1
+    lastEntryBar:=bar_index
+    entry:=close
+    stop:=buy?stopBuy:stopSell
+    target:=entry+tradeDir*math.abs(entry-stop)*rr
+    pendingDir:=0
+    if not na(riskBox)
+        box.delete(riskBox)
+    if not na(rewardBox)
+        box.delete(rewardBox)
+    if not na(entryLine)
+        line.delete(entryLine)
+    if not na(setupLabel)
+        label.delete(setupLabel)
+    if showBoxes
+        riskBox:=box.new(bar_index, math.max(entry,stop),bar_index+12,math.min(entry,stop),bgcolor=color.new(color.red,84),border_color=color.new(color.red,30))
+        rewardBox:=box.new(bar_index,math.max(entry,target),bar_index+12,math.min(entry,target),bgcolor=color.new(color.teal,84),border_color=color.new(color.teal,30))
+        entryLine:=line.new(bar_index,entry,bar_index+12,entry,color=color.yellow,width=2)
+    desc = (buy?"BUY":"SELL")+" | Entry "+str.tostring(entry,format.mintick)+"\nSL "+str.tostring(stop,format.mintick)+" | TP "+str.tostring(target,format.mintick)+"\nRR "+str.tostring(rr)+" | Evidence "+str.tostring(buy?evidenceBuy:evidenceSell)
+    setupLabel:=label.new(bar_index,buy?low:high,desc,style=buy?label.style_label_up:label.style_label_down,color=buy?color.new(color.teal,0):color.new(color.red,0),textcolor=color.white,size=size.small)
+    if bridgeEnabled and str.length(bridgeToken)>=32
+        eventSide=buy?"BUY":"SELL"
+        eventTime=str.format_time(time_close,"yyyy-MM-dd'T'HH:mm:ss'Z'","UTC")
+        eventId=str.replace_all(str.replace_all(syminfo.tickerid,"!","_"),"/","_")+"-"+str.tostring(time_close)+"-"+eventSide
+        payload='{"token":"'+bridgeToken+'","schema":"bigben.v1","event":"'+eventSide+'","event_id":"'+eventId+'","symbol":"'+syminfo.tickerid+'","time":"'+eventTime+'","entry":'+str.tostring(entry)+',"sl":'+str.tostring(stop)+',"tp":'+str.tostring(target)+',"rr":'+str.tostring(rr)+'}'
+        alert(payload,alert.freq_once_per_bar_close)
+plotshape(buy,title="BUY",style=shape.triangleup,location=location.belowbar,color=color.lime,size=size.tiny)
+plotshape(sell,title="SELL",style=shape.triangledown,location=location.abovebar,color=color.red,size=size.tiny)
+plot(buy or sell?entry:na,title="BB Entry",display=display.none)
+plot(buy or sell?stop:na,title="BB SL",display=display.none)
+plot(buy or sell?target:na,title="BB TP",display=display.none)
+alertcondition(buy,title="Big Ben Hybrid BUY",message='BUY {{ticker}} Entry {{plot("BB Entry")}} SL {{plot("BB SL")}} TP {{plot("BB TP")}}')
+alertcondition(sell,title="Big Ben Hybrid SELL",message='SELL {{ticker}} Entry {{plot("BB Entry")}} SL {{plot("BB SL")}} TP {{plot("BB TP")}}')
+if showPatterns and barstate.isconfirmed and isM5 and (turtleBuy or turtleSell) and not (buy or sell)
+    label.new(bar_index,turtleBuy?low:high,turtleBuy?"Turtle Soup / Sweep":"Turtle Soup / Sweep",style=turtleBuy?label.style_label_up:label.style_label_down,color=color.new(color.purple,65),textcolor=color.white,size=size.tiny)

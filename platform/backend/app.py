@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time
+import os,json,hmac,math,re,sqlite3,time,base64
 from datetime import datetime,timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
@@ -32,7 +32,25 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"application/json","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'","Content-Length":str(len(b))}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(b)
  def do_GET(self):
-  self.reply(200,{"status":"ok","mode":"read-only"}) if urlsplit(self.path).path=="/healthz" else self.reply(404,{"error":"not_found"})
+  path=urlsplit(self.path).path
+  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
+  if path not in ("/","/dashboard"):return self.reply(404,{"error":"not_found"})
+  password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
+  if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
+  supplied=self.headers.get("Authorization","")
+  expected="Basic "+base64.b64encode(("bigben:"+password).encode()).decode()
+  if not hmac.compare_digest(supplied,expected):
+   self.send_response(401)
+   self.send_header("WWW-Authenticate",'Basic realm="Big Ben Private Preview"')
+   self.send_header("Cache-Control","no-store")
+   self.send_header("Content-Length","0")
+   self.end_headers()
+   return
+  try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
+  except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
+  self.send_response(200)
+  for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
+  self.end_headers();self.wfile.write(body)
  def do_POST(self):
   if urlsplit(self.path).path!="/v1/tradingview/events":return self.reply(404,{"error":"not_found"})
   secret=os.getenv("BIGBEN_WEBHOOK_TOKEN","")

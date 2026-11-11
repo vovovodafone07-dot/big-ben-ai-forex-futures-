@@ -5,10 +5,37 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
 DB=Path(os.getenv("BIGBEN_DB_PATH","/tmp/bigben-dev.sqlite3"))
+def postgres_enabled():
+ return bool(os.getenv("DATABASE_URL", "").strip())
+def storage_kind():
+ return "postgres" if postgres_enabled() else "ephemeral"
+def pg_connect():
+ # psycopg must be installed at build time; never log DATABASE_URL.
+ import psycopg
+ return psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
 def init():
- DB.parent.mkdir(parents=True,exist_ok=True)
+ if postgres_enabled():
+  with pg_connect() as c:
+   c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, symbol TEXT NOT NULL, event TEXT NOT NULL, time TEXT NOT NULL, payload TEXT NOT NULL)")
+ else:
+  DB.parent.mkdir(parents=True,exist_ok=True)
+  with sqlite3.connect(DB) as c:
+   c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
+def list_events():
+ init()
+ if postgres_enabled():
+  with pg_connect() as c:
+   return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
  with sqlite3.connect(DB) as c:
-  c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
+  return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
+def save_event(d):
+ init()
+ vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(d))
+ if postgres_enabled():
+  with pg_connect() as c:
+   return c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
+ with sqlite3.connect(DB) as c:
+  return c.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",vals).rowcount==0
 def validate(d):
  if not isinstance(d,dict) or d.get("schema")!="bigben.v1":raise ValueError("schema")
  if d.get("event") not in ("BUY","SELL","TP_HIT","SL_HIT","HEARTBEAT"):raise ValueError("event")
@@ -47,14 +74,12 @@ class Handler(BaseHTTPRequestHandler):
    self.end_headers()
    return
   if path=="/api/events":
-   init()
-   with sqlite3.connect(DB) as conn:
-    rows=conn.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
+   rows=list_events()
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
     events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr")})
-   return self.reply(200,{"events":events,"count":len(events),"storage":"ephemeral","source":"TradingView webhooks"})
+   return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
   self.send_response(200)
@@ -74,9 +99,7 @@ class Handler(BaseHTTPRequestHandler):
   if not isinstance(token,str) or not hmac.compare_digest(token,secret):return self.reply(401,{"error":"unauthorized"})
   try:validate(d)
   except ValueError as e:return self.reply(422,{"error":str(e)})
-  with sqlite3.connect(DB) as c:
-   result=c.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(d)))
-   duplicate=result.rowcount==0
+  duplicate=save_event(d)
   self.reply(200 if duplicate else 202,{"accepted":True,"duplicate":duplicate,"event_id":d["event_id"]})
 if __name__=="__main__":
  init();ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

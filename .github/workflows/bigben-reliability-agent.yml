@@ -1,0 +1,47 @@
+name: Big Ben reliability agent
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"
+permissions:
+  contents: read
+  issues: write
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inspect production integrations and freshness
+        id: check
+        continue-on-error: true
+        env:
+          BIGBEN_BASE_URL: https://bigben-ai-pro-api.onrender.com
+          BIGBEN_DASHBOARD_PASSWORD: ${{ secrets.BIGBEN_DASHBOARD_PASSWORD }}
+        run: |
+          set -o pipefail
+          python platform/agent/reliability_agent.py | tee agent-report.json
+      - name: Publish diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bigben-agent-report
+          path: agent-report.json
+      - name: Open or update an issue when service checks fail
+        if: steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Big Ben reliability agent: service health check failed"
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "Automated health check failed. Inspect the Actions artifact for diagnostics. No trading or deployments were performed."
+          else
+            gh issue comment "$existing" --body "Health check failed again. See the latest Actions artifact."
+          fi
+      - name: Fail job on outage
+        if: steps.check.outcome == 'failure'
+        run: exit 1

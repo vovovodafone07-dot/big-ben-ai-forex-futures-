@@ -86,14 +86,14 @@ if breakUp
     pendingDir:=1
     pendingBar:=bar_index
     pendingLevel:=rangeHi
-   pendingEvidenceBuy:=votesBuy
-   pendingEvidenceSell:=0
+    pendingEvidenceBuy:=votesBuy
+    pendingEvidenceSell:=0
 if breakDn
     pendingDir:=-1
     pendingBar:=bar_index
     pendingLevel:=rangeLo
-   pendingEvidenceSell:=votesSell
-   pendingEvidenceBuy:=0
+    pendingEvidenceSell:=votesSell
+    pendingEvidenceBuy:=0
 if pendingDir!=0 and bar_index-pendingBar>retestBars
     pendingDir:=0
 // Retest must be on a later candle, reclaim breakout level and close in breakout direction.

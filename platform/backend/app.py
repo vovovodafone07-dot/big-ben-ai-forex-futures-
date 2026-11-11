@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,sys,subprocess
+import os,json,hmac,math,re,sqlite3,time,base64,sys,subprocess,urllib.request,urllib.error
 from datetime import datetime,timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
@@ -62,6 +62,26 @@ def validate(d):
   if not ((sl<entry<tp) if d["event"]=="BUY" else (tp<entry<sl)):raise ValueError("direction")
   if not math.isclose(abs(tp-entry)/abs(entry-sl),rr,rel_tol=.03,abs_tol=.03):raise ValueError("rr")
  return d
+def telegram_notify(d):
+ # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
+  return "not_configured"
+ if d.get("event") not in ("BUY","SELL"):
+  return "skipped"
+ message=("\\U0001f4ca Big Ben AI Pro\\n"
+          +str(d["event"])+" | "+str(d["symbol"])+"\\n"
+          +"Entry: "+str(d["entry"])+"\\nSL: "+str(d["sl"])
+          +"\\nTP: "+str(d["tp"])+"\\nRR: "+str(d["rr"])
+          +"\\nAnalysis only — no order execution")
+ payload=json.dumps({"chat_id":chat,"text":message}).encode()
+ req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
+ try:
+  with urllib.request.urlopen(req,timeout=6) as response:
+   return "sent" if response.status==200 else "failed"
+ except (urllib.error.URLError,TimeoutError,ValueError):
+  return "failed"
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,obj):
@@ -130,5 +150,8 @@ class Handler(BaseHTTPRequestHandler):
   try:duplicate=save_event(d)
   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   self.reply(200 if duplicate else 202,{"accepted":True,"duplicate":duplicate,"event_id":d["event_id"]})
+  if not duplicate:
+   status=telegram_notify(d)
+   print("telegram_delivery="+status,flush=True)
 if __name__=="__main__":
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

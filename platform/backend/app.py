@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -147,6 +147,21 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/diagnostics":
+   try:
+    rows=list_events(500)
+    now=datetime.now(timezone.utc)
+    def recent(event_names):
+     for symbol,event,t,payload in rows:
+      if event in event_names:
+       try:
+        dt=datetime.fromisoformat(t.replace("Z","+00:00"))
+        age=max(0,int((now-dt).total_seconds()))
+        return {"symbol":symbol,"time":t,"age_seconds":age,"fresh":age<720}
+       except (ValueError,TypeError,AttributeError):pass
+     return None
+    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/status":
    try:
     rows=list_events()

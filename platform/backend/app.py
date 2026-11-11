@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -147,6 +147,25 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/market":
+   # Twelve Data is optional. Never label delayed or missing quotes as live.
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   q=parse_qs(urlsplit(self.path).query)
+   symbol=q.get("symbol",["EUR/USD"])[0].strip().upper()
+   if not re.fullmatch(r"[A-Z0-9:/._-]{2,32}",symbol):return self.reply(400,{"error":"symbol"})
+   key=os.getenv("TWELVE_DATA_API_KEY","").strip()
+   if not key:return self.reply(503,{"error":"market_provider_not_configured","provider":"Twelve Data"})
+   from urllib.parse import urlencode
+   url="https://api.twelvedata.com/price?"+urlencode({"symbol":symbol,"apikey":key})
+   try:
+    with urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"BigBenAIPro/1.0"}),timeout=8) as resp:
+     result=json.loads(resp.read(16384))
+    if not isinstance(result,dict) or "price" not in result:return self.reply(502,{"error":"market_provider_unavailable","provider":"Twelve Data","symbol":symbol})
+    price=float(result["price"])
+    if not math.isfinite(price) or price<=0:raise ValueError()
+    return self.reply(200,{"symbol":symbol,"price":price,"provider":"Twelve Data","fetched_at":datetime.now(timezone.utc).isoformat(),"quote_timestamp":None,"realtime_verified":False,"note":"Provider price fetched now; exchange quote time and real-time entitlement not verified."})
+   except (urllib.error.URLError,TimeoutError,ValueError,TypeError,KeyError,OverflowError):
+    return self.reply(502,{"error":"market_provider_unavailable","provider":"Twelve Data","symbol":symbol})
   if path=="/api/diagnostics":
    try:
     rows=list_events(500)
@@ -160,7 +179,7 @@ class Handler(BaseHTTPRequestHandler):
         return {"symbol":symbol,"time":t,"age_seconds":age,"fresh":age<720}
        except (ValueError,TypeError,AttributeError):pass
      return None
-    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/status":
    try:

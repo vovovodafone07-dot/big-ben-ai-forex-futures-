@@ -34,7 +34,7 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   path=urlsplit(self.path).path
   if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
-  if path not in ("/","/dashboard"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -46,6 +46,15 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/events":
+   init()
+   with sqlite3.connect(DB) as conn:
+    rows=conn.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
+   events=[]
+   for symbol,event,t,payload in rows:
+    d=json.loads(payload)
+    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr")})
+   return self.reply(200,{"events":events,"count":len(events),"storage":"ephemeral","source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
   self.send_response(200)

@@ -65,6 +65,8 @@ def validate(d):
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,obj):
+  if urlsplit(self.path).path=="/v1/tradingview/events":
+   print("webhook_result status="+str(status)+" reason="+str(obj.get("error","accepted"))+" duplicate="+str(obj.get("duplicate",False)),flush=True)
   b=json.dumps(obj).encode();self.send_response(status)
   for k,v in {"Content-Type":"application/json","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'","Content-Length":str(len(b))}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(b)
@@ -75,7 +77,13 @@ class Handler(BaseHTTPRequestHandler):
    try:
     init()
     if postgres_enabled():
-     with pg_connect() as c:c.execute("SELECT 1").fetchone()
+     # Exercise INSERT and SELECT inside a transaction, then roll back:
+     # confirms DB write permissions without leaving fake trading signals.
+     with pg_connect() as c:
+      c.execute("BEGIN")
+      c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING", ("__bigben_health_probe__","HEALTH","HEARTBEAT","probe","{}"))
+      c.execute("SELECT id FROM events WHERE id=%s", ("__bigben_health_probe__",)).fetchone()
+      c.rollback()
     else:
      with sqlite3.connect(DB) as c:c.execute("SELECT 1").fetchone()
    except Exception:

@@ -21,7 +21,9 @@ jobs:
         env:
           BIGBEN_BASE_URL: https://bigben-ai-pro-api.onrender.com
           BIGBEN_DASHBOARD_PASSWORD: ${{ secrets.BIGBEN_DASHBOARD_PASSWORD }}
-        run: python platform/agent/reliability_agent.py | tee agent-report.json
+        run: |
+          set -o pipefail
+          python platform/agent/reliability_agent.py | tee agent-report.json
       - name: Publish diagnostic artifact
         if: always()
         uses: actions/upload-artifact@v4

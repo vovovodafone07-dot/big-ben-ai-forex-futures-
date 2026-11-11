@@ -12,7 +12,7 @@ def init():
 def validate(d):
  if not isinstance(d,dict) or d.get("schema")!="bigben.v1":raise ValueError("schema")
  if d.get("event") not in ("BUY","SELL","TP_HIT","SL_HIT","HEARTBEAT"):raise ValueError("event")
- if not isinstance(d.get("symbol"),str) or not re.fullmatch(r"[A-Za-z0-9:_!.\\/-]{1,60}",d["symbol"]):raise ValueError("symbol")
+ if not isinstance(d.get("symbol"),str) or not re.fullmatch(r"[A-Za-z0-9:_!./-]{1,60}",d["symbol"]) or ".." in d["symbol"] or d["symbol"].startswith(("/", ".")):raise ValueError("symbol")
  if not isinstance(d.get("event_id"),str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{8,120}",d["event_id"]):raise ValueError("event_id")
  try:
   t=datetime.fromisoformat(d["time"].replace("Z","+00:00"))

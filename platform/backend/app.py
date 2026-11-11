@@ -32,13 +32,13 @@ def init():
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite3.connect(DB) as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
-def list_events(limit=500):
+def list_events(limit=500, kind="all"):
  init()
  if postgres_enabled():
   with pg_connect() as c:
-   return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 500").fetchall()
+   return c.execute("SELECT symbol,event,time,payload FROM events WHERE (%s = 'all' OR (%s = 'trades' AND event IN ('BUY','SELL')) OR (%s = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT %s",(kind,kind,kind,limit)).fetchall()
  with sqlite3.connect(DB) as c:
-  return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 500").fetchall()
+  return c.execute("SELECT symbol,event,time,payload FROM events WHERE (? = 'all' OR (? = 'trades' AND event IN ('BUY','SELL')) OR (? = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT ?",(kind,kind,kind,limit)).fetchall()
 def save_event(d):
  init()
  vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(d))
@@ -166,15 +166,12 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/api/events":
    kind=parse_qs(urlsplit(self.path).query).get("type",["trades"])[0]
    if kind not in ("trades","all","heartbeat"):return self.reply(400,{"error":"type"})
-   try:rows=list_events()
+   try:rows=list_events(150,kind)
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
-   if kind=="trades":rows=[r for r in rows if r[1] in ("BUY","SELL")][:150]
-   elif kind=="heartbeat":rows=[r for r in rows if r[1]=="HEARTBEAT"][:150]
-   else:rows=rows[:150]
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
-    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high")})
+    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
    return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})

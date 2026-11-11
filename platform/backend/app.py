@@ -93,6 +93,10 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   path=urlsplit(self.path).path
   if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
+  if path=="/healthz/integrations":
+   token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+   chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()}})
   if path=="/healthz/storage":
    try:
     init()

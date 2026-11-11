@@ -84,7 +84,8 @@ class Handler(BaseHTTPRequestHandler):
    self.end_headers()
    return
   if path=="/api/events":
-   rows=list_events()
+   try:rows=list_events()
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
@@ -109,7 +110,8 @@ class Handler(BaseHTTPRequestHandler):
   if not isinstance(token,str) or not hmac.compare_digest(token,secret):return self.reply(401,{"error":"unauthorized"})
   try:validate(d)
   except ValueError as e:return self.reply(422,{"error":str(e)})
-  duplicate=save_event(d)
+  try:duplicate=save_event(d)
+  except Exception:return self.reply(503,{"error":"storage_unavailable"})
   self.reply(200 if duplicate else 202,{"accepted":True,"duplicate":duplicate,"event_id":d["event_id"]})
 if __name__=="__main__":
- init();ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()
+ ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

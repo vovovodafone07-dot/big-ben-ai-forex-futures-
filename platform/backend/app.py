@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64
+import os,json,hmac,math,re,sqlite3,time,base64,sys,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
@@ -10,8 +10,18 @@ def postgres_enabled():
 def storage_kind():
  return "postgres" if postgres_enabled() else "ephemeral"
 def pg_connect():
- # psycopg must be installed at build time; never log DATABASE_URL.
- import psycopg
+ # Existing Render service builds without pip install. Install driver only if
+ # PostgreSQL is configured; keep secrets out of command arguments and logs.
+ try:
+  import psycopg
+ except ImportError:
+  target="/tmp/bigben-python-deps"
+  if target not in sys.path:sys.path.insert(0,target)
+  try:
+   import psycopg
+  except ImportError:
+   subprocess.run([sys.executable,"-m","pip","install","--disable-pip-version-check","--quiet","--target",target,"psycopg[binary]>=3.2,<4"],check=True,timeout=90)
+   import psycopg
  return psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
 def init():
  if postgres_enabled():

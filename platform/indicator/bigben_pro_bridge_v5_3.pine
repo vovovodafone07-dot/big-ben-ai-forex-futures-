@@ -1,0 +1,82 @@
+//@version=6
+indicator("Big Ben AI | Pro Bridge v5.3 (read-only)", overlay=true, max_labels_count=100, max_lines_count=100)
+rr = input.float(3.0, "RR target", minval=0.5, maxval=20, step=0.5)
+side = input.string("Both", "Direction", options=["Both","Buy","Sell"])
+lookback = input.int(10, "Breakout lookback", minval=3, maxval=100)
+filterMode = input.string("Balanced", "Filter", options=["Balanced","Strict"])
+swing = input.int(8, "Stop swing bars", minval=3, maxval=30)
+cooldownBars = input.int(0, "Cooldown after exit", minval=0, maxval=100)
+minStopATR = input.float(0.4, "Minimum stop / ATR", minval=0.0, maxval=10.0)
+maxStopATR = input.float(4.0, "Maximum stop / ATR", minval=0.5, maxval=20.0)
+minBodyATR = input.float(0.1, "Minimum body / ATR", minval=0.0, maxval=3.0)
+minBreakoutATR = input.float(0.0, "Minimum breakout / ATR", minval=0.0, maxval=3.0)
+showLevels = input.bool(true, "Show latest levels")
+bridgeEnabled = input.bool(false, "Send webhook JSON")
+bridgeToken = input.string("", "Private webhook token (never share)")
+f_trend() =>
+    ma10 = ta.sma(close, 10)
+    ma20 = ta.sma(close, 20)
+    close > ma20 and ma10 > ma20 ? 1 : close < ma20 and ma10 < ma20 ? -1 : 0
+t15 = request.security(syminfo.tickerid,"15",f_trend()[1],lookahead=barmerge.lookahead_on)
+t60 = request.security(syminfo.tickerid,"60",f_trend()[1],lookahead=barmerge.lookahead_on)
+t240 = request.security(syminfo.tickerid,"240",f_trend()[1],lookahead=barmerge.lookahead_on)
+trend = f_trend()
+atr = ta.atr(14)
+upper = ta.highest(high[1],lookback)
+lower = ta.lowest(low[1],lookback)
+bodyOK = math.abs(close-open) >= atr*minBodyATR
+up = close > upper+atr*minBreakoutATR and close > open and bodyOK
+down = close < lower-atr*minBreakoutATR and close < open and bodyOK
+htfBuy = filterMode=="Strict" ? t15==1 and t60==1 and t240==1 : t15==1 and t60!=-1
+htfSell = filterMode=="Strict" ? t15==-1 and t60==-1 and t240==-1 : t15==-1 and t60!=1
+stopBuy = ta.lowest(low,swing)-atr*0.2
+stopSell = ta.highest(high,swing)+atr*0.2
+riskBuy = close-stopBuy
+riskSell = stopSell-close
+validBuy = riskBuy>syminfo.mintick and riskBuy>=atr*minStopATR and riskBuy<=atr*maxStopATR
+validSell = riskSell>syminfo.mintick and riskSell>=atr*minStopATR and riskSell<=atr*maxStopATR
+var int tradeDir = 0
+var int entryBar = na
+var int lastExitBar = na
+var float liveEntry = na
+var float liveStop = na
+var float liveTarget = na
+var line entryLine = na
+var line stopLine = na
+var line targetLine = na
+if tradeDir!=0 and bar_index>entryBar
+    stopHit = tradeDir==1 ? low<=liveStop : high>=liveStop
+    targetHit = tradeDir==1 ? high>=liveTarget : low<=liveTarget
+    if stopHit or targetHit
+        tradeDir:=0
+        lastExitBar:=bar_index
+canOpen = tradeDir==0 and (na(lastExitBar) or bar_index-lastExitBar>cooldownBars)
+buy = barstate.isconfirmed and timeframe.period=="5" and canOpen and up and trend==1 and htfBuy and side!="Sell" and validBuy
+sell = barstate.isconfirmed and timeframe.period=="5" and canOpen and down and trend==-1 and htfSell and side!="Buy" and validSell
+if buy or sell
+    tradeDir:=buy ? 1 : -1
+    entryBar:=bar_index
+    liveEntry:=close
+    liveStop:=buy ? stopBuy : stopSell
+    liveTarget:=liveEntry+tradeDir*math.abs(liveEntry-liveStop)*rr
+    if not na(entryLine)
+        line.delete(entryLine)
+        line.delete(stopLine)
+        line.delete(targetLine)
+    if showLevels
+        entryLine:=line.new(bar_index,liveEntry,bar_index+20,liveEntry,color=color.yellow)
+        stopLine:=line.new(bar_index,liveStop,bar_index+20,liveStop,color=color.red)
+        targetLine:=line.new(bar_index,liveTarget,bar_index+20,liveTarget,color=color.aqua)
+    if bridgeEnabled and str.length(bridgeToken)>=32
+        eventSide = buy ? "BUY" : "SELL"
+        eventTime = str.format_time(time_close,"yyyy-MM-dd'T'HH:mm:ss'Z'","UTC")
+        eventId = str.replace_all(str.replace_all(syminfo.tickerid,"!","_"),"/","_")+"-"+str.tostring(time_close)+"-"+eventSide
+        payload = '{"token":"'+bridgeToken+'","schema":"bigben.v1","event":"'+eventSide+'","event_id":"'+eventId+'","symbol":"'+syminfo.tickerid+'","time":"'+eventTime+'","entry":'+str.tostring(liveEntry)+',"sl":'+str.tostring(liveStop)+',"tp":'+str.tostring(liveTarget)+',"rr":'+str.tostring(rr)+'}'
+        alert(payload,alert.freq_once_per_bar_close)
+plotshape(buy,title="BUY",style=shape.labelup,location=location.belowbar,text="BUY",color=color.green,textcolor=color.white,size=size.tiny)
+plotshape(sell,title="SELL",style=shape.labeldown,location=location.abovebar,text="SELL",color=color.red,textcolor=color.white,size=size.tiny)
+plot(buy or sell ? liveEntry : na,title="BB Alert Entry",display=display.none)
+plot(buy or sell ? liveStop : na,title="BB Alert SL",display=display.none)
+plot(buy or sell ? liveTarget : na,title="BB Alert TP",display=display.none)
+alertcondition(buy,title="Big Ben BUY setup",message='Big Ben BUY | {{ticker}} | Entry {{plot("BB Alert Entry")}} | SL {{plot("BB Alert SL")}} | TP {{plot("BB Alert TP")}}')
+alertcondition(sell,title="Big Ben SELL setup",message='Big Ben SELL | {{ticker}} | Entry {{plot("BB Alert Entry")}} | SL {{plot("BB Alert SL")}} | TP {{plot("BB Alert TP")}}')

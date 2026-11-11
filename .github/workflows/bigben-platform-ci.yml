@@ -1,0 +1,29 @@
+name: Big Ben Platform CI
+on:
+  push:
+    branches: [feature/bigben-ai-pro-platform]
+    paths:
+      - 'platform/backend/**'
+      - 'platform/tests/**'
+      - 'platform/indicator/**'
+      - '.github/workflows/bigben-platform-ci.yml'
+  pull_request:
+    paths:
+      - 'platform/backend/**'
+      - 'platform/tests/**'
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        run: python -m pip install -r platform/backend/requirements.txt
+      - name: Compile backend
+        run: python -m compileall -q platform/backend
+      - name: Run backend tests
+        run: python -m unittest discover -s platform/tests -v

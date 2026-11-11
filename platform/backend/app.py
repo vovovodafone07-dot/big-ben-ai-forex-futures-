@@ -3,7 +3,7 @@ import os,json,hmac,math,re,sqlite3,time,base64,sys,subprocess,urllib.request,ur
 from datetime import datetime,timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit,parse_qs
 DB=Path(os.getenv("BIGBEN_DB_PATH","/tmp/bigben-dev.sqlite3"))
 LAST_TEST_SENT=0
 def postgres_enabled():
@@ -32,13 +32,13 @@ def init():
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite3.connect(DB) as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
-def list_events():
+def list_events(limit=500):
  init()
  if postgres_enabled():
   with pg_connect() as c:
-   return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
+   return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 500").fetchall()
  with sqlite3.connect(DB) as c:
-  return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 50").fetchall()
+  return c.execute("SELECT symbol,event,time,payload FROM events ORDER BY time DESC LIMIT 500").fetchall()
 def save_event(d):
  init()
  vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(d))
@@ -130,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -142,13 +142,24 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/status":
+   try:
+    rows=list_events()
+    last=rows[0] if rows else None
+    return self.reply(200,{"last_event_time":last[2] if last else None,"last_event_symbol":last[0] if last else None,"recent_trade_count":sum(1 for r in rows if r[1] in ("BUY","SELL")),"recent_heartbeat_count":sum(1 for r in rows if r[1]=="HEARTBEAT"),"storage":storage_kind(),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))})
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/events":
+   kind=parse_qs(urlsplit(self.path).query).get("type",["trades"])[0]
+   if kind not in ("trades","all","heartbeat"):return self.reply(400,{"error":"type"})
    try:rows=list_events()
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
+   if kind=="trades":rows=[r for r in rows if r[1] in ("BUY","SELL")][:150]
+   elif kind=="heartbeat":rows=[r for r in rows if r[1]=="HEARTBEAT"][:150]
+   else:rows=rows[:150]
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
-    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr")})
+    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high")})
    return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})

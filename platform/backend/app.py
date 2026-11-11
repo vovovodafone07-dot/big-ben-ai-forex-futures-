@@ -80,7 +80,6 @@ class Handler(BaseHTTPRequestHandler):
      # Exercise INSERT and SELECT inside a transaction, then roll back:
      # confirms DB write permissions without leaving fake trading signals.
      with pg_connect() as c:
-      c.execute("BEGIN")
       c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING", ("__bigben_health_probe__","HEALTH","HEARTBEAT","probe","{}"))
       c.execute("SELECT id FROM events WHERE id=%s", ("__bigben_health_probe__",)).fetchone()
       c.rollback()
@@ -112,7 +111,7 @@ class Handler(BaseHTTPRequestHandler):
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
   self.send_response(200)
-  for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
+  for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
   if urlsplit(self.path).path!="/v1/tradingview/events":return self.reply(404,{"error":"not_found"})

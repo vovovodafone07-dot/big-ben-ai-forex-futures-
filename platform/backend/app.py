@@ -5,6 +5,7 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
 DB=Path(os.getenv("BIGBEN_DB_PATH","/tmp/bigben-dev.sqlite3"))
+LAST_TEST_SENT=0
 def postgres_enabled():
  return bool(os.getenv("DATABASE_URL", "").strip())
 def storage_kind():
@@ -70,7 +71,7 @@ def telegram_notify(d):
   return "not_configured"
  if d.get("event") not in ("BUY","SELL"):
   return "skipped"
- message=("\\U0001f4ca Big Ben AI Pro\\n"
+ message=("📊 Big Ben AI Pro\n"
           +str(d["event"])+" | "+str(d["symbol"])+"\\n"
           +"Entry: "+str(d["entry"])+"\\nSL: "+str(d["sl"])
           +"\\nTP: "+str(d["tp"])+"\\nRR: "+str(d["rr"])
@@ -82,6 +83,23 @@ def telegram_notify(d):
    return "sent" if response.status==200 else "failed"
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
+def send_telegram_message(message):
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
+  return "not_configured"
+ payload=json.dumps({"chat_id":chat,"text":message}).encode()
+ req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
+ try:
+  with urllib.request.urlopen(req,timeout=8) as response:
+   return "sent" if response.status==200 else "failed"
+ except (urllib.error.URLError,TimeoutError,ValueError):
+  return "failed"
+def dashboard_authenticated(headers):
+ password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
+ if len(password)<20:return False
+ expected="Basic "+base64.b64encode(("bigben:"+password).encode()).decode()
+ return hmac.compare_digest(headers.get("Authorization",""),expected)
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,obj):
@@ -138,6 +156,15 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/api/test-telegram":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   global LAST_TEST_SENT
+   now=time.monotonic()
+   if now-LAST_TEST_SENT<60:return self.reply(429,{"error":"rate_limited","retry_after_seconds":60})
+   LAST_TEST_SENT=now
+   result=send_telegram_message("✅ Big Ben AI Pro — رسالة اختبار اتصال Telegram. لا توجد صفقة أو إشارة تداول.")
+   print("telegram_test_delivery="+result,flush=True)
+   return self.reply(200 if result=="sent" else 503,{"status":result,"test_only":True})
   if urlsplit(self.path).path!="/v1/tradingview/events":return self.reply(404,{"error":"not_found"})
   secret=os.getenv("BIGBEN_WEBHOOK_TOKEN","")
   if len(secret)<32:return self.reply(503,{"error":"not_configured"})

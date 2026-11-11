@@ -28,7 +28,7 @@ def main():
    elif not hb.get("fresh"):warnings.append("Last heartbeat stale: "+str(hb.get("time")))
    if not d.get("market_provider_configured"):warnings.append("Twelve Data key not configured")
   except (urllib.error.URLError,ValueError,TimeoutError) as e:warnings.append("Authenticated diagnostics unavailable: "+type(e).__name__)
- else:warnings.append("Dashboard secret not provided to agent; freshness cannot be checked")
+ else:warnings.append("GitHub Actions secret BIGBEN_DASHBOARD_PASSWORD is missing; add it under repository Settings > Secrets and variables > Actions to enable private freshness checks")
  report["errors"]=errors;report["warnings"]=warnings
  print(json.dumps(report,ensure_ascii=False,indent=2))
  if errors:sys.exit(1)

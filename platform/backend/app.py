@@ -62,6 +62,11 @@ def validate(d):
   if any(type(n) not in (int,float) or not math.isfinite(n) or n<=0 for n in (entry,sl,tp,rr)):raise ValueError("levels")
   if not ((sl<entry<tp) if d["event"]=="BUY" else (tp<entry<sl)):raise ValueError("direction")
   if not math.isclose(abs(tp-entry)/abs(entry-sl),rr,rel_tol=.03,abs_tol=.03):raise ValueError("rr")
+ if d["event"]=="HEARTBEAT" and "close" in d:
+  price=d["close"]
+  if type(price) not in (int,float) or not math.isfinite(price) or price<=0:raise ValueError("close")
+  for tf in ("m15","h1","h4"):
+   if tf in d and (type(d[tf]) not in (int,float) or d[tf] not in (-1,0,1)):raise ValueError("bias")
  return d
 def telegram_notify(d):
  # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
@@ -148,7 +153,12 @@ class Handler(BaseHTTPRequestHandler):
     last=rows[0] if rows else None
     symbols={}
     for symbol,event,t,payload in rows:
-     if symbol not in symbols:symbols[symbol]={"symbol":symbol,"last_seen":t,"last_event":event,"heartbeat_count":0,"trade_count":0}
+     if symbol not in symbols:symbols[symbol]={"symbol":symbol,"last_seen":t,"last_event":event,"heartbeat_count":0,"trade_count":0,"last_close":None,"m15":None,"h1":None,"h4":None}
+     if event=="HEARTBEAT" and symbols[symbol]["last_close"] is None:
+      try:
+       d=json.loads(payload)
+       symbols[symbol].update({"last_close":d.get("close"),"m15":d.get("m15"),"h1":d.get("h1"),"h4":d.get("h4")})
+      except (ValueError,TypeError):pass
      if event=="HEARTBEAT":symbols[symbol]["heartbeat_count"]+=1
      if event in ("BUY","SELL"):symbols[symbol]["trade_count"]+=1
     return self.reply(200,{"last_event_time":last[2] if last else None,"last_event_symbol":last[0] if last else None,"recent_trade_count":sum(1 for r in rows if r[1] in ("BUY","SELL")),"recent_heartbeat_count":sum(1 for r in rows if r[1]=="HEARTBEAT"),"symbols":list(symbols.values()),"storage":storage_kind(),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))})

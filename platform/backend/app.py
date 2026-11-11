@@ -71,6 +71,16 @@ class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   path=urlsplit(self.path).path
   if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
+  if path=="/healthz/storage":
+   try:
+    init()
+    if postgres_enabled():
+     with pg_connect() as c:c.execute("SELECT 1").fetchone()
+    else:
+     with sqlite3.connect(DB) as c:c.execute("SELECT 1").fetchone()
+   except Exception:
+    return self.reply(503,{"status":"unavailable","storage":storage_kind()})
+   return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path not in ("/","/dashboard","/api/events"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})

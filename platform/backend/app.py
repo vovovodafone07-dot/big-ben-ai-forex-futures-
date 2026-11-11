@@ -146,7 +146,12 @@ class Handler(BaseHTTPRequestHandler):
    try:
     rows=list_events()
     last=rows[0] if rows else None
-    return self.reply(200,{"last_event_time":last[2] if last else None,"last_event_symbol":last[0] if last else None,"recent_trade_count":sum(1 for r in rows if r[1] in ("BUY","SELL")),"recent_heartbeat_count":sum(1 for r in rows if r[1]=="HEARTBEAT"),"storage":storage_kind(),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))})
+    symbols={}
+    for symbol,event,t,payload in rows:
+     if symbol not in symbols:symbols[symbol]={"symbol":symbol,"last_seen":t,"last_event":event,"heartbeat_count":0,"trade_count":0}
+     if event=="HEARTBEAT":symbols[symbol]["heartbeat_count"]+=1
+     if event in ("BUY","SELL"):symbols[symbol]["trade_count"]+=1
+    return self.reply(200,{"last_event_time":last[2] if last else None,"last_event_symbol":last[0] if last else None,"recent_trade_count":sum(1 for r in rows if r[1] in ("BUY","SELL")),"recent_heartbeat_count":sum(1 for r in rows if r[1]=="HEARTBEAT"),"symbols":list(symbols.values()),"storage":storage_kind(),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/events":
    kind=parse_qs(urlsplit(self.path).query).get("type",["trades"])[0]

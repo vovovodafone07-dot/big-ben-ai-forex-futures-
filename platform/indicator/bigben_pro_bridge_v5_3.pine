@@ -11,12 +11,8 @@ maxStopATR = input.float(4.0, "Maximum stop / ATR", minval=0.5, maxval=20.0)
 minBodyATR = input.float(0.1, "Minimum body / ATR", minval=0.0, maxval=3.0)
 minBreakoutATR = input.float(0.0, "Minimum breakout / ATR", minval=0.0, maxval=3.0)
 showLevels = input.bool(true, "Show latest levels")
-bridgeEnabled = input.bool(true, "Send webhook JSON via Any alert() function call")
+bridgeEnabled = input.bool(false, "Send webhook JSON")
 bridgeToken = input.string("", "Private webhook token (never share)")
-// Create a NEW TradingView alert: Condition = this indicator -> Any alert() function call.
-// The alert Message box is NOT used for these dynamic JSON messages.
-// Webhook URL: https://bigben-ai-pro-api.onrender.com/v1/tradingview/events
-// Token must match BIGBEN_WEBHOOK_TOKEN in Render; no broker execution.
 f_trend() =>
     ma10 = ta.sma(close, 10)
     ma20 = ta.sma(close, 20)
@@ -77,7 +73,6 @@ if buy or sell
         eventId = str.replace_all(str.replace_all(syminfo.tickerid,"!","_"),"/","_")+"-"+str.tostring(time_close)+"-"+eventSide
         payload = '{"token":"'+bridgeToken+'","schema":"bigben.v1","event":"'+eventSide+'","event_id":"'+eventId+'","symbol":"'+syminfo.tickerid+'","time":"'+eventTime+'","entry":'+str.tostring(liveEntry)+',"sl":'+str.tostring(liveStop)+',"tp":'+str.tostring(liveTarget)+',"rr":'+str.tostring(rr)+'}'
         alert(payload,alert.freq_once_per_bar_close)
-plotshape(bridgeEnabled and str.length(bridgeToken)<32 and barstate.islast,title="Webhook token missing",style=shape.xcross,location=location.top,color=color.orange,size=size.tiny)
 plotshape(buy,title="BUY",style=shape.labelup,location=location.belowbar,text="BUY",color=color.green,textcolor=color.white,size=size.tiny)
 plotshape(sell,title="SELL",style=shape.labeldown,location=location.abovebar,text="SELL",color=color.red,textcolor=color.white,size=size.tiny)
 plot(buy or sell ? liveEntry : na,title="BB Alert Entry",display=display.none)

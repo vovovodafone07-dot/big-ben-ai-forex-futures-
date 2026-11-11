@@ -1,5 +1,5 @@
 //@version=6
-indicator("Big Ben AI | Hybrid M5 v6.2 | Pro Webhook", overlay=true, max_labels_count=300, max_lines_count=150, max_boxes_count=80)
+indicator("Big Ben AI | Hybrid M5 v6.3 | Clear Trade Levels", overlay=true, max_labels_count=300, max_lines_count=150, max_boxes_count=80)
 // Read-only analysis; no broker orders. v6.0 and existing alerts remain untouched.
 // Create a NEW TradingView alert: Any alert() function call; enable webhook URL in Notifications.
 // https://bigben-ai-pro-api.onrender.com/v1/tradingview/events
@@ -24,6 +24,8 @@ enableSMT = input.bool(false, "Enable SMT comparison (optional)", group=groupHyb
 smtSymbol = input.symbol("CME_MINI:ES1!", "SMT comparison symbol (choose correlated market)", group=groupHybrid)
 groupDisplay = "04 | Display & alerts"
 showBoxes = input.bool(true, "Entry / risk / reward boxes", group=groupDisplay)
+showTradeLevels = input.bool(true, "Persistent Entry / SL / TP lines", group=groupDisplay)
+levelBars = input.int(30, "Level line length (bars)", minval=5, maxval=150, group=groupDisplay)
 showPatterns = input.bool(true, "Show detected pattern labels", group=groupDisplay)
 bridgeEnabled = input.bool(true, "Webhook JSON via alert() (requires token)", group=groupDisplay)
 bridgeToken = input.string("", "Private webhook token (do not share)", group=groupDisplay)
@@ -125,6 +127,8 @@ sell = barstate.isconfirmed and isM5 and ready and triggerSell and htfShort and 
 var box riskBox = na
 var box rewardBox = na
 var line entryLine = na
+var line stopLine = na
+var line targetLine = na
 var label setupLabel = na
 if buy or sell
     tradeDir:=buy?1:-1
@@ -139,12 +143,19 @@ if buy or sell
         box.delete(rewardBox)
     if not na(entryLine)
         line.delete(entryLine)
+    if not na(stopLine)
+        line.delete(stopLine)
+    if not na(targetLine)
+        line.delete(targetLine)
     if not na(setupLabel)
         label.delete(setupLabel)
     if showBoxes
         riskBox:=box.new(bar_index, math.max(entry,stop),bar_index+12,math.min(entry,stop),bgcolor=color.new(color.red,84),border_color=color.new(color.red,30))
         rewardBox:=box.new(bar_index,math.max(entry,target),bar_index+12,math.min(entry,target),bgcolor=color.new(color.teal,84),border_color=color.new(color.teal,30))
-        entryLine:=line.new(bar_index,entry,bar_index+12,entry,color=color.yellow,width=2)
+    if showTradeLevels
+        entryLine:=line.new(bar_index,entry,bar_index+levelBars,entry,color=color.yellow,width=2)
+        stopLine:=line.new(bar_index,stop,bar_index+levelBars,stop,color=color.red,width=2)
+        targetLine:=line.new(bar_index,target,bar_index+levelBars,target,color=color.lime,width=2)
     desc = (buy?"BUY":"SELL")+" | Entry "+str.tostring(entry,format.mintick)+"\nSL "+str.tostring(stop,format.mintick)+" | TP "+str.tostring(target,format.mintick)+"\nRR "+str.tostring(rr)+" | Evidence "+str.tostring(buy?evidenceBuy:evidenceSell)
     setupLabel:=label.new(bar_index,buy?low:high,desc,style=buy?label.style_label_up:label.style_label_down,color=buy?color.new(color.teal,0):color.new(color.red,0),textcolor=color.white,size=size.small)
     if bridgeEnabled and str.length(bridgeToken)>=32

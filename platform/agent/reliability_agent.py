@@ -27,6 +27,20 @@ def main():
    if not hb:warnings.append("No heartbeat recorded")
    elif not hb.get("fresh"):warnings.append("Last heartbeat stale: "+str(hb.get("time")))
    if not d.get("market_provider_configured"):warnings.append("Twelve Data key not configured")
+   # Verify the dashboard's connected agent and research APIs too.
+   for name,path in [("agent","/api/agent"),("research","/api/research"),("outcomes","/api/outcomes")]:
+    try:
+     status,payload=fetch(path,auth)
+     report[name]={"status":status,"available":True}
+     if status!=200:errors.append(name+" HTTP "+str(status))
+     if name=="agent":
+      report[name]["mode"]=payload.get("mode")
+      report[name]["tracked_symbols"]=len(payload.get("tracked_symbols",[]))
+      if payload.get("mode")!="read_only":errors.append("agent mode unexpected")
+     if name=="research":report[name]["signals_examined"]=payload.get("signals_examined")
+     if name=="outcomes":report[name]["count"]=payload.get("count")
+    except (urllib.error.URLError,ValueError,TimeoutError) as e:
+     errors.append(name+" API unavailable: "+type(e).__name__)
   except (urllib.error.URLError,ValueError,TimeoutError) as e:warnings.append("Authenticated diagnostics unavailable: "+type(e).__name__)
  else:warnings.append("GitHub Actions secret BIGBEN_DASHBOARD_PASSWORD is missing; add it under repository Settings > Secrets and variables > Actions to enable private freshness checks")
  report["errors"]=errors;report["warnings"]=warnings

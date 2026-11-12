@@ -87,6 +87,57 @@ def research_report():
                      "Missing heartbeat data can bias outcomes",
                      "No automatic strategy changes or claims of profitability"],
          "next_step":"Collect continuous M5 data, validate first-touch on OHLC history and evaluate out-of-sample before proposing parameter changes"}
+def learning_audit():
+ """Evidence-based learning audit; suggestions require review, never auto-edit Pine."""
+ rows=list_events(2000,"all")
+ trades=[];heartbeat_by_symbol={}
+ for symbol,event,t,payload in rows:
+  try:
+   d=json.loads(payload)
+   stamp=datetime.fromisoformat(t.replace("Z","+00:00"))
+  except (ValueError,TypeError,AttributeError,KeyError):continue
+  if event=="HEARTBEAT":
+   heartbeat_by_symbol.setdefault(symbol,[]).append((stamp,d))
+  elif event in ("BUY","SELL"):
+   trades.append((stamp,symbol,event,d))
+ for items in heartbeat_by_symbol.values():items.sort(key=lambda x:x[0])
+ outcomes={"tp_close_observed":0,"sl_close_observed":0,"unresolved":0}
+ groups={}
+ examples=[]
+ for stamp,symbol,side,d in trades:
+  try:
+   entry,sl,tp=[float(d[k]) for k in ("entry","sl","tp")]
+   if not all(math.isfinite(x) and x>0 for x in (entry,sl,tp)):continue
+   if not (sl<entry<tp if side=="BUY" else tp<entry<sl):continue
+  except (KeyError,ValueError,TypeError):continue
+  bias=d.get("htf_bias")
+  label=str(bias)[:60] if bias is not None else "unknown"
+  key=symbol+" | "+side+" | "+label
+  g=groups.setdefault(key,{"symbol":symbol,"side":side,"htf_bias":label,"signals":0,"tp_close_observed":0,"sl_close_observed":0,"unresolved":0})
+  g["signals"]+=1
+  outcome="unresolved";observed=0
+  for ht,hb in heartbeat_by_symbol.get(symbol,[]):
+   if ht<=stamp:continue
+   try:close=float(hb["close"])
+   except (KeyError,ValueError,TypeError):continue
+   if not math.isfinite(close) or close<=0:continue
+   observed+=1
+   if (close>=tp if side=="BUY" else close<=tp):outcome="tp_close_observed";break
+   if (close<=sl if side=="BUY" else close>=sl):outcome="sl_close_observed";break
+  outcomes[outcome]+=1;g[outcome]+=1
+  if outcome=="sl_close_observed" and len(examples)<12:
+   examples.append({"symbol":symbol,"side":side,"time":stamp.isoformat(),"htf_bias":label,"m5_closes_checked":observed,"observation":"M5 close beyond stop; not proof of an executed loss"})
+ suggestions=[]
+ for g in groups.values():
+  resolved=g["tp_close_observed"]+g["sl_close_observed"]
+  if resolved>=30 and g["sl_close_observed"]>g["tp_close_observed"]:
+   suggestions.append({"scope":g["symbol"]+" "+g["side"],"hypothesis":"Review higher-timeframe agreement and entry filters in this segment","evidence_count":resolved,"action":"backtest_only","requires_out_of_sample_validation":True})
+ return {"mode":"read_only_learning_audit","signals_reviewed":sum(outcomes.values()),"observations":outcomes,
+         "segments":list(groups.values()),"error_examples":examples,"hypotheses":suggestions,
+         "minimum_resolved_observations_per_segment":30,
+         "learning_status":"hypotheses_available" if suggestions else "collect_more_evidence",
+         "limitations":["M5 close observations cannot establish intrabar first-touch, fills, or actual PnL","Missing heartbeat data biases results","No autonomous strategy edits, deployments, or trading","Hypotheses are not proven improvements"],
+         "next_step":"Collect continuous M5 OHLC and signal metadata; validate any proposed filter on out-of-sample data before a separate Pine candidate is reviewed"}
 def validate(d):
  if not isinstance(d,dict) or d.get("schema")!="bigben.v1":raise ValueError("schema")
  if d.get("event") not in ("BUY","SELL","TP_HIT","SL_HIT","HEARTBEAT"):raise ValueError("event")
@@ -175,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -241,6 +292,9 @@ class Handler(BaseHTTPRequestHandler):
       "capabilities":["Monitor TradingView heartbeat freshness","Audit historical signal observations","Report missing provider configuration"],
       "not_enabled":["Automatic Pine editing","Automatic strategy retraining","Broker order execution"]})
    except Exception:return self.reply(503,{"error":"agent_status_unavailable"})
+  if path=="/api/learning":
+   try:return self.reply(200,learning_audit())
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/research":
    try:return self.reply(200,research_report())
    except Exception:return self.reply(503,{"error":"storage_unavailable"})

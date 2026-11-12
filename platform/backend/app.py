@@ -36,6 +36,36 @@ def save_event(d):
    return c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
  with sqlite3.connect(DB) as c:
   return c.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",vals).rowcount==0
+def evaluate_signals(limit=100):
+ # Observational outcomes only: a M5 close beyond SL/TP is NOT proof of an
+ # actual fill or the first intrabar level touched. Never backfill fake trades.
+ rows=list_events(2000,"all")
+ parsed=[]
+ for symbol,event,t,payload in rows:
+  try:
+   d=json.loads(payload)
+   stamp=datetime.fromisoformat(t.replace("Z","+00:00"))
+   parsed.append((stamp,symbol,event,d))
+  except (ValueError,TypeError,KeyError,AttributeError):continue
+ parsed.sort(key=lambda x:x[0])
+ signals=[]
+ for i,(t,symbol,event,d) in enumerate(parsed):
+  if event not in ("BUY","SELL"):continue
+  try:entry,sl,tp=[float(d[k]) for k in ("entry","sl","tp")]
+  except (ValueError,TypeError,KeyError):continue
+  result="unresolved";at=None;observations=0
+  for ht,hs,he,hd in parsed[i+1:]:
+   if hs!=symbol or he!="HEARTBEAT":continue
+   try:close=float(hd["close"])
+   except (ValueError,TypeError,KeyError):continue
+   observations+=1
+   if (close>=tp if event=="BUY" else close<=tp):result="tp_close_observed"
+   elif (close<=sl if event=="BUY" else close>=sl):result="sl_close_observed"
+   else:continue
+   at=ht.isoformat();break
+  signals.append({"symbol":symbol,"event":event,"time":t.isoformat(),"entry":entry,"sl":sl,"tp":tp,"outcome":result,"observed_at":at,"m5_closes_checked":observations})
+ signals=signals[-limit:][::-1]
+ return {"signals":signals,"count":len(signals),"tp_close_observed":sum(s["outcome"]=="tp_close_observed" for s in signals),"sl_close_observed":sum(s["outcome"]=="sl_close_observed" for s in signals),"unresolved":sum(s["outcome"]=="unresolved" for s in signals),"method":"M5 close observations only; not broker fills, intrabar first-touch, or verified trade performance","source":"TradingView webhook event history"}
 def validate(d):
  if not isinstance(d,dict) or d.get("schema")!="bigben.v1":raise ValueError("schema")
  if d.get("event") not in ("BUY","SELL","TP_HIT","SL_HIT","HEARTBEAT"):raise ValueError("event")
@@ -124,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -169,6 +199,9 @@ class Handler(BaseHTTPRequestHandler):
        except (ValueError,TypeError,AttributeError):pass
      return None
     return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
+  if path=="/api/outcomes":
+   try:return self.reply(200,evaluate_signals())
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/status":
    try:

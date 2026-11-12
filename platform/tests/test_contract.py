@@ -18,6 +18,19 @@ class Contracts(unittest.TestCase):
  def test_reject_bad_trade_levels(self):
   d={"schema":"bigben.v1","event":"BUY","event_id":"EURUSD-1794400000000-BUY","symbol":"OANDA:EURUSD","time":datetime.now(timezone.utc).isoformat(),"entry":100,"sl":102,"tp":106,"rr":3}
   with self.assertRaises(ValueError):app.validate(d)
+ def test_research_groups_symbols_without_claiming_profit(self):
+  original=app.evaluate_signals
+  app.evaluate_signals=lambda limit=100:{"signals":[
+   {"symbol":"OANDA:EURUSD","event":"BUY","outcome":"tp_close_observed"},
+   {"symbol":"OANDA:EURUSD","event":"SELL","outcome":"sl_close_observed"},
+   {"symbol":"CME_MINI:MNQ1!","event":"BUY","outcome":"unresolved"}]}
+  try:
+   report=app.research_report()
+   self.assertEqual(report["observed_outcomes"],2)
+   self.assertEqual(report["by_symbol"]["OANDA:EURUSD"]["signals"],2)
+   self.assertEqual(report["by_symbol"]["CME_MINI:MNQ1!"]["unresolved"],1)
+   self.assertEqual(report["status"],"insufficient_evidence")
+  finally:app.evaluate_signals=original
  def test_research_requires_sufficient_evidence(self):
   original=app.evaluate_signals
   app.evaluate_signals=lambda limit=100:{"signals":[{"symbol":"OANDA:EURUSD","event":"BUY","outcome":"unresolved"}]}

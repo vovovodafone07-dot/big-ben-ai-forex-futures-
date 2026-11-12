@@ -5,6 +5,12 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"backend"))
 import app
 from datetime import datetime,timezone
 class Contracts(unittest.TestCase):
+ def test_agent_api_is_authenticated(self):
+  # Private agent telemetry must remain behind the dashboard auth gate.
+  import inspect
+  source=inspect.getsource(app.Handler.do_GET)
+  self.assertIn('"/api/agent"',source)
+  self.assertLess(source.index('if not hmac.compare_digest(supplied,expected)'),source.index('if path=="/api/agent"'))
  def test_heartbeat_contract(self):
   d={"schema":"bigben.v1","event":"HEARTBEAT","event_id":"CME_MINI:MNQ1_-1794400000000-HEARTBEAT","symbol":"CME_MINI:MNQ1!","time":datetime.now(timezone.utc).isoformat(),"close":28208.75,"m15":1,"h1":1,"h4":1}
   self.assertEqual(app.validate(d),d)

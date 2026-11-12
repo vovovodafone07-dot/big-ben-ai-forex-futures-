@@ -66,6 +66,24 @@ def evaluate_signals(limit=100):
   signals.append({"symbol":symbol,"event":event,"time":t.isoformat(),"entry":entry,"sl":sl,"tp":tp,"outcome":result,"observed_at":at,"m5_closes_checked":observations})
  signals=signals[-limit:][::-1]
  return {"signals":signals,"count":len(signals),"tp_close_observed":sum(s["outcome"]=="tp_close_observed" for s in signals),"sl_close_observed":sum(s["outcome"]=="sl_close_observed" for s in signals),"unresolved":sum(s["outcome"]=="unresolved" for s in signals),"method":"M5 close observations only; not broker fills, intrabar first-touch, or verified trade performance","source":"TradingView webhook event history"}
+def research_report():
+ """Read-only evidence audit; no model training, strategy mutation or trade execution."""
+ data=evaluate_signals(limit=100)
+ rows=data["signals"]
+ observed=[s for s in rows if s["outcome"] in ("tp_close_observed","sl_close_observed")]
+ groups={}
+ for s in rows:
+  g=groups.setdefault(s["symbol"],{"signals":0,"tp_close_observed":0,"sl_close_observed":0,"unresolved":0})
+  g["signals"]+=1;g[s["outcome"]]+=1
+ return {"status":"insufficient_evidence" if len(observed)<30 else "descriptive_only",
+         "minimum_observed_outcomes_for_review":30,
+         "observed_outcomes":len(observed),"signals_examined":len(rows),
+         "by_symbol":groups,
+         "cautions":["M5 closing prices do not prove fills or intrabar SL/TP order",
+                     "Only the most recent 2000 stored events are sampled",
+                     "Missing heartbeat data can bias outcomes",
+                     "No automatic strategy changes or claims of profitability"],
+         "next_step":"Collect continuous M5 data, validate first-touch on OHLC history and evaluate out-of-sample before proposing parameter changes"}
 def validate(d):
  if not isinstance(d,dict) or d.get("schema")!="bigben.v1":raise ValueError("schema")
  if d.get("event") not in ("BUY","SELL","TP_HIT","SL_HIT","HEARTBEAT"):raise ValueError("event")
@@ -154,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -199,6 +217,9 @@ class Handler(BaseHTTPRequestHandler):
        except (ValueError,TypeError,AttributeError):pass
      return None
     return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
+  if path=="/api/research":
+   try:return self.reply(200,research_report())
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/outcomes":
    try:return self.reply(200,evaluate_signals())

@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "platform/index.html"
       - "platform/backend/**"
       - "platform/agent/**"
       - "platform/tests/**"
@@ -12,6 +13,7 @@ on:
       - "platform/backend/**"
       - "platform/tests/**"
       - "platform/agent/**"
+      - "platform/index.html"
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,3 +32,22 @@ jobs:
         run: python -m compileall -q platform/backend platform/agent platform/tests
       - name: Run webhook contract tests
         run: python -m unittest discover -s platform/tests -p "test_*.py" -v
+      - name: Validate dashboard inline JavaScript syntax
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          class Scripts(HTMLParser):
+              def __init__(self): super().__init__();self.inside=False;self.scripts=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='script' and not dict(attrs).get('src'):self.inside=True
+              def handle_endtag(self,tag):
+                  if tag=='script':self.inside=False
+              def handle_data(self,data):
+                  if self.inside:self.scripts.append(data)
+          p=Scripts();p.feed(Path('platform/index.html').read_text())
+          assert p.scripts,'No dashboard scripts found'
+          for i,code in enumerate(p.scripts):Path('/tmp/bigben-script-'+str(i)+'.js').write_text(code)
+          print('Extracted',len(p.scripts),'inline scripts')
+          PY
+          for file in /tmp/bigben-script-*.js; do node --check "$file"; done

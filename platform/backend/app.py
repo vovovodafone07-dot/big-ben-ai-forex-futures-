@@ -117,10 +117,10 @@ def telegram_notify(d):
  if d.get("event") not in ("BUY","SELL"):
   return "skipped"
  message=("📊 Big Ben AI Pro\n"
-          +str(d["event"])+" | "+str(d["symbol"])+"\\n"
-          +"Entry: "+str(d["entry"])+"\\nSL: "+str(d["sl"])
-          +"\\nTP: "+str(d["tp"])+"\\nRR: "+str(d["rr"])
-          +"\\nAnalysis only — no order execution")
+          +str(d["event"])+" | "+str(d["symbol"])+"\n"
+          +"Entry: "+str(d["entry"])+"\nSL: "+str(d["sl"])
+          +"\nTP: "+str(d["tp"])+"\nRR: "+str(d["rr"])
+          +"\nAnalysis only — no order execution")
  payload=json.dumps({"chat_id":chat,"text":message}).encode()
  req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
  try:

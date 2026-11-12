@@ -16,6 +16,7 @@ class StorageTests(unittest.TestCase):
   try:
    with tempfile.TemporaryDirectory() as d, patch.dict(os.environ,{"DATABASE_URL":""}):
     app.DB=pathlib.Path(d)/"events.db"
+    app.init()  # Initialize the fresh isolated database used by this test.
     item={"event_id":"EURUSD-1234567890-BUY","symbol":"EURUSD","event":"BUY","time":"2026-11-11T00:00:00Z","entry":1.1,"sl":1.09,"tp":1.13,"rr":3}
     self.assertFalse(app.save_event(item))
     self.assertTrue(app.save_event(item))

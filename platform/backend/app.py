@@ -260,9 +260,13 @@ class Handler(BaseHTTPRequestHandler):
   try:duplicate=save_event(d)
   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   self.reply(200 if duplicate else 202,{"accepted":True,"duplicate":duplicate,"event_id":d["event_id"]})
-  if not duplicate:
-   status=telegram_notify(d)
-   print("telegram_delivery="+status,flush=True)
+  if not duplicate and d.get("event") in ("BUY","SELL"):
+   # Respond to TradingView before the potentially slow Telegram API call.
+   import threading
+   def deliver():
+    status=telegram_notify(d)
+    print("telegram_delivery="+status,flush=True)
+   threading.Thread(target=deliver,daemon=True).start()
 if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

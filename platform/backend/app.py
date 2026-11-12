@@ -53,11 +53,14 @@ def evaluate_signals(limit=100):
   if event not in ("BUY","SELL"):continue
   try:entry,sl,tp=[float(d[k]) for k in ("entry","sl","tp")]
   except (ValueError,TypeError,KeyError):continue
+  if not all(math.isfinite(v) and v>0 for v in (entry,sl,tp)):continue
+  if not (sl<entry<tp if event=="BUY" else tp<entry<sl):continue
   result="unresolved";at=None;observations=0
   for ht,hs,he,hd in parsed[i+1:]:
    if hs!=symbol or he!="HEARTBEAT":continue
    try:close=float(hd["close"])
    except (ValueError,TypeError,KeyError):continue
+   if not math.isfinite(close) or close<=0:continue
    observations+=1
    if (close>=tp if event=="BUY" else close<=tp):result="tp_close_observed"
    elif (close<=sl if event=="BUY" else close>=sl):result="sl_close_observed"

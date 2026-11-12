@@ -172,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -218,6 +218,26 @@ class Handler(BaseHTTPRequestHandler):
      return None
     return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
+  if path=="/api/agent":
+   # Operational agent panel: actual observed states, not simulated AI decisions.
+   try:
+    rows=list_events(500)
+    now=datetime.now(timezone.utc)
+    latest={}
+    for symbol,event,t,payload in rows:
+     if symbol in latest or event!="HEARTBEAT":continue
+     try:
+      stamp=datetime.fromisoformat(t.replace("Z","+00:00"))
+      age=max(0,int((now-stamp).total_seconds()))
+      latest[symbol]={"symbol":symbol,"last_heartbeat":t,"age_seconds":age,"fresh":age<720}
+     except (ValueError,TypeError,AttributeError):continue
+    result=research_report()
+    return self.reply(200,{"agent":"Big Ben reliability + research","mode":"read_only","checked_at":now.isoformat(),
+      "services":{"storage":storage_kind(),"twelve_data_key_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))},
+      "tracked_symbols":list(latest.values()),"research":{"status":result["status"],"observed_outcomes":result["observed_outcomes"],"signals_examined":result["signals_examined"]},
+      "capabilities":["Monitor TradingView heartbeat freshness","Audit historical signal observations","Report missing provider configuration"],
+      "not_enabled":["Automatic Pine editing","Automatic strategy retraining","Broker order execution"]})
+   except Exception:return self.reply(503,{"error":"agent_status_unavailable"})
   if path=="/api/research":
    try:return self.reply(200,research_report())
    except Exception:return self.reply(503,{"error":"storage_unavailable"})

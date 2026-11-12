@@ -52,6 +52,24 @@ class Contracts(unittest.TestCase):
    self.assertEqual(report["observed_outcomes"],0)
    self.assertEqual(report["by_symbol"]["OANDA:EURUSD"]["unresolved"],1)
   finally:app.evaluate_signals=original
+ def test_outcome_ignores_nonfinite_and_other_symbols(self):
+  original=app.list_events
+  from datetime import timedelta
+  t=datetime.now(timezone.utc)
+  def record(symbol,event,offset,**extra):
+   return (symbol,event,(t+timedelta(minutes=offset)).isoformat(),json.dumps(extra))
+  app.list_events=lambda limit=2000,kind="all":[
+   record("OANDA:EURUSD","BUY",0,entry=100,sl=98,tp=106),
+   record("OANDA:GBPUSD","HEARTBEAT",5,close=107),
+   record("OANDA:EURUSD","HEARTBEAT",10,close="NaN"),
+   record("OANDA:EURUSD","HEARTBEAT",15,close=106),
+   record("OANDA:EURUSD","BUY",20,entry=100,sl=102,tp=106)]
+  try:
+   result=app.evaluate_signals()
+   self.assertEqual(result["count"],1)
+   self.assertEqual(result["tp_close_observed"],1)
+   self.assertEqual(result["signals"][0]["m5_closes_checked"],1)
+  finally:app.list_events=original
  def test_outcome_is_not_fabricated(self):
   original=app.list_events
   app.list_events=lambda limit=2000,kind="all":[]

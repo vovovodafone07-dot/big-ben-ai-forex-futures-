@@ -5,6 +5,12 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"backend"))
 import app
 from datetime import datetime,timezone
 class Contracts(unittest.TestCase):
+ def test_reliability_agent_checks_private_services(self):
+  from pathlib import Path
+  source=(Path(__file__).resolve().parents[1]/"agent"/"reliability_agent.py").read_text()
+  for path in ("/api/agent","/api/research","/api/outcomes"):
+   self.assertIn(path,source)
+  self.assertIn('errors.append(name+" API unavailable:',source)
  def test_agent_api_is_authenticated(self):
   # Private agent telemetry must remain behind the dashboard auth gate.
   import inspect

@@ -18,6 +18,15 @@ class Contracts(unittest.TestCase):
  def test_reject_bad_trade_levels(self):
   d={"schema":"bigben.v1","event":"BUY","event_id":"EURUSD-1794400000000-BUY","symbol":"OANDA:EURUSD","time":datetime.now(timezone.utc).isoformat(),"entry":100,"sl":102,"tp":106,"rr":3}
   with self.assertRaises(ValueError):app.validate(d)
+ def test_research_requires_sufficient_evidence(self):
+  original=app.evaluate_signals
+  app.evaluate_signals=lambda limit=100:{"signals":[{"symbol":"OANDA:EURUSD","event":"BUY","outcome":"unresolved"}]}
+  try:
+   report=app.research_report()
+   self.assertEqual(report["status"],"insufficient_evidence")
+   self.assertEqual(report["observed_outcomes"],0)
+   self.assertEqual(report["by_symbol"]["OANDA:EURUSD"]["unresolved"],1)
+  finally:app.evaluate_signals=original
  def test_outcome_is_not_fabricated(self):
   original=app.list_events
   app.list_events=lambda limit=2000,kind="all":[]

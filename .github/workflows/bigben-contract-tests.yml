@@ -1,4 +1,5 @@
 name: Big Ben API contract tests
+
 on:
   push:
     branches: [main]
@@ -10,44 +11,80 @@ on:
       - ".github/workflows/bigben-contract-tests.yml"
   pull_request:
     paths:
-      - "platform/backend/**"
-      - "platform/tests/**"
-      - "platform/agent/**"
       - "platform/index.html"
+      - "platform/backend/**"
+      - "platform/agent/**"
+      - "platform/tests/**"
+      - ".github/workflows/bigben-contract-tests.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   test:
+    name: Python contracts and dashboard syntax
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install backend dependencies
-        run: pip install -r platform/backend/requirements.txt
+        run: python -m pip install -r platform/backend/requirements.txt
+
       - name: Validate Python syntax
         run: python -m compileall -q platform/backend platform/agent platform/tests
-      - name: Run webhook contract tests
-        run: python -m unittest discover -s platform/tests -p "test_*.py" -v
-      - name: Validate dashboard inline JavaScript syntax
+
+      - name: Run API contract tests
+        run: python -m unittest discover -s platform/tests -p 'test_*.py' -v
+
+      - name: Validate dashboard JavaScript
         run: |
+          set -euo pipefail
           python - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
-          class Scripts(HTMLParser):
-              def __init__(self): super().__init__();self.inside=False;self.scripts=[]
-              def handle_starttag(self,tag,attrs):
-                  if tag=='script' and not dict(attrs).get('src'):self.inside=True
-              def handle_endtag(self,tag):
-                  if tag=='script':self.inside=False
-              def handle_data(self,data):
-                  if self.inside:self.scripts.append(data)
-          p=Scripts();p.feed(Path('platform/index.html').read_text())
-          assert p.scripts,'No dashboard scripts found'
-          for i,code in enumerate(p.scripts):Path('/tmp/bigben-script-'+str(i)+'.js').write_text(code)
-          print('Extracted',len(p.scripts),'inline scripts')
+          import subprocess
+
+          class InlineScripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.inside = False
+                  self.blocks = []
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script" and not dict(attrs).get("src"):
+                      self.inside = True
+                      self.blocks.append("")
+              def handle_endtag(self, tag):
+                  if tag == "script":
+                      self.inside = False
+              def handle_data(self, data):
+                  if self.inside:
+                      self.blocks[-1] += data
+
+          page = Path("platform/index.html")
+          parser = InlineScripts()
+          parser.feed(page.read_text(encoding="utf-8"))
+          if not parser.blocks:
+              raise SystemExit("ERROR: dashboard has no inline JavaScript")
+          for index, source in enumerate(parser.blocks, start=1):
+              target = Path("/tmp") / f"bigben-inline-{index}.js"
+              target.write_text(source, encoding="utf-8")
+              print(f"Checking dashboard inline script {index}", flush=True)
+              subprocess.run(["node", "--check", str(target)], check=True)
+          print(f"PASS: {len(parser.blocks)} dashboard scripts", flush=True)
           PY
-          for file in /tmp/bigben-script-*.js; do node --check "$file"; done

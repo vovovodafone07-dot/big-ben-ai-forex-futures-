@@ -91,6 +91,29 @@ class AITests(unittest.TestCase):
   error=urllib.error.HTTPError('https://example.invalid',503,'synthetic-secret',{},io.BytesIO(b'synthetic-secret'))
   with patch.object(ai.urllib.request,'urlopen',side_effect=error):result=ai.review(self.evidence(),self.connection,now=NOW)
   self.assertEqual(result['http_status'],503);self.assertEqual(ai.status()['last_check']['http_status'],503);self.assertNotIn('synthetic-secret',json.dumps(result))
+ def test_multipart_response_ignores_thought_summary(self):
+  expected={'summary':'Synthetic review','roles':{key:'fixture' for key in ('trading','news','risk','learning')}}
+  encoded=json.dumps(expected);cut=len(encoded)//2
+  result=ai.parse_review_response({'candidates':[{'finishReason':'STOP','content':{'parts':[{'thought':True,'text':'synthetic-secret'},{'text':encoded[:cut]},{'text':encoded[cut:]}]}}]})
+  self.assertEqual(result,expected);self.assertNotIn('synthetic-secret',json.dumps(result))
+ def test_incomplete_or_empty_review_never_connects(self):
+  fixtures=[({'candidates':[{'finishReason':'MAX_TOKENS'}]},'provider_output_limit'),({'candidates':[]},'provider_candidates_missing'),({'candidates':[{'content':{'parts':[{'thought':True,'text':'synthetic-secret'}]}}]},'provider_text_missing')]
+  for response,reason in fixtures:
+   with self.assertRaisesRegex(ai.ReviewError,reason):ai.parse_review_response(response)
+ def test_timeout_is_distinct_sanitized_and_not_retried(self):
+  with patch.object(ai.urllib.request,'urlopen',side_effect=TimeoutError('synthetic-secret')) as fetch:
+   result=ai.review(self.evidence(),self.connection,now=NOW)
+  self.assertEqual(result['reason'],'provider_timeout');self.assertEqual(fetch.call_count,1);self.assertNotIn('synthetic-secret',json.dumps(result));self.assertEqual(fetch.call_args.kwargs['timeout'],45)
+ def test_3_8_request_uses_supported_low_thinking_and_bounded_output(self):
+  output={'summary':'fixture','roles':{key:'fixture' for key in ('trading','news','risk','learning')}}
+  response=MagicMock();response.__enter__.return_value.read.return_value=json.dumps({'candidates':[{'content':{'parts':[{'text':json.dumps(output)}]}}]}).encode()
+  with patch.dict(os.environ,{'BIGBEN_AI_MODEL':'gemini-3.8-flash'}),patch.object(ai.urllib.request,'urlopen',return_value=response) as fetch:
+   self.assertTrue(ai.review(self.evidence(),self.connection,now=NOW)['connection_verified'])
+   body=json.loads(fetch.call_args.args[0].data);self.assertEqual(body['generationConfig']['thinkingConfig']['thinkingLevel'],'LOW');self.assertEqual(body['generationConfig']['maxOutputTokens'],4096)
+ def test_non_json_success_response_is_sanitized(self):
+  response=MagicMock();response.__enter__.return_value.read.return_value=b'<html>synthetic-secret</html>'
+  with patch.object(ai.urllib.request,'urlopen',return_value=response):result=ai.review(self.evidence(),self.connection,now=NOW)
+  self.assertEqual(result['reason'],'provider_response_json_invalid');self.assertNotIn('synthetic-secret',json.dumps(result))
  def test_budget_and_sanitized_failures(self):
   with patch.object(ai.urllib.request,'urlopen',side_effect=OSError('synthetic-secret')) as fetch:
    for _ in range(10):self.assertEqual(ai.review(self.evidence(),self.connection,now=NOW)['state'],'UNAVAILABLE')

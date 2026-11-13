@@ -1,0 +1,16 @@
+{
+  "verified_free_gib": 2.94,
+  "reset_kernel": true,
+  "selected_returned_chrome_window": true,
+  "screenshot_matches_chrome_after_activation": true,
+  "existing_tab_switch_verified": true,
+  "in_page_navigation_verified": true,
+  "url_policy_root_cause_proven": false,
+  "observed_failures": [
+    "disk_full_ENOSPC_global_state_write",
+    "screenshot_and_accessibility_target_mismatch"
+  ],
+  "provider_review_verified": false,
+  "last_review_reason": "provider_request_or_response_failed",
+  "production_strategy_changed": false
+}

@@ -24,7 +24,7 @@ class WebhookHTTPTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {
             "DATABASE_URL": "", "BIGBEN_WEBHOOK_TOKEN": "t" * 40,
             "BIGBEN_DASHBOARD_PASSWORD": "p" * 24,
-            "TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""
+            "TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": "", "BIGBEN_SIGNAL_ANALYSIS_ENABLED":"0"
         })
         self.environment.start()
         self.notify = patch.object(app, "telegram_notify", return_value="not_configured")
@@ -168,6 +168,24 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(event['instrument']['asset_class'],'forex')
         self.assertIn('EUR / USD',event['notification_text'])
         self.assertIn('TradingView'.lower(),event['notification_text'].lower())
+
+    def test_signal_specialists_use_shared_analysis_and_persist_tasks(self):
+        event=self.payload('BUY');event.pop('token');app.save_event(event)
+        with patch.object(app._ai_provider,'review',return_value={'state':'NOT_CONFIGURED','connection_verified':False}) as model:
+            app.run_signal_analysis(event['symbol'])
+        self.assertEqual(model.call_count,1)
+        self.assertEqual(self.request('GET','/api/analysis/runs')[0],401)
+        status,result=self.request('GET','/api/analysis/runs',auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual(len(result['runs']),1)
+        run=result['runs'][0]
+        self.assertEqual(run['decision'],'BUY');self.assertEqual(len(run['agent_tasks']),9)
+        self.assertTrue(all(task['task_id'] for task in run['agent_tasks']))
+
+    def test_signal_specialists_are_bounded_without_retry_or_model_request(self):
+        with patch.object(app,'SIGNAL_ANALYSIS_SLOTS') as slots,patch.object(app,'analyze_instrument') as analyze:
+            slots.acquire.return_value=False
+            app.run_signal_analysis('EURUSD')
+            analyze.assert_not_called();slots.release.assert_not_called()
 
     def test_analysis_api_is_private_and_uses_stored_heartbeat(self):
         self.assertEqual(self.request("GET", "/api/analysis")[0], 401)

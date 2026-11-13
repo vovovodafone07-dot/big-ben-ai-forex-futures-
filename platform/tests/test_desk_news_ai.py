@@ -61,6 +61,22 @@ class DeskTests(unittest.TestCase):
  def test_unknown_symbol_rejected(self):
   with self.assertRaises(ValueError):desk.normalize('FAKE')
   self.assertEqual(desk.normalize('MES1!'),'CME_MINI:MES1!')
+ def test_other_market_newer_trade_does_not_hide_selected_forex(self):
+  forex=self.row(age=60,checks={'ready':True})
+  other=list(self.row(age=0));other[0]='CME_MINI:NQ1!'
+  data=json.loads(other[3]);data['symbol']=other[0];data['event_id']='synthetic-other';other[3]=json.dumps(data)
+  result=desk.analyze('EURUSD',[tuple(other),forex],{},NOW)
+  self.assertEqual(result['decision'],'BUY');self.assertEqual(result['symbol'],'OANDA:EURUSD')
+ def test_multiasset_identifiers_and_comparison_are_not_data_access_claims(self):
+  for source in ('OANDA:GBPJPY','FXCM:EURUSD','NYMEX:CL1!','EUREX:FDAX1!'):
+   result=desk.analyze(source,[],{},NOW)
+   self.assertEqual(result['symbol'],source);self.assertEqual(result['decision'],'WAIT')
+   self.assertFalse(result['instrument']['smt_comparison']['correlation_verified'])
+  self.assertEqual(desk.instruments.describe('ES')['name'],'E-mini S&P 500')
+  self.assertEqual(desk.instruments.comparison('EURUSD')['candidate_symbol'],'OANDA:GBPUSD')
+ def test_cisd_unknown_without_telemetry_and_smt_disabled_when_off(self):
+  states={c['key']:c['state'] for c in desk.condition_checks({'filters':{'enable_smt':False}})}
+  self.assertEqual(states['cisd_buy'],'UNKNOWN');self.assertEqual(states['smt_buy'],'DISABLED')
 class AITests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.db=str(Path(self.temp.name)/'ai.db')

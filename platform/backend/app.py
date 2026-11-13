@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider"):
+for _extra in ("news","desk","ai_provider","instruments","destinations"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -89,6 +89,7 @@ def init():
    _news.migrate(c)
    _ai_provider.migrate(c)
    _desk.migrate(c)
+   _destinations.migrate(c)
    _replay.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
@@ -100,6 +101,7 @@ def init():
    _news.migrate(c)
    _ai_provider.migrate(c)
    _desk.migrate(c)
+   _destinations.migrate(c)
    _replay.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
@@ -183,7 +185,7 @@ def news_worker():
 def integration_status():
  rows=list_events(2000,"all");now=datetime.now(timezone.utc);tracked={}
  for symbol,kind,stamp,payload in rows:
-  if symbol not in _desk.SYMBOLS.values() or symbol in tracked:continue
+  if symbol in tracked:continue
   try:
    data=json.loads(payload);dt=datetime.fromisoformat(stamp.replace("Z","+00:00"))
    age=(now-dt).total_seconds()
@@ -192,7 +194,7 @@ def integration_status():
  with history_connection() as c:
   feeds=_news.snapshot(c)
   coverage=_history.coverage(c,postgres=postgres_enabled())
- return {"checked_at":now.isoformat(),"tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":9},
+ return {"checked_at":now.isoformat(),"tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":False}}
 
@@ -345,23 +347,33 @@ def validate(d):
    if tf in d and (type(d[tf]) not in (int,float) or d[tf] not in (-1,0,1)):raise ValueError("bias")
  return d
 def trade_notification_text(d):
- pair=_scalping.levels(d)
- full,scalp=pair["full_trade"],pair["scalp"]
- return ("📊 Big Ben AI Pro\n"+str(d["event"])+" | "+str(d["symbol"])
-  +"\n\nالصفقة الكاملة — الهدف الأصلي"
-  +"\nEntry: "+str(full["entry"])+" | SL: "+str(full["sl"])
-  +"\nTP: "+str(full["tp"])+" | RR: "+str(round(full["rr"],4))
-  +"\n\nخيار السكالب — هدف حسابي بديل"
-  +"\nEntry: "+str(scalp["entry"])+" | SL: "+str(scalp["sl"])
-  +"\nTP: "+str(scalp["tp"])+" | RR: "+str(round(scalp["rr"],4))
-  +"\nليس إشارة مستقلة؛ التكاليف وحجم التيك غير مؤكدين."
-  +"\nاختر أحد الخيارين؛ فتحهما معًا يضاعف التعرض."
-  +"\nتحليل فقط — لا يوجد تنفيذ أوامر.")
+ pair=_scalping.levels(d);full,scalp=pair["full_trade"],pair["scalp"]
+ instrument=_instruments.describe(d["symbol"])
+ kind={"forex":"فوركس","futures":"فيوتشرز","metals":"معادن"}.get(instrument["asset_class"],"سوق")
+ side="🟢 شراء BUY" if d["event"]=="BUY" else "🔴 بيع SELL"
+ from zoneinfo import ZoneInfo
+ try:stamp=datetime.fromisoformat(d["time"].replace("Z","+00:00")).astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M")
+ except (KeyError,ValueError,TypeError):stamp="غير متاح"
+ lines=["📊 BIG BEN AI PRO",side+" | "+kind,"الاسم: "+instrument["name"],"الرمز: "+instrument["symbol"],"الفريم: M5 | مسقط: "+stamp,
+  "", "① الصفقة الكاملة — الهدف الأصلي", "الدخول Entry: "+str(full["entry"]),"الوقف SL: "+str(full["sl"]),"الهدف TP: "+str(full["tp"])+" | RR: "+str(round(full["rr"],4)),
+  "", "② خيار السكالب — هدف حسابي بديل", "الدخول Entry: "+str(scalp["entry"]),"الوقف SL: "+str(scalp["sl"]),"الهدف TP: "+str(scalp["tp"])+" | RR: "+str(round(scalp["rr"],4))]
+ checks=_desk.condition_checks(d.get("analysis",{}) if isinstance(d.get("analysis"),dict) else {})
+ confirmed=[c["label"] for c in checks if c["state"]=="PASSED"]
+ lines.extend(["", "أدلة المؤشر: "+("؛ ".join(confirmed[:5]) if confirmed else "تفاصيل الشروط غير مستلمة؛ لا تُفترض متحققة"),
+  "النسخة: "+str(d.get("strategy_version","غير متاحة")), "المخطط: "+instrument["chart_url"],
+  "", "اختر أحد الخيارين؛ ليس السكالب إشارة مستقلة.","التكاليف وحجم التيك غير مؤكدين. تحليل فقط — لا يوجد تنفيذ أوامر."])
+ return "\n".join(lines)
+
+def telegram_destination():
+ try:
+  with history_connection() as c:chat=_destinations.read(c)["telegram_chat_id"]
+ except Exception:return ""
+ return chat or os.getenv("TELEGRAM_CHAT_ID","").strip()
 
 def telegram_notify(d):
  # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+ chat=telegram_destination()
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
  if d.get("event") not in ("BUY","SELL"):
@@ -376,7 +388,7 @@ def telegram_notify(d):
   return "failed"
 def send_telegram_message(message):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+ chat=telegram_destination()
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
  payload=json.dumps({"chat_id":chat,"text":message}).encode()
@@ -404,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
-   chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
+   chat=telegram_destination()
    return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
   if path=="/healthz/storage":
    try:
@@ -421,7 +433,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -433,6 +445,18 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/instruments":
+   try:
+    with history_connection() as c:preferences=_destinations.read(c)
+    observed={r[0] for r in list_events(5000,"all")}
+    return self.reply(200,{"instruments":_instruments.catalog(observed,preferences["watchlist"]),"arbitrary_qualified_symbols":True,"alert_coverage_not_implied":True})
+   except Exception:return self.reply(503,{"error":"catalog_unavailable"})
+  if path=="/api/destinations":
+   try:
+    with history_connection() as c:
+     preferences=_destinations.read(c);deliveries=_destinations.recent(c)
+    return self.reply(200,{**preferences,"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and (preferences["telegram_chat_id"] or os.getenv("TELEGRAM_CHAT_ID"))),"telegram_uses_server_default":not bool(preferences["telegram_chat_id"]),"whatsapp_mode":"manual_share","whatsapp_automatic_connected":False,"deliveries":deliveries})
+   except Exception:return self.reply(503,{"error":"settings_unavailable"})
   if path=="/api/integrations":
    try:return self.reply(200,integration_status())
    except Exception:return self.reply(503,{"error":"integrations_unavailable"})
@@ -569,7 +593,7 @@ class Handler(BaseHTTPRequestHandler):
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
-    events.append({"symbol":symbol,"event":event,"time":t,"received_at":d.get("received_at"),"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
+    events.append({"event_id":d.get("event_id"),"instrument":_instruments.describe(symbol),"notification_text":trade_notification_text(d) if event in ("BUY","SELL") else None,"symbol":symbol,"event":event,"time":t,"received_at":d.get("received_at"),"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
    return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
@@ -577,6 +601,20 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/api/destinations":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})
+   origin=self.headers.get("Origin")
+   if origin and urlsplit(origin).netloc!=self.headers.get("Host"):return self.reply(403,{"error":"origin"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=16384:return self.reply(413,{"error":"size"})
+    preferences=_destinations.validate(json.loads(self.rfile.read(size)),_desk.normalize)
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_destinations_or_symbols"})
+   try:
+    with history_connection() as c:_destinations.save(c,preferences,postgres_enabled())
+    return self.reply(200,{"saved":True,**preferences,"whatsapp_automatic_connected":False})
+   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if urlsplit(self.path).path=="/api/analyze":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})
@@ -630,6 +668,9 @@ class Handler(BaseHTTPRequestHandler):
    import threading
    def deliver():
     status=telegram_notify(d)
+    try:
+     with history_connection() as c:_destinations.receipt(c,d["event_id"],"telegram",status,postgres_enabled())
+    except Exception:print("delivery_receipt storage_unavailable",flush=True)
     print("telegram_delivery="+status,flush=True)
    threading.Thread(target=deliver,daemon=True).start()
 if __name__=="__main__":

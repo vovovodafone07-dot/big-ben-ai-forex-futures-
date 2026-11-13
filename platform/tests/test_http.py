@@ -139,6 +139,36 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertIn("الصفقة الكاملة",message)
         self.assertIn("خيار السكالب",message)
 
+    def test_recipients_are_private_validated_and_persisted(self):
+        values={'telegram_chat_id':'123456789','whatsapp_number':'+96891234567','watchlist':['GBPJPY','NYMEX:CL1!']}
+        self.assertEqual(self.request('GET','/api/destinations')[0],401)
+        self.assertEqual(self.request('POST','/api/destinations',values)[0],401)
+        self.assertEqual(self.request('POST','/api/destinations',values,auth=self.auth)[0],200)
+        status,result=self.request('GET','/api/destinations',auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual(result['whatsapp_number'],values['whatsapp_number'])
+        self.assertFalse(result['whatsapp_automatic_connected']);self.assertEqual(result['watchlist'],['OANDA:GBPJPY','NYMEX:CL1!'])
+        self.assertEqual(app.telegram_destination(),'123456789')
+        for key,bad in [('telegram_chat_id','+96891234567'),('whatsapp_number','91234567'),('watchlist',['INVALID'])]:
+            self.assertEqual(self.request('POST','/api/destinations',{**values,key:bad},auth=self.auth)[0],400)
+
+    def test_catalog_expands_and_observed_symbols_are_discovered(self):
+        self.assertEqual(self.request('GET','/api/instruments')[0],401)
+        event=self.payload();event['symbol']='EUREX:FDAX1!'
+        self.request('POST','/v1/tradingview/events',event)
+        status,result=self.request('GET','/api/instruments',auth=self.auth)
+        self.assertEqual(status,200);self.assertGreater(len(result['instruments']),50)
+        instrument=next(i for i in result['instruments'] if i['symbol']=='EUREX:FDAX1!')
+        self.assertTrue(instrument['observed']);self.assertEqual(instrument['asset_class'],'futures')
+
+    def test_trade_stream_has_forex_names_and_formatted_share_text(self):
+        self.request('POST','/v1/tradingview/events',self.payload('BUY'))
+        status,result=self.request('GET','/api/events?type=trades',auth=self.auth)
+        self.assertEqual(status,200)
+        event=result['events'][0]
+        self.assertEqual(event['instrument']['asset_class'],'forex')
+        self.assertIn('EUR / USD',event['notification_text'])
+        self.assertIn('TradingView'.lower(),event['notification_text'].lower())
+
     def test_analysis_api_is_private_and_uses_stored_heartbeat(self):
         self.assertEqual(self.request("GET", "/api/analysis")[0], 401)
         self.request("POST", "/v1/tradingview/events", self.payload())

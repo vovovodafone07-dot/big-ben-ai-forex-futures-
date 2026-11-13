@@ -11,31 +11,27 @@ def sibling(name):
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 scalping=sibling("scalping")
-SYMBOLS={"EURUSD":"OANDA:EURUSD","GBPUSD":"OANDA:GBPUSD","USDJPY":"OANDA:USDJPY",
-    "NQ":"CME_MINI:NQ1!","MNQ":"CME_MINI:MNQ1!","ES":"CME_MINI:ES1!",
-    "MES":"CME_MINI:MES1!","YM":"CBOT_MINI:YM1!","6E":"CME:6E1!"}
+instruments=sibling("instruments")
+SYMBOLS=instruments.SYMBOLS
 CHECKS={"trigger_buy":"اختراق وإعادة اختبار للشراء","trigger_sell":"اختراق وإعادة اختبار للبيع",
     "ready":"عدم وجود صفقة مفتوحة واجتياز الكولداون","htf_long":"فلتر الفريمات العليا للشراء",
     "htf_short":"فلتر الفريمات العليا للبيع","ha_long":"تأكيد Heikin Ashi للشراء",
     "ha_short":"تأكيد Heikin Ashi للبيع","volatility_ok":"فلتر هدوء ATR",
     "risk_buy_ok":"مسافة وقف الشراء ضمن حدود الاستراتيجية","risk_sell_ok":"مسافة وقف البيع ضمن حدود الاستراتيجية",
     "hybrid_buy_ok":"عدد أدلة الشراء المطلوب","hybrid_sell_ok":"عدد أدلة البيع المطلوب",
-    "direction_buy_ok":"السماح باتجاه الشراء","direction_sell_ok":"السماح باتجاه البيع"}
+    "direction_buy_ok":"السماح باتجاه الشراء","direction_sell_ok":"السماح باتجاه البيع",
+    "cisd_buy":"CISD شراء — تجاوز افتتاح الشمعة السابقة المعاكسة",
+    "cisd_sell":"CISD بيع — كسر افتتاح الشمعة السابقة المعاكسة",
+    "smt_buy":"SMT شراء — اختلاف قاع مع رمز المقارنة",
+    "smt_sell":"SMT بيع — اختلاف قمة مع رمز المقارنة"}
 
 def normalize(value):
-    if not isinstance(value,str):raise ValueError("symbol")
-    value=value.strip().upper().replace("/","")
-    if value in SYMBOLS:return SYMBOLS[value]
-    if value in SYMBOLS.values():return value
-    # Raw continuous ticker names are accepted only for the known instrument map.
-    value=value.removesuffix("1!")
-    if value in SYMBOLS:return SYMBOLS[value]
-    raise ValueError("symbol_not_enabled")
+    return instruments.normalize(value)
 
 def condition_checks(telemetry):
     raw=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
     filters=telemetry.get("filters") if isinstance(telemetry.get("filters"),dict) else {}
-    optional={"ha_long":"use_ha","ha_short":"use_ha","volatility_ok":"use_atr_floor","hybrid_buy_ok":"use_hybrid","hybrid_sell_ok":"use_hybrid"}
+    optional={"ha_long":"use_ha","ha_short":"use_ha","volatility_ok":"use_atr_floor","hybrid_buy_ok":"use_hybrid","hybrid_sell_ok":"use_hybrid","smt_buy":"enable_smt","smt_sell":"enable_smt"}
     return [{"key":key,"label":label,"state":"DISABLED" if filters.get(optional.get(key)) is False else "PASSED" if raw.get(key) is True else "FAILED" if raw.get(key) is False else "UNKNOWN"} for key,label in CHECKS.items()]
 
 def analyze(symbol,rows,news,now=None):
@@ -56,7 +52,7 @@ def analyze(symbol,rows,news,now=None):
     raw_checks=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
     checks=condition_checks(telemetry)
     # Reuse the same freshness/outcome/geometry policy as the paired scalp endpoint.
-    paired=scalping.scenarios(rows,1,now=now)
+    paired=scalping.scenarios([row for row in rows if row[0]==symbol],1,now=now)
     signals=[s for s in paired["signals"] if s["symbol"]==symbol]
     signal=signals[0] if fresh and signals else None
     if signal:
@@ -91,7 +87,7 @@ def analyze(symbol,rows,news,now=None):
         {"role":"validation","state":"COMPLETED","output":"تُرفض الصفقة عند غياب إشارة حديثة ومستويات سليمة"},
         {"role":"updates","state":"COMPLETED","output":"الكود الحي مرتبط بسجل المصدر؛ تحديث TradingView يحتاج مسار الحساب المدعوم واختبارات الإصدار"},
         {"role":"coordinator","state":"COMPLETED","output":decision}]
-    return {"symbol":symbol,"generated_at":now.isoformat(),"decision":decision,"fresh":fresh,
+    return {"instrument":instruments.describe(symbol),"symbol":symbol,"generated_at":now.isoformat(),"decision":decision,"fresh":fresh,
         "source_time":latest[0].isoformat() if latest else None,"received_at":data.get("received_at"),
         "strategy_version":data.get("strategy_version") if isinstance(data.get("strategy_version"),str) else None,
         "bridge_version":data.get("bridge_version") if isinstance(data.get("bridge_version"),str) else None,

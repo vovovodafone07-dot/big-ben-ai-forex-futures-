@@ -1,0 +1,29 @@
+name: Big Ben Daily Research (read-only)
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run research only if a real historical OHLC dataset is present
+        shell: bash
+        run: |
+          mkdir -p research/reports
+          if [ -f research/data/market_m5.csv ]; then
+            python research/daily_agents.py research/data/market_m5.csv > research/reports/latest.json
+          else
+            echo '{"status":"awaiting_real_ohlc_data","reason":"No research/data/market_m5.csv; no simulated or fabricated backtest"}' > research/reports/latest.json
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bigben-daily-research
+          path: research/reports/latest.json
+          retention-days: 30

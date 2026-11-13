@@ -1,17 +1,20 @@
 {
   "version": "v6.4.1-sync",
-  "source": "Big_Ben_AI_Hybrid_M5_v6_4_1_Synced.pine",
-  "source_sha256": "e16e6c21d78aa826b0203a908b87b32b4784d483c15eb9b227f6f82abfce316b",
-  "pine_title": "Big Ben AI | Hybrid M5 v6.4.1 | Synced Bridge",
+  "source": "Big_Ben_AI_Hybrid_M5_v6_4_2_Telemetry.pine",
+  "source_sha256": "ce18f800f8b723bb6c98e05c7a9a3dd2e8a173c58ed18ebc004dbce5d5300c59",
+  "pine_title": "Big Ben AI | Hybrid M5 v6.4.2 | Evidence Bridge",
   "tradingview_compilation_verified": true,
-  "verification_date": "2026-11-13",
+  "verification_date": "2026-11-14",
   "saved_script_name": "Big Ben AI | Hybrid M5 v6.1 | Pro Webhook",
-  "saved_script_revision": 8,
+  "saved_script_revision": 9,
   "compatibility_defaults": {
     "rr": 2.5,
     "min_evidence": 1,
     "use_ha": false,
     "use_atr_floor": false
   },
-  "profitability_validated": false
+  "profitability_validated": false,
+  "bridge_version": "v6.4.2-telemetry",
+  "alert_snapshot_cutover": "pending_existing_alert_updates",
+  "strategy_core_unchanged": true
 }

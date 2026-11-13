@@ -24,6 +24,13 @@ class SourceRegistryTests(unittest.TestCase):
         self.assertIn(result["pine_title"],result["code"])
         self.assertEqual(hashlib.sha256(result["code"].encode()).hexdigest(),result["source_sha256"])
         self.assertFalse(result["changes_to_live_tradingview"])
+    def test_telemetry_preserves_original_strategy_core(self):
+        root=Path(__file__).resolve().parents[2]/'tradingview'
+        old=(root/'Big_Ben_AI_Hybrid_M5_v6_4_1_Synced.pine').read_text(encoding='utf-8')
+        new=(root/'Big_Ben_AI_Hybrid_M5_v6_4_2_Telemetry.pine').read_text(encoding='utf-8')
+        def core(source):return source.split('webhookSymbol =',1)[1].split('var box riskBox =',1)[0].split('// Read-only telemetry',1)[0]
+        self.assertEqual(core(old),core(new));self.assertEqual(new.count('analysisJson ='),1)
+        self.assertEqual(new.count('"analysis":'),2)
     def test_wrong_source_hash_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory=Path(tmp)

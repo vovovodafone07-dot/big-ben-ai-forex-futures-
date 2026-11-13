@@ -22,6 +22,32 @@ def migrate(c):
     c.execute("CREATE TABLE IF NOT EXISTS ai_daily_budget (day TEXT PRIMARY KEY,requests INTEGER NOT NULL)")
     c.execute("CREATE TABLE IF NOT EXISTS ai_reviews (id TEXT PRIMARY KEY,created_at TEXT NOT NULL,payload TEXT NOT NULL)")
 
+class ReviewError(ValueError):pass
+
+def parse_review_response(data):
+    if not isinstance(data,dict):raise ReviewError("provider_response_shape_invalid")
+    candidates=data.get("candidates")
+    if not isinstance(candidates,list) or not candidates or not isinstance(candidates[0],dict):raise ReviewError("provider_candidates_missing")
+    candidate=candidates[0]
+    if candidate.get("finishReason")=="MAX_TOKENS":raise ReviewError("provider_output_limit")
+    if candidate.get("finishReason") not in (None,"STOP"):raise ReviewError("provider_incomplete_response")
+    content=candidate.get("content")
+    parts=content.get("parts") if isinstance(content,dict) else None
+    if not isinstance(parts,list):raise ReviewError("provider_content_missing")
+    text="".join(part["text"] for part in parts if isinstance(part,dict) and part.get("thought") is not True and isinstance(part.get("text"),str))
+    if not text.strip():raise ReviewError("provider_text_missing")
+    try:output=json.loads(text)
+    except (ValueError,TypeError):raise ReviewError("provider_review_json_invalid") from None
+    if not isinstance(output,dict) or not isinstance(output.get("summary"),str) or not output["summary"].strip() or not isinstance(output.get("roles"),dict):raise ReviewError("provider_review_schema_invalid")
+    roles={key:output["roles"][key].strip()[:1200] for key in ("trading","news","risk","learning") if isinstance(output["roles"].get(key),str) and output["roles"][key].strip()}
+    if len(roles)!=4:raise ReviewError("provider_review_schema_invalid")
+    return {"summary":output["summary"].strip()[:1800],"roles":roles}
+
+def failed_review(info,reason,now,**metadata):
+    global LAST_CHECK
+    LAST_CHECK={"state":"UNAVAILABLE","reason":reason,"checked_at":now.isoformat(),**metadata}
+    return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":reason,"last_check":LAST_CHECK.copy(),**metadata}
+
 def review(evidence,connection_factory,postgres=False,now=None):
     global LAST_CHECK
     info=status();now=now or datetime.now(timezone.utc)
@@ -30,7 +56,8 @@ def review(evidence,connection_factory,postgres=False,now=None):
     # Only allow-listed public market observations and attributed headlines enter a model.
     safe={"symbol":evidence["symbol"],"decision":evidence["decision"],
         "checks":evidence["checks"],"news":evidence.get("news",[])[:6],
-        "learning":evidence.get("learning",{}),"consensus_available":False}
+        "learning":evidence.get("learning",{}),"fresh":evidence.get("fresh"),"source_time":evidence.get("source_time"),
+        "reasons":evidence.get("reasons",[]),"upcoming_events":evidence.get("upcoming_events",[])[:6],"consensus_available":False}
     digest=hashlib.sha256(json.dumps({"model":info["model"],"data":safe},sort_keys=True).encode()).hexdigest()
     marker="%s" if postgres else "?"
     with connection_factory() as c:
@@ -47,18 +74,18 @@ def review(evidence,connection_factory,postgres=False,now=None):
         "نتائج الإغلاق المرصود ليست تنفيذًا أو أرباحًا حقيقية. لا تسمح بتعديل الاستراتيجية تلقائيًا.")
     body={"systemInstruction":{"parts":[{"text":instruction}]},
         "contents":[{"role":"user","parts":[{"text":json.dumps(safe,ensure_ascii=False)}]}],
-        "generationConfig":{"responseMimeType":"application/json","maxOutputTokens":2048}}
+        "generationConfig":{"responseMimeType":"application/json","maxOutputTokens":4096}}
+    if info["model"]=="gemini-3.8-flash":body["generationConfig"]["thinkingConfig"]={"thinkingLevel":"LOW","includeThoughts":False}
     req=urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/models/"+info["model"]+":generateContent",
         data=json.dumps(body).encode(),headers={"Content-Type":"application/json","x-goog-api-key":os.environ["GEMINI_API_KEY"]},method="POST")
+    phase="request"
     try:
-        with urllib.request.urlopen(req,timeout=25) as response:raw=response.read(150001)
-        if len(raw)>150000:raise ValueError()
+        with urllib.request.urlopen(req,timeout=45) as response:raw=response.read(150001)
+        phase="response_json"
+        if len(raw)>150000:raise ReviewError("provider_response_oversized")
         data=json.loads(raw)
-        text=data["candidates"][0]["content"]["parts"][0]["text"]
-        output=json.loads(text)
-        if not isinstance(output,dict) or not isinstance(output.get("summary"),str) or not isinstance(output.get("roles"),dict):raise ValueError()
-        roles={key:output["roles"][key][:1200] for key in ("trading","news","risk","learning") if isinstance(output["roles"].get(key),str)}
-        if len(roles)!=4:raise ValueError()
+        output=parse_review_response(data)
+        roles=output["roles"]
         result={**info,"state":"CONNECTED","connection_verified":True,"summary":output["summary"][:1800],
             "roles":roles,"reviewed_at":now.isoformat(),"cached":False,"decision_override_allowed":False}
         with connection_factory() as c:
@@ -76,6 +103,11 @@ def review(evidence,connection_factory,postgres=False,now=None):
         error.close()
         LAST_CHECK={"state":"UNAVAILABLE","reason":reason,"http_status":error.code,"provider_status":provider_status,"checked_at":now.isoformat()}
         return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":reason,"http_status":error.code,"provider_status":provider_status}
-    except (urllib.error.URLError,TimeoutError,ValueError,KeyError,IndexError,TypeError,OSError):
-        LAST_CHECK={"state":"UNAVAILABLE","reason":"provider_request_or_response_failed","checked_at":now.isoformat()}
-        return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":"provider_request_or_response_failed"}
+    except ReviewError as error:
+        return failed_review(info,str(error),now)
+    except TimeoutError:
+        return failed_review(info,"provider_timeout",now)
+    except urllib.error.URLError as error:
+        return failed_review(info,"provider_timeout" if isinstance(error.reason,TimeoutError) else "provider_connection_failed",now)
+    except (ValueError,KeyError,IndexError,TypeError,OSError):
+        return failed_review(info,"provider_response_json_invalid" if phase=="response_json" else "provider_request_failed",now)

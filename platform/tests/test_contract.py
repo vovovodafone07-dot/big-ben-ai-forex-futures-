@@ -16,7 +16,7 @@ class Contracts(unittest.TestCase):
   import inspect
   source=inspect.getsource(app.Handler.do_GET)
   self.assertIn('"/api/agent"',source)
-  self.assertLess(source.index('if not hmac.compare_digest(supplied,expected)'),source.index('if path=="/api/agent"'))
+  self.assertLess(source.index('if not secure_equal(supplied,expected)'),source.index('if path=="/api/agent"'))
  def test_heartbeat_contract(self):
   d={"schema":"bigben.v1","event":"HEARTBEAT","event_id":"CME_MINI:MNQ1_-1794400000000-HEARTBEAT","symbol":"CME_MINI:MNQ1!","time":datetime.now(timezone.utc).isoformat(),"close":28208.75,"m15":1,"h1":1,"h4":1}
   self.assertEqual(app.validate(d),d)

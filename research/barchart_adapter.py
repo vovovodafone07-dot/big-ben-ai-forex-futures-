@@ -1,6 +1,7 @@
 """Barchart OnDemand research feed. Read-only; validates actual licensed symbol returns."""
 import json,os,urllib.request,urllib.parse,urllib.error,datetime,math,re
 from pathlib import Path
+from candle_quality import validate_candles,DataQualityError
 
 URL="https://ondemand.websol.barchart.com/getHistory.json"
 
@@ -30,25 +31,28 @@ def get_m5(symbol,api_key,days=30):
  if not isinstance(payload,dict):raise ProviderError("Barchart response not a JSON object")
  status=payload.get("status") or {}
  if str(status.get("code"))!="200":
-  raise ProviderError("Barchart rejected request for "+symbol+": "+str(status.get("message","unknown"))[:140])
+  raise ProviderError("Barchart rejected request; verify symbol and entitlement in provider dashboard")
  items=payload.get("results") or []
  if not items:raise ProviderError("No historical 5m bars returned for "+symbol+"; check symbol, market license, or market session")
  if len(items)>=30000:raise ProviderError("Result at 30000-bar cap; shorten date range to avoid silent truncation")
- rows=[];seen=set()
+ rows=[]
  for row in items:
-  if not isinstance(row,dict):continue
+  if not isinstance(row,dict):raise ProviderError("Invalid historical bar type")
   try:
    ts=datetime.datetime.fromisoformat(str(row["timestamp"]).replace("Z","+00:00"))
    if ts.tzinfo is None:raise ValueError("timestamp without timezone")
    t=ts.astimezone(datetime.timezone.utc).isoformat()
-   if t in seen:continue
    values={k:float(row[k]) for k in ("open","high","low","close")}
-   if not all(math.isfinite(x) and x>0 for x in values.values()):continue
-   if values["high"]<max(values["open"],values["close"],values["low"]):continue
-   if values["low"]>min(values["open"],values["close"]):continue
-   rows.append({"time":t,**values});seen.add(t)
-  except (ValueError,KeyError,TypeError,OverflowError):continue
- rows.sort(key=lambda x:x["time"])
+   if not all(math.isfinite(x) and x>0 for x in values.values()):raise ValueError("invalid OHLC")
+   if values["high"]<max(values["open"],values["close"],values["low"]):raise ValueError("invalid high")
+   if values["low"]>min(values["open"],values["close"]):raise ValueError("invalid low")
+   rows.append({"time":t,**values})
+  except (ValueError,KeyError,TypeError,OverflowError) as error:
+   raise ProviderError("Invalid historical bar") from error
+ try:
+  rows,quality=validate_candles(rows)
+ except DataQualityError as error:
+  raise ProviderError("Historical candle quality validation failed") from error
  if len(rows)<120:raise ProviderError("Insufficient valid M5 bars for "+symbol+" ("+str(len(rows))+")")
  if (datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(rows[-1]["time"])).total_seconds()>4*86400:
   raise ProviderError("Historical data is stale for "+symbol+"; verify exchange session and source permissions")

@@ -7,10 +7,14 @@ on:
     paths:
       - 'research/**'
       - '.github/workflows/daily-research.yml'
+concurrency:
+  group: bigben-daily-research
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   research:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +25,7 @@ jobs:
         run: python -m unittest discover -s research/tests -v
       - name: Research with licensed Barchart feed when configured
         env:
-          BARCHART_API_KEY: ${{ secrets.BARCHART_API_KEY }}
+          BARCHART_API_KEY: ${{ github.event_name == 'schedule' && secrets.BARCHART_API_KEY || github.event_name == 'workflow_dispatch' && secrets.BARCHART_API_KEY || '' }}
           BIGBEN_BARCHART_SYMBOL_MAP: ${{ vars.BIGBEN_BARCHART_SYMBOL_MAP }}
         shell: bash
         run: |
@@ -32,6 +36,7 @@ jobs:
             python research/run_provider_research.py
           fi
       - name: Save research evidence for human review
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bigben-daily-research

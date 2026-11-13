@@ -67,9 +67,15 @@ def review(evidence,connection_factory,postgres=False,now=None):
         return result
     except urllib.error.HTTPError as error:
         reason={400:"provider_invalid_request",401:"provider_authentication_failed",403:"provider_permission_or_verification_required",404:"provider_model_unavailable",429:"provider_quota_exceeded"}.get(error.code,"provider_http_error")
+        provider_status=None
+        try:
+            error_body=json.loads(error.read(16385))
+            value=error_body.get("error",{}).get("status")
+            if value in {"INVALID_ARGUMENT","UNAUTHENTICATED","PERMISSION_DENIED","NOT_FOUND","RESOURCE_EXHAUSTED","INTERNAL","UNAVAILABLE","FAILED_PRECONDITION"}:provider_status=value
+        except (ValueError,TypeError,AttributeError,OSError):pass
         error.close()
-        LAST_CHECK={"state":"UNAVAILABLE","reason":reason,"checked_at":now.isoformat()}
-        return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":reason}
+        LAST_CHECK={"state":"UNAVAILABLE","reason":reason,"http_status":error.code,"provider_status":provider_status,"checked_at":now.isoformat()}
+        return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":reason,"http_status":error.code,"provider_status":provider_status}
     except (urllib.error.URLError,TimeoutError,ValueError,KeyError,IndexError,TypeError,OSError):
         LAST_CHECK={"state":"UNAVAILABLE","reason":"provider_request_or_response_failed","checked_at":now.isoformat()}
         return {**info,"state":"UNAVAILABLE","connection_verified":False,"summary":None,"roles":{},"reason":"provider_request_or_response_failed"}

@@ -25,6 +25,9 @@ SUMMARY:Release
 END:VEVENT
 END:VCALENDAR'''
   events=news.parse_calendar(raw,NOW);self.assertEqual(events[0]['time'],'2026-11-16T13:30:00+00:00');self.assertIsNone(events[0]['consensus']);self.assertFalse(events[0]['impact_verified'])
+ def test_bls_declared_timezone_alias_is_read(self):
+  raw=b'BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=US-Eastern:20261116T100000\nSUMMARY:Official release\nEND:VEVENT\nEND:VCALENDAR'
+  result=news.parse_calendar(raw,NOW);self.assertEqual(result[0]['time'],'2026-11-16T15:00:00+00:00');self.assertIsNone(result[0]['consensus'])
  def test_failed_refresh_preserves_items_and_cooldown(self):
   with tempfile.TemporaryDirectory() as t:
    @contextmanager
@@ -46,6 +49,9 @@ class DeskTests(unittest.TestCase):
  def test_fresh_signal_has_both_targets_and_own_checks(self):
   d=desk.analyze('EURUSD',[self.row('HEARTBEAT',checks={'ready':False}),self.row(age=60,checks={'ready':True})],{},NOW)
   self.assertEqual(d['decision'],'BUY');self.assertEqual(d['full_trade']['tp'],105);self.assertEqual(d['scalp']['tp'],102);self.assertEqual(next(c for c in d['checks'] if c['key']=='ready')['state'],'PASSED')
+ def test_failed_live_checks_explain_wait(self):
+  d=desk.analyze('EURUSD',[self.row('HEARTBEAT',checks={'ready':False,'trigger_buy':False})],{},NOW)
+  self.assertEqual(d['decision'],'WAIT');self.assertTrue(any('الكولداون' in r for r in d['reasons']))
  def test_stale_signal_waits(self):
   self.assertEqual(desk.analyze('EURUSD',[self.row(age=720)],{},NOW)['decision'],'WAIT')
  def test_disabled_filters_are_not_claimed_as_evidence(self):
@@ -79,7 +85,12 @@ class AITests(unittest.TestCase):
   error=urllib.error.HTTPError('https://example.invalid',404,'synthetic-secret',{},io.BytesIO())
   with patch.object(ai.urllib.request,'urlopen',side_effect=error):
    result=ai.review(self.evidence(),self.connection,now=NOW)
-  self.assertEqual(result['reason'],'provider_model_unavailable');self.assertFalse(ai.status()['connection_verified']);self.assertNotIn('synthetic-secret',json.dumps(result))
+  self.assertEqual(result['http_status'],404);self.assertEqual(result['reason'],'provider_model_unavailable');self.assertFalse(ai.status()['connection_verified']);self.assertNotIn('synthetic-secret',json.dumps(result))
+ def test_unmapped_http_failure_preserves_only_numeric_status(self):
+  import urllib.error,io
+  error=urllib.error.HTTPError('https://example.invalid',503,'synthetic-secret',{},io.BytesIO(b'synthetic-secret'))
+  with patch.object(ai.urllib.request,'urlopen',side_effect=error):result=ai.review(self.evidence(),self.connection,now=NOW)
+  self.assertEqual(result['http_status'],503);self.assertEqual(ai.status()['last_check']['http_status'],503);self.assertNotIn('synthetic-secret',json.dumps(result))
  def test_budget_and_sanitized_failures(self):
   with patch.object(ai.urllib.request,'urlopen',side_effect=OSError('synthetic-secret')) as fetch:
    for _ in range(10):self.assertEqual(ai.review(self.evidence(),self.connection,now=NOW)['state'],'UNAVAILABLE')

@@ -80,6 +80,8 @@ def analyze(symbol,rows,news,now=None):
         {"condition":"بيانات متعارضة أو غياب إجماع موثق","scenario":"لا يوجد توقع رقمي معتمد؛ السيناريو بحثي والانتظار متاح"}]
     decision=signal["event"] if signal else "WAIT"
     failed=[c["label"] for c in checks if c["state"]=="FAILED"]
+    if fresh and raw_checks and not signal:
+        reasons.extend("لم يتحقق: "+label for label in failed[:6])
     roles=[{"role":"market_data","state":"COMPLETED","output":"بيانات حديثة مستلمة" if fresh else "بيانات غير كافية أو قديمة"},
         {"role":"signal_quality","state":"COMPLETED","output":"؛ ".join(reasons)},
         {"role":"risk","state":"COMPLETED","output":"الصفقة الكاملة والسكالب بديلان بنفس الدخول والوقف؛ لا تُجمع المخاطرتان"},

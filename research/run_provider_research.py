@@ -2,7 +2,7 @@
 import json,os,sys,datetime
 from pathlib import Path
 from barchart_adapter import get_m5,load_requested_symbols,ProviderError
-from daily_agents import backtest,agent_quality,agent_risk,agent_validation,agent_reviewer
+from daily_agents import backtest,agent_quality,agent_risk,agent_validation,agent_reviewer,agent_hypotheses
 
 def generate():
  report={"created_at":datetime.datetime.now(datetime.timezone.utc).isoformat(),"provider":"Barchart OnDemand","mode":"read_only_research_proxy","status":"awaiting_data_access","symbols":{},"limitations":["Not the exact TradingView Pine v6.4 algorithm","No real fills, commissions, slippage, tick-sequenced TP/SL or strategy auto-updates"]}
@@ -22,6 +22,7 @@ def generate():
    candles=get_m5(symbol,key)
    trades=backtest(candles)
    r={"provider_symbol":symbol,"candles":len(candles),"quality":agent_quality(trades),"risk":agent_risk(trades),"validation":agent_validation(candles)}
+   r["hypothesis_agent"]=agent_hypotheses(candles)
    r["reviewer"]=agent_reviewer(r)
    r["status"]="research_complete";report["symbols"][label]=r;success+=1
   except (ProviderError,ValueError,KeyError,TypeError) as e:

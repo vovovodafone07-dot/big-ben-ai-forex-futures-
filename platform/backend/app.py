@@ -226,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -238,6 +238,18 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/data-sources":
+   # Configuration/readiness only. Never report entitlement or real-time support without a licensed probe.
+   barchart_key=bool(os.getenv("BARCHART_API_KEY","").strip())
+   mapping_configured=bool(os.getenv("BIGBEN_BARCHART_SYMBOL_MAP","").strip())
+   twelve_key=bool(os.getenv("TWELVE_DATA_API_KEY","").strip())
+   return self.reply(200,{"status":"configuration_only","preferred_provider":"Barchart OnDemand",
+     "barchart":{"api_key_configured":barchart_key,"symbol_mapping_configured":mapping_configured,
+                  "licensed_symbol_coverage":"unverified","live_and_historical_entitlements":"unverified",
+                  "research_ready":barchart_key and mapping_configured},
+     "twelve_data":{"api_key_configured":twelve_key,"role":"existing_quotes_optional",
+                    "futures_coverage":"not_confirmed"},
+     "data_policy":"Never use unsupported futures quotes, stale candles, or fabricated backtests"})
   if path=="/api/market":
    # Twelve Data is optional. Never label delayed or missing quotes as live.
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})

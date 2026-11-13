@@ -6,3 +6,5 @@ Build: python -m pip install -r platform/backend/requirements.txt && python -m c
 Start: python platform/backend/app.py.
 انتظر CI ثم انشر commit مجازًا؛ نجاح trigger لا يعني نجاح النشر. تحقق من الحالة live والـcommit وفحص /healthz/storage والسجلات.
 المهارة الحالية للنشر تفضل استخدام المستودع الموصول. لم تُنشأ موارد مدفوعة جديدة.
+
+آخر نشر مؤكد: dep-dbrjkvc9v7es73cpkm50، commit 4a5847e1c220c46eedc527f88c41d33e53bdb012، live في 13 نوفمبر 2026. فحص PostgreSQL بعده أعاد ok.

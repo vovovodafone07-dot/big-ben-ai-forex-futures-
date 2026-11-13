@@ -18,6 +18,15 @@ _aspec.loader.exec_module(_analysis)
 _sspec=importlib.util.spec_from_file_location("bigben_scalping",Path(__file__).with_name("scalping.py"))
 _scalping=importlib.util.module_from_spec(_sspec)
 _sspec.loader.exec_module(_scalping)
+_pspec=importlib.util.spec_from_file_location("bigben_market_probe",Path(__file__).with_name("market_probe.py"))
+_probe=importlib.util.module_from_spec(_pspec)
+_pspec.loader.exec_module(_probe)
+MARKET_DATA_DIAGNOSTIC={"state":"UNKNOWN","reason":"probe_not_completed","realtime_verified":False,"futures_coverage_verified":False}
+
+def check_market_connection():
+ global MARKET_DATA_DIAGNOSTIC
+ MARKET_DATA_DIAGNOSTIC=_probe.probe_twelve_data(twelve_data_key())
+ print("market_probe state="+MARKET_DATA_DIAGNOSTIC["state"]+" reason="+MARKET_DATA_DIAGNOSTIC["reason"],flush=True)
 
 def secure_equal(supplied, expected):
  return isinstance(supplied,str) and hmac.compare_digest(supplied.encode("utf-8"),expected.encode("utf-8"))
@@ -253,7 +262,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
-   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True}})
+   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
   if path=="/healthz/storage":
    try:
     init()
@@ -306,7 +315,7 @@ class Handler(BaseHTTPRequestHandler):
                   "licensed_symbol_coverage":"unverified","live_and_historical_entitlements":"unverified",
                   "research_ready":barchart_key and mapping_configured},
      "twelve_data":{"api_key_configured":twelve_key,"role":"existing_quotes_optional",
-                    "futures_coverage":"not_confirmed"},
+                    "futures_coverage":"not_confirmed","probe":MARKET_DATA_DIAGNOSTIC.copy()},
      "data_policy":"Never use unsupported futures quotes, stale candles, or fabricated backtests"})
   if path=="/api/market":
    # Twelve Data is optional. Never label delayed or missing quotes as live.
@@ -437,4 +446,6 @@ class Handler(BaseHTTPRequestHandler):
    threading.Thread(target=deliver,daemon=True).start()
 if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
+ import threading
+ threading.Thread(target=check_market_connection,daemon=True).start()
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

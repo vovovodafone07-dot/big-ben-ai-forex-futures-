@@ -2,10 +2,10 @@
 
 ## Implemented
 - Dashboard **Strategies → مختبر الكود والوكلاء** has a local-only Pine draft textarea and links to versioned scripts and GitHub Actions. Draft text is not persisted to the server.
-- Four deterministic research roles in `research/daily_agents.py`: quality, risk, historical holdout validation, reviewer.
+- Five deterministic research roles in `research/daily_agents.py`: quality, risk, historical holdout validation, parameter hypotheses and reviewer.
 - GitHub Actions `.github/workflows/daily-research.yml` runs daily at 02:17 UTC and via manual dispatch. It uploads a JSON report artifact; it never commits or deploys changes.
-- It requires **real** M5 historical OHLC CSV at `research/data/market_m5.csv` with `time,open,high,low,close` columns in chronological order and at least 120 valid candles. Do not commit licensed/private data without permission.
-- Without data, report explicitly says `awaiting_real_ohlc_data`; no fabricated trades.
+- With an authorized Barchart key and verified symbol mapping, the daily job fetches licensed M5 history. Otherwise it requires **real** M5 historical OHLC CSV at `research/data/market_m5.csv` with `time,open,high,low,close` columns in chronological order and at least 120 valid candles. Do not commit licensed/private data without permission.
+- Without data, report explicitly says `awaiting_data_access`; no fabricated trades.
 
 ## Critical limitations
 - The research breakout algorithm is a **proxy**, not a Pine v6.4 engine or identical implementation of its HTF/SMT/ICT logic.
@@ -21,3 +21,6 @@
 2. Implement faithful Pine signal replication and compare signals bar-by-bar.
 3. Add walk-forward optimization with fees and cross-market holdout.
 4. Store agent proposals and evaluation results in authenticated database; review and approve before publishing a new candidate.
+
+## Provider acceptance
+See `research/DATA_PROVIDER.md` for subscription verification, symbol mapping, false-data safeguards and exact remaining prerequisites.

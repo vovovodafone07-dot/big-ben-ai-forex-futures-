@@ -69,6 +69,16 @@ class WebhookHTTPTests(unittest.TestCase):
             result.update(entry=100, sl=102, tp=94, rr=3)
         return result
 
+    def test_desk_news_and_replay_are_private_and_wait_without_data(self):
+        for endpoint in ('/api/news','/api/integrations','/api/research/pine-runs'):
+            self.assertEqual(self.request('GET',endpoint)[0],401)
+            self.assertEqual(self.request('GET',endpoint,auth=self.auth)[0],200)
+        self.assertEqual(self.request('POST','/api/analyze',{'symbol':'EURUSD'})[0],401)
+        status,result=self.request('POST','/api/analyze',{'symbol':'EURUSD','ai':False},auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual(result['decision'],'WAIT');self.assertIsNone(result['full_trade'])
+        self.assertEqual(len(result['agent_tasks']),9);self.assertFalse(result['ai']['connection_verified'])
+        self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
+
     def test_private_api_requires_authentication(self):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)

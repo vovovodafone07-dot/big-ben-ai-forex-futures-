@@ -27,6 +27,14 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
+for _extra in ("news","desk","ai_provider"):
+ _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
+ _module=importlib.util.module_from_spec(_spec)
+ _spec.loader.exec_module(_module)
+ globals()["_"+_extra]=_module
+_rpspec=importlib.util.spec_from_file_location("bigben_replay",Path(__file__).resolve().parents[2]/"research"/"pine_replay.py")
+_replay=importlib.util.module_from_spec(_rpspec)
+_rpspec.loader.exec_module(_replay)
 MARKET_DATA_DIAGNOSTIC={"state":"UNKNOWN","reason":"probe_not_completed","realtime_verified":False,"futures_coverage_verified":False}
 
 def check_market_connection():
@@ -78,6 +86,10 @@ def init():
    _migrations.migrate_events(c,postgres=True)
    _history.migrate(c)
    _research.migrate(c)
+   _news.migrate(c)
+   _ai_provider.migrate(c)
+   _desk.migrate(c)
+   _replay.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -85,6 +97,10 @@ def init():
    _migrations.migrate_events(c)
    _history.migrate(c)
    _research.migrate(c)
+   _news.migrate(c)
+   _ai_provider.migrate(c)
+   _desk.migrate(c)
+   _replay.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -126,12 +142,67 @@ def run_daily_research():
    print("research_run symbol="+symbol+" status="+report["status"]+" tasks="+str(len(report["tasks"])),flush=True)
   except Exception:print("research_run symbol="+symbol+" status=failed reason=validation_or_storage_failure",flush=True)
 
+def run_pine_research():
+ now=datetime.now(timezone.utc)
+ strategy=current_strategy_source()
+ events=list_events(2000,"all")
+ marker="%s" if postgres_enabled() else "?"
+ for label in _history.FOREX:
+  market=_desk.normalize(label)
+  tick=None
+  for symbol,kind,stamp,payload in events:
+   if symbol!=market:continue
+   try:
+    value=json.loads(payload).get("tick_size")
+    if type(value) in (int,float) and math.isfinite(value) and value>0:tick=value;break
+   except (ValueError,TypeError):continue
+  if tick is None:continue
+  with history_connection() as c:
+   data=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(label,)).fetchall()
+  if len(data)<120:continue
+  rows=[dict(zip(("time","open","high","low","close"),r)) for r in reversed(data)]
+  digest=hashlib.sha256(json.dumps(rows,sort_keys=True).encode()).hexdigest()
+  run_id=hashlib.sha256((label+digest+str(tick)+_replay.ENGINE_SHA256+strategy["source_sha256"]).encode()).hexdigest()
+  with history_connection() as c:
+   if c.execute("SELECT id FROM pine_replay_runs WHERE id="+marker,(run_id,)).fetchone():continue
+  try:
+   report=_replay.replay(rows,tick,now=now)
+   report.update(run_id=run_id,symbol=label,created_at=now.isoformat(),source_provider="Twelve Data",
+    dataset_sha256=digest,start=rows[0]["time"],end=rows[-1]["time"],candles=len(rows),
+    source_strategy_version=strategy.get("strategy_version",strategy["version"]),pine_source_sha256=strategy["source_sha256"],tick_size_source=market+" authenticated webhook")
+   with history_connection() as c:_replay.save(c,report,postgres_enabled())
+   print("pine_replay symbol="+label+" status=research_only trades="+str(len(report["trades"])),flush=True)
+  except Exception:print("pine_replay symbol="+label+" status=failed reason=validation_or_storage_failure",flush=True)
+
+def news_worker():
+ while True:
+  try:_news.refresh(history_connection,postgres_enabled())
+  except Exception:print("news_refresh state=failed",flush=True)
+  time.sleep(3600)
+
+def integration_status():
+ rows=list_events(2000,"all");now=datetime.now(timezone.utc);tracked={}
+ for symbol,kind,stamp,payload in rows:
+  if symbol not in _desk.SYMBOLS.values() or symbol in tracked:continue
+  try:
+   data=json.loads(payload);dt=datetime.fromisoformat(stamp.replace("Z","+00:00"))
+   age=(now-dt).total_seconds()
+   tracked[symbol]={"symbol":symbol,"source_time":stamp,"received_at":data.get("received_at"),"fresh":0<=age<720,"strategy_version":data.get("strategy_version"),"bridge_version":data.get("bridge_version")}
+  except (ValueError,TypeError,AttributeError):continue
+ with history_connection() as c:
+  feeds=_news.snapshot(c)
+  coverage=_history.coverage(c,postgres=postgres_enabled())
+ return {"checked_at":now.isoformat(),"tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":9},
+  "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
+  "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":False}}
+
 def history_worker():
  # A sleeping free Render service cannot guarantee a wall-clock schedule.
  while True:
   try:
    refresh_market_history()
    run_daily_research()
+   run_pine_research()
   except Exception:print("market_history cycle=failed reason=storage_or_internal_failure",flush=True)
   time.sleep(21600)
 
@@ -350,7 +421,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -362,6 +433,21 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/integrations":
+   try:return self.reply(200,integration_status())
+   except Exception:return self.reply(503,{"error":"integrations_unavailable"})
+  if path=="/api/news":
+   try:
+    with history_connection() as c:result=_news.snapshot(c)
+    return self.reply(200,result)
+   except Exception:return self.reply(503,{"error":"news_unavailable"})
+  if path=="/api/research/pine-runs":
+   try:
+    run_id=parse_qs(urlsplit(self.path).query).get("id",[None])[0]
+    with history_connection() as c:result=_replay.latest(c,run_id,postgres_enabled())
+    return self.reply(200 if result is not None else 404,result or {"error":"run_not_found"})
+   except ValueError:return self.reply(400,{"error":"run_id"})
+   except Exception:return self.reply(503,{"error":"replay_unavailable"})
   if path=="/api/research/runs":
    try:
     with history_connection() as c:result=_research.latest(c)
@@ -491,6 +577,29 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/api/analyze":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=2048:return self.reply(413,{"error":"size"})
+    request=json.loads(self.rfile.read(size))
+    if not isinstance(request,dict):raise ValueError()
+    symbol=_desk.normalize(request.get("symbol"))
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"symbol_or_json","symbols":list(_desk.SYMBOLS)})
+   try:
+    with history_connection() as c:news=_news.snapshot(c)
+    result=_desk.analyze(symbol,list_events(2000,"all"),news)
+    with history_connection() as c:reports=_replay.latest(c)["runs"]
+    report=next((r for r in reports if _desk.normalize(r["symbol"])==symbol),None)
+    result["learning"]={"historical_report_available":bool(report),"pine_parity_verified":False,"automatic_changes":False,
+     "rejection_counts":report.get("rejection_counts",{}) if report else {},"metrics":report.get("metrics",{}) if report else {}}
+    for task in result["agent_tasks"]:
+     if task["role"]=="learning":task["output"]="تقرير المحاكاة متاح لمراجعة حالات الرفض والنتائج؛ لا تعديل تلقائي" if report else "لا يوجد تقرير تاريخي لهذا الرمز؛ لا يُستنتج تحسن أو تعلم مثبت"
+    result["ai"]=_ai_provider.review(result,history_connection,postgres_enabled()) if request.get("ai") is True else _ai_provider.status()
+    with history_connection() as c:_desk.record(c,result,postgres_enabled())
+    return self.reply(200,result)
+   except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if urlsplit(self.path).path=="/api/test-telegram":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    global LAST_TEST_SENT
@@ -528,4 +637,5 @@ if __name__=="__main__":
  import threading
  threading.Thread(target=check_market_connection,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()
+ threading.Thread(target=news_worker,daemon=True).start()
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

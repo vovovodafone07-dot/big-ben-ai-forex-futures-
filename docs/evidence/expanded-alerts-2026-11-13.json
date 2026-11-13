@@ -1,0 +1,171 @@
+{
+  "verified_at": "2026-11-13T19:15:28Z",
+  "code_commit": "ff1cb75686d03b70062224a6efabfe61ea5b2222",
+  "render_deploy": "dep-dbrlfu8u01pc73ds2rgg",
+  "alerts": [
+    {
+      "name": "Big Ben Pro | 6E M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | YM M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | ES M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | MNQ M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | NQ M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | USDJPY M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | GBPUSD M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | EURUSD M5 | v6.4.1",
+      "status": "Active"
+    },
+    {
+      "name": "Big Ben Pro | MES M5 | JSON Bridge",
+      "status": "Stopped manually"
+    },
+    {
+      "name": "Big Ben Pro | MES M5 | v6.4.1",
+      "status": "Active"
+    }
+  ],
+  "events": [
+    {
+      "event": "HEARTBEAT",
+      "symbol": "OANDA:GBPUSD",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CBOT_MINI:YM1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "OANDA:EURUSD",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "OANDA:USDJPY",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CME:6E1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CME_MINI:MNQ1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CME_MINI:NQ1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CME_MINI:ES1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    },
+    {
+      "event": "HEARTBEAT",
+      "symbol": "CME_MINI:MES1!",
+      "time": "2026-11-13T19:15:00Z",
+      "strategy_version": "v6.4.1-sync",
+      "timeframe": "5",
+      "delivery_confirmed": true
+    }
+  ],
+  "server_results": [
+    {
+      "timestamp": "2026-11-13T19:15:04.862Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:05.350679693Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:05.55702445Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:06.873435651Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:09.471387736Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:09.532040494Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:09.756533231Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:10.149296188Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    },
+    {
+      "timestamp": "2026-11-13T19:15:11.325681324Z",
+      "message": "webhook_result status=202 reason=accepted duplicate=False"
+    }
+  ],
+  "gold_alerts": "original BUY and SELL alerts remain active, unchanged",
+  "settings": {
+    "version": "v6.4.1-sync",
+    "saved_script_revision": 8,
+    "timeframe": "5",
+    "rr": 2.5,
+    "condition": "Any alert() function call",
+    "delivery": "webhook only"
+  },
+  "broker_execution": false,
+  "live_buy_sell_verified": false,
+  "exchange_realtime_entitlement_verified": false
+}

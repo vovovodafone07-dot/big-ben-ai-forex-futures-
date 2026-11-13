@@ -42,5 +42,11 @@ class AnalysisTests(unittest.TestCase):
     def test_nonfinite_close_not_exposed(self):
         item=analysis.analyze_events([self.row(close=float("nan"))],self.now)["symbols"][0]
         self.assertIsNone(item["observed_m5_close"])
+    def test_actual_source_version_is_reported_without_inventing_one(self):
+        item=analysis.analyze_events([self.row(strategy_version="v6.4.1-sync")],self.now)["symbols"][0]
+        self.assertEqual(item["strategy_version"],"v6.4.1-sync")
+        for value in (None,{},"x"*81):
+            item=analysis.analyze_events([self.row(strategy_version=value)],self.now)["symbols"][0]
+            self.assertIsNone(item["strategy_version"])
 
 if __name__=="__main__":unittest.main()

@@ -31,3 +31,10 @@ Telegram: قبل المزود رسالة اختبار واضحة دون صفقة
 PR #9 مدمج على de3c20d143fecbcd8aa08b220c96a3697ea0a3dd؛ نشر dep-dbrldbon74is7396v5ag live. جلب Twelve Data بالمفتاح الحالي 999 شمعة M5 مغلقة لكل من EUR/USD وGBP/USD وUSD/JPY (2997 إجمالًا). استُبعدت الشمعة غير المغلقة. سجل الخادم CONNECTED/validated_closed_m5_history لكل زوج، وتأكد ظهور الأعداد والتوقيت في API الذي تعرضه الواجهة. الفترة 2026-11-10T07:10:00Z إلى 2026-11-13T18:20:00Z.
 شغّل الخادم تسعة أدوار لكل زوج وحفظ ثلاثة تقارير فعلية و27 مهمة؛ عرضتها الواجهة بحالة نُفذت. لا يعني التنفيذ نجاح الاستراتيجية: المحاكاة proxy بــRR3، والإنتاج Pine RR2.5 محفوظ. CI run43482631173 ناجح على Windows/Linux/PostgreSQL؛ 98 اختبارًا و7 كتل JS. اختبار Telegram المقبول موثق عند18:12:48Z.
 كشف الفحص البصري على عرض400px تداخل الرأس الثابت مع القائمة؛ إصلاح CSS في هذا التحديث ينتظر نشره والتحقق البصري. تغطية الفيوتشرز المستقلة واللحظية والباك تيست المطابق وwalk-forward تظل غير مثبتة.
+
+
+## Nine-symbol production cutover — 2026-11-13 19:15 UTC
+All nine requested symbols have active v6.4.1 revision8 M5 alerts (RR2.5, Any alert(), current Webhook only). TradingView confirmed delivery for all nine in the same19:15 bar and Render recorded nine202/nonduplicate requests. See evidence/expanded-alerts-2026-11-13.json. Gold alerts are unchanged, legacy duplicate MES is stopped, and the original MES chart/layout was restored and saved. No real BUY/SELL or live trade Telegram delivery occurred during this verification.
+The live analysis page displayed all nine source closes/biases, but the embedded NQ widget was denied. Official widget data FAQ states that such symbols cannot be shown in widgets and a user subscription does not change widget permissions: https://www.tradingview.com/widget-docs/faq/data/. Pending UI correction uses an explicitly labeled forex default and direct futures chart links while keeping actual webhook analysis independent.
+
+Latest local verification after analysis change:79 backend +20 research tests passed (99 total), seven inline JS blocks checked. CI for the new release remains pending.

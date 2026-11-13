@@ -226,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -238,6 +238,12 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/pine/current":
+   # Protected source preview of the versioned candidate. Edits are local draft only.
+   pine_file=Path(__file__).resolve().parents[2]/"tradingview"/"Big_Ben_AI_Hybrid_M5_v6_4_Review.pine"
+   if not pine_file.is_file():return self.reply(404,{"error":"source_unavailable"})
+   return self.reply(200,{"version":"v6.4_review","code":pine_file.read_text(encoding="utf-8"),
+      "mode":"read_only_versioned_candidate","changes_to_live_tradingview":False})
   if path=="/api/data-sources":
    # Configuration/readiness only. Never report entitlement or real-time support without a licensed probe.
    barchart_key=bool(os.getenv("BARCHART_API_KEY","").strip())

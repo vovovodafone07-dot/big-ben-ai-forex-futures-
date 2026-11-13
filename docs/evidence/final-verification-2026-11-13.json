@@ -1,0 +1,58 @@
+{
+  "code_commit": "336f2ad29159e8f7b7ae983bd798886fe2ee1bc9",
+  "render_deploy": "dep-dbrma9cipgvc739hc6bg",
+  "render_status": "live",
+  "ci_run": 43492542582,
+  "tests": {
+    "backend": 79,
+    "research": 20,
+    "inline_js_blocks": 7,
+    "windows": true,
+    "linux": true,
+    "isolated_postgres": true
+  },
+  "nine_symbol_webhook_cycle": "2026-11-13T19:15:00Z",
+  "accepted": 9,
+  "duplicate": 0,
+  "analysis_cards_with_current_version": 9,
+  "forex_history_candles": 2997,
+  "research_reports": 3,
+  "completed_role_tasks": 27,
+  "telegram_connection_test_accepted": true,
+  "live_buy_sell_verified": false,
+  "independent_realtime_entitlement_verified": false,
+  "visual_checks": {
+    "chrome_desktop": true,
+    "chrome_emulation_400x844": true,
+    "forex_widget_candles": true,
+    "ticker_direction": true,
+    "muscat_timestamps": true
+  },
+  "images": [
+    {
+      "file": "artifacts/design/big-ben-desktop-2026-11-13.png",
+      "sha256": "6bca3df24370b13bda83aa55caad10745716d44da70f72b9289a938e892759b8",
+      "local_delivery_only": true
+    },
+    {
+      "file": "artifacts/design/big-ben-forex-chart-2026-11-13.png",
+      "sha256": "9eb4f34285a2a6b6c1198db96503a59e919e4a9758596d4c6e77bf3af19378c3",
+      "local_delivery_only": true
+    },
+    {
+      "file": "artifacts/design/big-ben-live-analysis-2026-11-13.png",
+      "sha256": "edd8e2b22693da7274a72f1dad7e887f82ee760556395f09a597d8e33276a688",
+      "local_delivery_only": true
+    },
+    {
+      "file": "artifacts/design/big-ben-mobile-2026-11-13.png",
+      "sha256": "6d675e142b15423ea4cf248a81bde9fa2955119ee0d147e4047a2922cbf37f19",
+      "local_delivery_only": true
+    },
+    {
+      "file": "artifacts/design/big-ben-pro-2026-11-13.png",
+      "sha256": "421b34f1580ce0ae73694809e405556d9fc54e4769743e2d5324747a5d7727ee",
+      "local_delivery_only": true
+    }
+  ]
+}

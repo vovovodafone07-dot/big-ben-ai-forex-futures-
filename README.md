@@ -40,3 +40,7 @@ python server.py
 
 ## متابعة Big Ben AI Pro
 المنصة الحالية في platform/. [أهداف السكالب والصفقة الكاملة](docs/SCALPING.md) · [الحالة الفعلية](docs/CURRENT_PROJECT_STATUS.md) · [الاختبارات](docs/TEST_RESULTS.md) · [العوائق](docs/REMAINING_BLOCKERS.md).
+
+
+## Verified deployment — 2026-11-13
+Private dashboard: https://bigben-ai-pro-api.onrender.com/#analysis. Nine M5/v6.4.1 symbol alerts delivered to the backend; fresh cards show actual higher-timeframe observations, source version and Muscat timestamps. Full-trade and optional arithmetic scalp levels share the original entry/stop. Three forex histories contain2997 closed M5 candles, with three auditable nine-role proxy reports. Live code 336f2ad29159e8f7b7ae983bd798886fe2ee1bc9;99 tests passed. See docs/CURRENT_PROJECT_STATUS.md and docs/REMAINING_BLOCKERS.md for exact scope. This is read-only analysis, with no broker execution, automatic strategy promotion, or proven profitability.

@@ -9,3 +9,6 @@ __pycache__/
 *.sqlite3
 *.sqlite3-*
 .verification/
+
+# Local browser captures delivered to the owner; never publish browsing context.
+/artifacts/design/

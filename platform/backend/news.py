@@ -14,6 +14,7 @@ SOURCES={
     "ecb":{"name":"ECB","url":"https://www.ecb.europa.eu/rss/press.html","hosts":{"www.ecb.europa.eu","ecb.europa.eu"},"currency":"EUR","kind":"rss"},
     "bls":{"name":"BLS Calendar","url":"https://www.bls.gov/schedule/news_release/bls.ics","hosts":{"www.bls.gov","bls.gov"},"currency":"USD","kind":"calendar"}}
 MAX_BYTES=2_000_000
+FEED_ADAPTER_VERSION=2
 
 class FeedError(ValueError):pass
 
@@ -66,6 +67,7 @@ def parse_calendar(raw,now=None):
             if value.endswith("Z"):stamp=datetime.strptime(value,"%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
             elif "TZID=" in key:
                 zone=key.split("TZID=",1)[1].strip('"')
+                if zone=="US-Eastern":zone="America/New_York"  # BLS declares this TZID with US Eastern DST rules.
                 if zone not in ("America/New_York","US/Eastern","UTC"):continue
                 stamp=datetime.strptime(value,"%Y%m%dT%H%M%S").replace(tzinfo=ZoneInfo(zone)).astimezone(timezone.utc)
             else:continue  # Do not guess a timezone or time for all-day releases.
@@ -88,7 +90,7 @@ def fetch(source_id,now=None):
         items=parse_rss(raw,source_id,now) if source["kind"]=="rss" else parse_calendar(raw,now)
         return {"source":source["name"],"source_id":source_id,"state":"CONNECTED",
             "checked_at":now.isoformat(),"last_success_at":now.isoformat(),"items":items,
-            "reason":"validated_feed","kind":source["kind"],"url":source["url"]}
+            "reason":"validated_feed","kind":source["kind"],"url":source["url"],"adapter_version":FEED_ADAPTER_VERSION}
     except FeedError:raise
     except urllib.error.HTTPError as error:
         raise FeedError({403:"source_access_denied",429:"source_rate_limited"}.get(error.code,"source_http_error")) from None
@@ -111,12 +113,12 @@ def refresh(connection_factory,postgres=False,now=None):
     with connection_factory() as connection:previous=load(connection)
     for key,source in SOURCES.items():
         prior=previous.get(key,{})
-        if prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<3600:continue
+        if prior.get("adapter_version")==FEED_ADAPTER_VERSION and prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<3600:continue
         try:result=fetch(key,now)
         except FeedError as error:
             result={**prior,"source_id":key,"source":source["name"],"kind":source["kind"],
                 "url":source["url"],"state":"DEGRADED","checked_at":now.isoformat(),
-                "reason":str(error),"items":prior.get("items",[]),"last_success_at":prior.get("last_success_at")}
+                "adapter_version":FEED_ADAPTER_VERSION,"reason":str(error),"items":prior.get("items",[]),"last_success_at":prior.get("last_success_at")}
         with connection_factory() as connection:save(connection,key,result,postgres)
 
 def snapshot(connection,now=None):

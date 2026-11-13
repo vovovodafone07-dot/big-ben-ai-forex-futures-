@@ -25,6 +25,9 @@ SUMMARY:Release
 END:VEVENT
 END:VCALENDAR'''
   events=news.parse_calendar(raw,NOW);self.assertEqual(events[0]['time'],'2026-11-16T13:30:00+00:00');self.assertIsNone(events[0]['consensus']);self.assertFalse(events[0]['impact_verified'])
+ def test_bls_declared_timezone_alias_is_read(self):
+  raw=b'BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART;TZID=US-Eastern:20261116T100000\nSUMMARY:Official release\nEND:VEVENT\nEND:VCALENDAR'
+  result=news.parse_calendar(raw,NOW);self.assertEqual(result[0]['time'],'2026-11-16T15:00:00+00:00');self.assertIsNone(result[0]['consensus'])
  def test_failed_refresh_preserves_items_and_cooldown(self):
   with tempfile.TemporaryDirectory() as t:
    @contextmanager

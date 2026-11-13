@@ -1,0 +1,37 @@
+{
+  "verified_at": "2026-11-13T22:30:11.737Z",
+  "production_commit": "aff712ef7a926f0169338a6215d7b105c5cd60e5",
+  "render_deploy": "dep-dbrotfpsrm7s73eobuh0",
+  "provider": "Gemini",
+  "configured_model": "gemini-3.8-flash",
+  "verification_method": "actual_authenticated_production_browser_analysis",
+  "connection_verified_in_response_and_ui": true,
+  "review_summary_observed": true,
+  "role_labels_observed": [
+    "محلل التداول",
+    "محلل الأخبار",
+    "مراجع المخاطر",
+    "مراجع النتائج"
+  ],
+  "analyzed_symbol": "CME_MINI:MNQ1!",
+  "analysis_decision": "WAIT",
+  "source_data_fresh": false,
+  "source_time": "2026-11-13T22:00:00Z",
+  "trade_levels_fabricated": false,
+  "broker_execution": false,
+  "subscription_changed": false,
+  "tests": {
+    "backend": 102,
+    "research": 37,
+    "inline_js_blocks_ci": 8,
+    "windows": true,
+    "linux": true,
+    "postgres": true,
+    "ci_run": 43519184758
+  },
+  "browser_recovery": {
+    "free_gib": 2.94,
+    "tab_switch_verified": true,
+    "in_page_navigation_verified": true
+  }
+}

@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+*.sqlite3
+*.sqlite
+**/__pycache__
+**/*.pyc
+research/
+platform/tests/
+platform/docs/
+tradingview/
+*.pine
+README.md

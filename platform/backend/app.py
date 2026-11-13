@@ -261,7 +261,13 @@ class Handler(BaseHTTPRequestHandler):
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    q=parse_qs(urlsplit(self.path).query)
    symbol=q.get("symbol",["EUR/USD"])[0].strip().upper()
-   if not re.fullmatch(r"[A-Z0-9:/._-]{2,32}",symbol):return self.reply(400,{"error":"symbol"})
+   if not re.fullmatch(r"[A-Z0-9:/._!-]{2,60}",symbol) or ".." in symbol:return self.reply(400,{"error":"symbol"})
+   # Prefer explicitly mapped, licensed Barchart quotes; never substitute a CFD for a futures contract.
+   # If no Barchart key is configured, retain the existing Twelve Data read-only fallback.
+   if os.getenv("BARCHART_API_KEY","").strip():
+    from market_data import fetch_barchart_quote,MarketDataError
+    try:return self.reply(200,fetch_barchart_quote(symbol))
+    except MarketDataError as e:return self.reply(e.status,{"error":e.code,"provider":"Barchart OnDemand","symbol":symbol})
    key=os.getenv("TWELVE_DATA_API_KEY","").strip()
    if not key:return self.reply(503,{"error":"market_provider_not_configured","provider":"Twelve Data"})
    from urllib.parse import urlencode
@@ -288,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
         return {"symbol":symbol,"time":t,"age_seconds":age,"fresh":age<720}
        except (ValueError,TypeError,AttributeError):pass
      return None
-    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("BARCHART_API_KEY","").strip() or os.getenv("TWELVE_DATA_API_KEY","").strip()),"market_provider_preference":"Barchart OnDemand" if os.getenv("BARCHART_API_KEY","").strip() else "Twelve Data","telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/agent":
    # Operational agent panel: actual observed states, not simulated AI decisions.

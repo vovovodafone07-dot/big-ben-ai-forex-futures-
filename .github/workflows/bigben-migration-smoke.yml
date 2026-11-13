@@ -1,0 +1,56 @@
+name: Big Ben portable deployment smoke tests
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'Dockerfile.legacy'
+      - '.dockerignore'
+      - 'server.py'
+      - 'index.html'
+      - 'platform/backend/**'
+      - 'platform/index.html'
+      - '.github/workflows/bigben-migration-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Pro API image
+        run: docker build -f Dockerfile -t bigben-pro:smoke .
+      - name: Build optional legacy image
+        run: docker build -f Dockerfile.legacy -t bigben-legacy:smoke .
+      - name: Start and probe Pro API (no market credentials)
+        run: |
+          set -euo pipefail
+          docker run -d --name bigben-pro -e PORT=8080 -p 18080:8080 bigben-pro:smoke
+          ok=0
+          for i in {1..25}; do
+            if curl --fail --silent http://127.0.0.1:18080/healthz | grep -q '"status": "ok"'; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" -eq 1
+          curl --fail --silent http://127.0.0.1:18080/healthz/storage | grep -q '"status": "ok"'
+      - name: Probe optional legacy dashboard
+        run: |
+          set -euo pipefail
+          docker run -d --name bigben-legacy -e PORT=8080 -p 18081:8080 bigben-legacy:smoke
+          ok=0
+          for i in {1..25}; do
+            if curl --fail --silent http://127.0.0.1:18081/health | grep -q '"ok": true'; then ok=1; break; fi
+            sleep 1
+          done
+          test "$ok" -eq 1
+          curl --fail --silent http://127.0.0.1:18081/ | grep -qi '<html'
+      - name: Inspect failures without dumping secrets
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs --tail=50 bigben-pro || true
+          docker logs --tail=50 bigben-legacy || true
+      - name: Cleanup
+        if: always()
+        run: docker rm -f bigben-pro bigben-legacy || true

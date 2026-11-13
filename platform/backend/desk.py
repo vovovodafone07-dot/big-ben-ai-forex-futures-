@@ -32,6 +32,12 @@ def normalize(value):
     if value in SYMBOLS:return SYMBOLS[value]
     raise ValueError("symbol_not_enabled")
 
+def condition_checks(telemetry):
+    raw=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
+    filters=telemetry.get("filters") if isinstance(telemetry.get("filters"),dict) else {}
+    optional={"ha_long":"use_ha","ha_short":"use_ha","volatility_ok":"use_atr_floor","hybrid_buy_ok":"use_hybrid","hybrid_sell_ok":"use_hybrid"}
+    return [{"key":key,"label":label,"state":"DISABLED" if filters.get(optional.get(key)) is False else "PASSED" if raw.get(key) is True else "FAILED" if raw.get(key) is False else "UNKNOWN"} for key,label in CHECKS.items()]
+
 def analyze(symbol,rows,news,now=None):
     symbol=normalize(symbol);now=now or datetime.now(timezone.utc)
     parsed=[]
@@ -48,7 +54,7 @@ def analyze(symbol,rows,news,now=None):
     data=latest[2] if latest else {}
     telemetry=data.get("analysis") if isinstance(data.get("analysis"),dict) else {}
     raw_checks=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
-    checks=[{"key":key,"label":label,"state":"PASSED" if raw_checks.get(key) is True else "FAILED" if raw_checks.get(key) is False else "UNKNOWN"} for key,label in CHECKS.items()]
+    checks=condition_checks(telemetry)
     # Reuse the same freshness/outcome/geometry policy as the paired scalp endpoint.
     paired=scalping.scenarios(rows,1,now=now)
     signals=[s for s in paired["signals"] if s["symbol"]==symbol]
@@ -57,7 +63,7 @@ def analyze(symbol,rows,news,now=None):
         reference=next((item[2] for item in parsed if item[2].get("event_id")==signal["event_id"]),data)
         telemetry=reference.get("analysis") if isinstance(reference.get("analysis"),dict) else {}
         raw_checks=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
-        checks=[{"key":key,"label":label,"state":"PASSED" if raw_checks.get(key) is True else "FAILED" if raw_checks.get(key) is False else "UNKNOWN"} for key,label in CHECKS.items()]
+        checks=condition_checks(telemetry)
     reasons=[]
     if not latest:reasons.append("لم تصل بيانات TradingView لهذا الرمز بعد")
     elif not fresh:reasons.append("آخر بيانات الرمز قديمة؛ لا تصدر صفقة حديثة منها")

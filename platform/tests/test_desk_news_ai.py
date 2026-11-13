@@ -48,6 +48,10 @@ class DeskTests(unittest.TestCase):
   self.assertEqual(d['decision'],'BUY');self.assertEqual(d['full_trade']['tp'],105);self.assertEqual(d['scalp']['tp'],102);self.assertEqual(next(c for c in d['checks'] if c['key']=='ready')['state'],'PASSED')
  def test_stale_signal_waits(self):
   self.assertEqual(desk.analyze('EURUSD',[self.row(age=720)],{},NOW)['decision'],'WAIT')
+ def test_disabled_filters_are_not_claimed_as_evidence(self):
+  d=desk.condition_checks({'checks':{'ha_long':True,'volatility_ok':True},'filters':{'use_ha':False,'use_atr_floor':False}})
+  self.assertEqual(next(c for c in d if c['key']=='ha_long')['state'],'DISABLED')
+  self.assertEqual(next(c for c in d if c['key']=='trigger_buy')['state'],'UNKNOWN')
  def test_unknown_symbol_rejected(self):
   with self.assertRaises(ValueError):desk.normalize('FAKE')
   self.assertEqual(desk.normalize('MES1!'),'CME_MINI:MES1!')
@@ -70,6 +74,12 @@ class AITests(unittest.TestCase):
   with patch.object(ai.urllib.request,'urlopen',return_value=response) as fetch:
    result=ai.review(self.evidence(),self.connection,now=NOW);self.assertTrue(result['connection_verified']);self.assertNotIn('decision',result);self.assertNotIn(b'must-not-be-sent',fetch.call_args.args[0].data)
    self.assertTrue(ai.review(self.evidence(),self.connection,now=NOW)['cached']);self.assertEqual(fetch.call_count,1)
+ def test_http_failure_reports_safe_reason_and_clears_verification(self):
+  import urllib.error,io
+  error=urllib.error.HTTPError('https://example.invalid',404,'synthetic-secret',{},io.BytesIO())
+  with patch.object(ai.urllib.request,'urlopen',side_effect=error):
+   result=ai.review(self.evidence(),self.connection,now=NOW)
+  self.assertEqual(result['reason'],'provider_model_unavailable');self.assertFalse(ai.status()['connection_verified']);self.assertNotIn('synthetic-secret',json.dumps(result))
  def test_budget_and_sanitized_failures(self):
   with patch.object(ai.urllib.request,'urlopen',side_effect=OSError('synthetic-secret')) as fetch:
    for _ in range(10):self.assertEqual(ai.review(self.evidence(),self.connection,now=NOW)['state'],'UNAVAILABLE')

@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-13",
+  "timezone": "Asia/Muscat",
+  "repository": "vovovodafone07-dot/big-ben-ai-forex-futures-",
+  "code_commit": "03527fcb2fea4143c5dd6e20643268f4088a472d",
+  "pull_requests": [
+    4,
+    6
+  ],
+  "deploy_id": "dep-dbrjo53m8hqs73d8b43g",
+  "deploy_status": "live",
+  "ci_run": 43463797018,
+  "backend_tests": 57,
+  "research_tests": 15,
+  "operating_systems": [
+    "ubuntu-latest",
+    "windows-latest"
+  ],
+  "inline_javascript_blocks": 6,
+  "isolated_postgres_migration": "passed",
+  "production_storage_check": {
+    "status": "ok",
+    "storage": "postgres"
+  },
+  "scalping_unauthenticated_http_status": 401,
+  "market_probe": {
+    "provider": "Twelve Data",
+    "symbol": "EUR/USD",
+    "state": "CONNECTED",
+    "reason": "valid_price_response",
+    "checked_at": "2026-11-13T16:35:00.745332+00:00",
+    "realtime_verified": false,
+    "futures_coverage_verified": false,
+    "quote_timestamp_verified": false
+  },
+  "pine_files_changed": 0,
+  "live_notification_delivery_verified": false,
+  "tradingview_current_alert_verified": false
+}

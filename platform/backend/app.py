@@ -24,6 +24,9 @@ _pspec.loader.exec_module(_probe)
 _hspec=importlib.util.spec_from_file_location("bigben_history",Path(__file__).with_name("market_history.py"))
 _history=importlib.util.module_from_spec(_hspec)
 _hspec.loader.exec_module(_history)
+_rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
+_research=importlib.util.module_from_spec(_rspec)
+_rspec.loader.exec_module(_research)
 MARKET_DATA_DIAGNOSTIC={"state":"UNKNOWN","reason":"probe_not_completed","realtime_verified":False,"futures_coverage_verified":False}
 
 def check_market_connection():
@@ -74,12 +77,14 @@ def init():
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, symbol TEXT NOT NULL, event TEXT NOT NULL, time TEXT NOT NULL, payload TEXT NOT NULL)")
    _migrations.migrate_events(c,postgres=True)
    _history.migrate(c)
+   _research.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
    _migrations.migrate_events(c)
    _history.migrate(c)
+   _research.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -90,7 +95,7 @@ def refresh_market_history():
   with history_connection() as c:
    checks=_history.coverage(c,now,postgres=postgres_enabled())["symbols"]
   prior=next(item for item in checks if item["symbol"]==symbol)
-  if prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<21600:
+  if prior.get("adapter_version")==_history.ADAPTER_VERSION and prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<21600:
    continue
   try:
    rows,result=_history.fetch_m5(symbol,twelve_data_key(),now)
@@ -98,15 +103,35 @@ def refresh_market_history():
   except _history.HistoryError as error:
    rows=[]
    result={"symbol":symbol,"state":"DEGRADED" if twelve_data_key() else "DISCONNECTED",
-     "reason":str(error),"checked_at":now.isoformat(),"realtime_verified":False}
+     "reason":str(error),"checked_at":now.isoformat(),"realtime_verified":False,
+     "adapter_version":_history.ADAPTER_VERSION}
   with history_connection() as c:
    result=_history.store_check(c,symbol,result,rows,postgres=postgres_enabled())
   print("market_history symbol="+symbol+" state="+result["state"]+" reason="+result["reason"]+" inserted="+str(result["candles_inserted"]),flush=True)
 
+def run_daily_research():
+ now=datetime.now(timezone.utc)
+ marker="%s" if postgres_enabled() else "?"
+ strategy=current_strategy_source()
+ for symbol in _history.FOREX:
+  with history_connection() as c:
+   prior=c.execute("SELECT id FROM research_runs WHERE symbol="+marker+" AND created_at >= "+marker+" LIMIT 1",(symbol,now.date().isoformat())).fetchone()
+   if prior:continue
+   data=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(symbol,)).fetchall()
+  if len(data)<120:continue
+  rows=[dict(zip(("time","open","high","low","close"),r)) for r in reversed(data)]
+  try:
+   report=_research.run(symbol,rows,strategy,now)
+   with history_connection() as c:_research.save(c,report,postgres=postgres_enabled())
+   print("research_run symbol="+symbol+" status="+report["status"]+" tasks="+str(len(report["tasks"])),flush=True)
+  except Exception:print("research_run symbol="+symbol+" status=failed reason=validation_or_storage_failure",flush=True)
+
 def history_worker():
  # A sleeping free Render service cannot guarantee a wall-clock schedule.
  while True:
-  try:refresh_market_history()
+  try:
+   refresh_market_history()
+   run_daily_research()
   except Exception:print("market_history cycle=failed reason=storage_or_internal_failure",flush=True)
   time.sleep(21600)
 
@@ -325,7 +350,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -337,6 +362,11 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/research/runs":
+   try:
+    with history_connection() as c:result=_research.latest(c)
+    return self.reply(200,result)
+   except Exception:return self.reply(503,{"error":"research_runs_unavailable"})
   if path=="/api/market/coverage":
    try:
     with history_connection() as c:result=_history.coverage(c,postgres=postgres_enabled())

@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"platform"/"backend"))
 from migrations import migrate_events
 from market_history import migrate as migrate_history, store_check, coverage
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"research"))
+from orchestrator import migrate as migrate_research, save as save_research, latest as latest_research
 import psycopg
 
 url=os.environ["BIGBEN_TEST_DATABASE_URL"]
@@ -26,5 +28,12 @@ with psycopg.connect(url) as connection:
     assert store_check(connection,"EUR/USD",result,rows,postgres=True)["candles_inserted"]==1
     assert store_check(connection,"EUR/USD",result,rows,postgres=True)["candles_inserted"]==0
     assert coverage(connection,postgres=True)["symbols"][0]["stored_candles"]==1
+    migrate_research(connection)
+    migrate_research(connection)
+    fixture={"run_id":"fixture","symbol":"EUR/USD","created_at":"2026-11-13T18:00:00+00:00","tasks":[{"task_id":"fixture:market_data","role":"market_data","status":"COMPLETED"}]}
+    assert save_research(connection,fixture,postgres=True)
+    assert not save_research(connection,fixture,postgres=True)
+    assert latest_research(connection)["count"]==1
+    assert connection.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0]==1
     connection.rollback()
 print("PostgreSQL migration preserves existing rows and is repeatable")

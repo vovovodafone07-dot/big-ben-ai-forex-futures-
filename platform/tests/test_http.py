@@ -9,7 +9,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("http_app", Path(__file__).resolve().parents[1] / "backend" / "app.py")
@@ -80,6 +80,28 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(len(result["symbols"]), 9)
         self.assertFalse(result["futures_coverage_verified"])
         self.assertEqual(result["symbols"][3]["reason"], "licensed_contract_mapping_required")
+
+    def test_research_runs_api_requires_auth_and_does_not_fabricate_results(self):
+        self.assertEqual(self.request("GET", "/api/research/runs")[0],401)
+        status,result=self.request("GET", "/api/research/runs",auth=self.auth)
+        self.assertEqual(status,200)
+        self.assertEqual(result["runs"],[])
+        self.assertFalse(result["promotion_allowed"])
+
+    def test_daily_research_consumes_history_once_and_never_calls_provider(self):
+        now=datetime.now(timezone.utc)
+        rows=[{"time":(now-timedelta(minutes=(120-i)*5)).isoformat(),"open":100.0,"high":101.0,"low":99.0,"close":100.5} for i in range(120)]
+        with app.history_connection() as c:
+            app._history.store_check(c,"EUR/USD",{"checked_at":now.isoformat()},rows)
+        with patch.object(app._history,"fetch_m5") as provider:
+            app.run_daily_research()
+            app.run_daily_research()
+        provider.assert_not_called()
+        status,result=self.request("GET","/api/research/runs",auth=self.auth)
+        self.assertEqual(status,200)
+        self.assertEqual(result["count"],1)
+        self.assertEqual(len(result["runs"][0]["tasks"]),9)
+        self.assertEqual(app.list_events(),[])
 
     def test_history_refresh_is_bounded_and_restart_safe(self):
         with patch.object(app._history, "fetch_m5", side_effect=app._history.HistoryError("rate_limited")) as fetch:

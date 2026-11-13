@@ -8,7 +8,7 @@ class ProviderError(RuntimeError):
  pass
 
 def validated_symbol(raw):
- if not isinstance(raw,str) or not re.fullmatch(r"[A-Za-z0-9^:!./_-]{2,60}",raw):raise ValueError("invalid symbol")
+ if not isinstance(raw,str) or not re.fullmatch(r"[A-Za-z0-9^:!./_-]{2,60}",raw) or ".." in raw or raw[0] in "./-":raise ValueError("invalid symbol")
  return raw
 
 def get_m5(symbol,api_key,days=30):

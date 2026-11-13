@@ -17,6 +17,9 @@ class ResearchTests(unittest.TestCase):
  def test_invalid_symbol_rejected(self):
   for bad in ("../secret","NQ;rm -rf","",None):
    with self.assertRaises(ValueError):validated_symbol(bad)
+ def test_provider_futures_notation_supported(self):
+  self.assertEqual(validated_symbol("NQ*0"),"NQ*0")
+  self.assertEqual(validated_symbol("^EURUSD"),"^EURUSD")
  def test_mapping_must_be_explicit(self):
   with patch.dict(os.environ,{"BIGBEN_BARCHART_SYMBOL_MAP":'{"EURUSD":"^EURUSD"}'}):
    self.assertEqual(load_requested_symbols(),{"EURUSD":"^EURUSD"})

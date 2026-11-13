@@ -15,3 +15,7 @@ Heartbeat لا يخلق صفقة. لا توجد API مدعومة مفترضة ل
 وافق المالك على حفظ تنبيه MES M5 بشرط Any alert() function call إلى Webhook الحالي فقط. ظهر التنبيه Active، وأكد سجل TradingView حدث HEARTBEAT للرمز CME_MINI:MES1! عند 17:00 UTC، وقبله Render عند 17:00:30.116 UTC برمز 202. وصلت نسخة مطابقة برمز 200 وduplicate=True، دون إنشاء حدث آخر.
 أثناء استعادة المسودة أُنشئت نسخة إضافية؛ يوجد حاليًا تنبيهان مطابقان نشطان. أُرسل طلب تأكيد لإيقاف الأحدث فقط، دون حذف أو تغيير تنبيهي الذهب، وما زال الرد معلقًا. لا توقف أي نسخة قبل وصول التأكيد. لم تتغير استراتيجية Pine؛ لم يُثبت تسليم BUY/SELL أو Telegram حي بهذا الاختبار.
 الدليل دون توكن: docs/evidence/tradingview-mes-delivery-2026-11-13.json.
+
+
+## Final verified cutover — 2026-11-13 18:00 UTC
+This section supersedes earlier pending-cutover or confirmation notes. PR #7 is merged and deploy dep-dbrkpretlv9c73au4rdg is live at ce5e2d0bd52edc4ffc7487a90c4e6a8e5600710a. The existing MES alert now uses v6.4.1-sync revision 8; the duplicate legacy MES alert is stopped manually, not deleted. Both original gold alerts remain active and unchanged. TradingView confirmed delivery of the 18:00 UTC v6.4.1-sync heartbeat; Render accepted it at 18:00:13.032726795Z with 202 and no duplicate observed in the check window. CI: 64 backend +15 research tests, Windows/Linux, isolated PostgreSQL; frontend JS checks passed. Live BUY/SELL and Telegram delivery remain unverified. See evidence/pine-v6-4-1-delivery-2026-11-13.json.

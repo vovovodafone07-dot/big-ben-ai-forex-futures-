@@ -1,0 +1,32 @@
+{
+  "code_commit": "ce5e2d0bd52edc4ffc7487a90c4e6a8e5600710a",
+  "render_deploy": "dep-dbrkpretlv9c73au4rdg",
+  "render_status": "live",
+  "source_sha256": "e16e6c21d78aa826b0203a908b87b32b4784d483c15eb9b227f6f82abfce316b",
+  "saved_script_revision": 8,
+  "compilation_verified": true,
+  "event": {
+    "event": "HEARTBEAT",
+    "event_id": "CME_MINI:MES1_-1794592800000-HEARTBEAT",
+    "strategy_version": "v6.4.1-sync",
+    "symbol": "CME_MINI:MES1!",
+    "time": "2026-11-13T18:00:00Z",
+    "timeframe": "5",
+    "tick_size": 0.25,
+    "delivery_confirmed": true
+  },
+  "server": {
+    "status": 202,
+    "duplicate": false,
+    "received_at": "2026-11-13T18:00:13.032726795Z"
+  },
+  "duplicate_mes_alert": "stopped manually",
+  "gold_alerts": "active, unchanged",
+  "tests": {
+    "backend": 64,
+    "research": 15,
+    "ci_run": 43475682638
+  },
+  "live_buy_sell_verified": false,
+  "live_telegram_verified": false
+}

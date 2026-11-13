@@ -1,35 +1,14 @@
-# حالة المشروع — 13 نوفمبر 2026
-المستودع الأصلي: vovovodafone07-dot/big-ben-ai-forex-futures- (1450905049). أُبقيت جميع ملفات Pine مطابقة للنسخة الأساسية f64490ca543d6576efb27420987383726a7136eb.
-آخر كود منشور: 03527fcb2fea4143c5dd6e20643268f4088a472d؛ نشر Render dep-dbrjo53m8hqs73d8b43g بحالة live.
-|المكوّن|التصنيف|الدليل|
-|---|---|---|
-|GitHub|VERIFIED WORKING|PR #4 و#6 مدمجان؛ التاريخ الأصلي محفوظ|
-|Render|VERIFIED WORKING|آخر deploy حي على commit المذكور|
-|PostgreSQL عبر التطبيق|VERIFIED WORKING|فحص /healthz/storage بعد الهجرة أعاد ok وpostgres|
-|فحص DB الخارجي|BLOCKED BY ACCESS|IP allowlist مغلقة؛ لم تُفتح|
-|Twelve Data — EUR/USD price|VERIFIED WORKING|استجابة سعر حقيقية في 2026-11-13T16:35:00Z؛ الخادم سجل CONNECTED/valid_price_response دون كشف المفتاح|
-|بث مستمر/أسعار لحظية/فيوتشرز|IMPLEMENTED BUT UNVERIFIED|فحص السعر الواحد لا يثبت ترخيص البث أو تغطية العقود؛ حقول التحقق تبقى false|
-|Webhook|PARTIALLY IMPLEMENTED|HTTP محلي ومصادقة وحفظ وتكرار مختبرة؛ سجلات accepted تاريخية؛ لا accepted منذ 12:00 UTC يوم الفحص|
-|Pine v6.3/v6.4|PARTIALLY IMPLEMENTED|شاهدنا v6.3 على MES M5 في جلسة الحساب؛ v6.4 مرشح غير مجمع؛ لم يتغير الكود|
-|أهداف السكالب|PARTIALLY IMPLEMENTED|API وواجهة وتنبيه منشورة؛ API يعيد 401 دون دخول كما ينبغي؛ الاختبارات ناجحة؛ لا تحقق بصري أو رسالة حية مؤكدة|
-|Telegram|PARTIALLY IMPLEMENTED|الاعتمادات مضبوطة؛ تنبيه مزدوج مختبر آليًا؛ تسليم حي غير مثبت|
-|التحليل المرصود|PARTIALLY IMPLEMENTED|API محمي وبطاقات أدلة وفصل وقت المصدر/الاستلام؛ لا ادعاء توقع أو درجات احتمال|
-|الباك تيست|PARTIALLY IMPLEMENTED|محرك اختراق مبسط لا يطابق Pine؛ تكاليف وتدوير وجلسات وwalk-forward الكامل غير منفذة|
-|الوكلاء|PARTIALLY IMPLEMENTED|أدوار حتمية موجودة؛ الأدوار التسعة ونظام المهام الدائم الكامل غير مكتملين|
-|الجدولة|PARTIALLY IMPLEMENTED|workflow مضبوط؛ تشغيل push ناجح؛ schedule ببحث مرخص غير مثبت|
-|Strategy Lab|PARTIALLY IMPLEMENTED|عرض كود ومسودة محلية؛ دورة موافقات دائمة غير مكتملة|
-|الأخبار والتقويم|IMPLEMENTED BUT UNVERIFIED|تضمينات واجهة؛ ترخيص بيانات للخلفية غير مثبت|
+# حالة المشروع — 13 نوفمبر 2026، 22:00 مسقط
 
-72 اختبارًا (57 خلفية + 15 بحث) ناجحة في CI run 43463797018 على Linux وWindows؛ فحص 6 كتل JS وترحيل PostgreSQL المعزول ناجحان.
-دليل آلي موجز: docs/evidence/release-2026-11-13.json.
+آخر كود منشور: ce5e2d0bd52edc4ffc7487a90c4e6a8e5600710a (PR #7). نشر Render dep-dbrkpretlv9c73au4rdg بحالة live.
 
-## TradingView: الوصول والمسودة
-استُعيد الوصول إلى حساب TradingView المسجل. تنبيها BUY/SELL على XAUUSD نشطان في القائمة الظاهرة. مسودة تنبيه MES M5 باسم Big Ben Pro | MES M5 | JSON Bridge جاهزة بشرط Any alert() function call وWebhook فقط ورابط الخادم الصحيح، ولم تُحفظ بعد. طلب تأكيد تفعيلها معلق. ظهر تحذير repaint من TradingView للمؤشر الحالي.
+- GitHub وRender وPostgreSQL عبر التطبيق تعمل؛ فحص التخزين أعاد ok/postgres.
+- حُفظ v6.4.1-sync وجُمّع في ملف TradingView الخاص القديم، revision 8. المصدر نفسه منشور في سجل المنصة مع التحقق من SHA256. النسخ السابقة محفوظة.
+- تنبيه MES M5 القائم أصبح Big Ben Pro | MES M5 | v6.4.1 ونشط. تنبيه MES القديم الزائد موقوف يدويًا، دون حذف. تنبيها الذهب الأصليان نشطان ولم يتغيرا.
+- نبضة MES عند 18:00 UTC تحمل v6.4.1-sync؛ أكد TradingView تسليم Webhook وقبلها Render عند 18:00:13.032726795Z برمز 202 دون تكرار في نافذة الفحص.
+- RR 2.5 ودرجة أدلة 1؛ HA وATR-floor معطلان افتراضيًا. لا ادعاء تطابق نتائج الباك تيست أو معالجة repaint.
+- قسم أهداف السكالب وAPI محمي ورسالة الصفقة الكاملة والبديل الحسابي 1R منشورة. لم تظهر BUY/SELL حية أثناء الاختبار ولم يثبت تسليم Telegram حي.
+- Twelve Data أعاد سعر EUR/USD حقيقيًا بالمفتاح الحالي؛ لم تثبت اللحظية أو تغطية الفيوتشرز. لم يتغير الاشتراك ولم تُشتر خدمة.
+- نجح 79 اختبارًا (64 خلفية +15 بحث) في CI run 43475682638 على Windows/Linux، مع PostgreSQL معزول وفحص 6 كتل JS.
 
-## تحقق حي — 13 نوفمبر 2026، 21:00 مسقط
-وافق المالك على حفظ تنبيه MES M5 بشرط Any alert() function call إلى Webhook الحالي فقط. ظهر التنبيه Active، وأكد سجل TradingView حدث HEARTBEAT للرمز CME_MINI:MES1! عند 17:00 UTC، وقبله Render عند 17:00:30.116 UTC برمز 202. وصلت نسخة مطابقة برمز 200 وduplicate=True، دون إنشاء حدث آخر.
-أثناء استعادة المسودة أُنشئت نسخة إضافية؛ يوجد حاليًا تنبيهان مطابقان نشطان. أُرسل طلب تأكيد لإيقاف الأحدث فقط، دون حذف أو تغيير تنبيهي الذهب، وما زال الرد معلقًا. لا توقف أي نسخة قبل وصول التأكيد. لم تتغير استراتيجية Pine؛ لم يُثبت تسليم BUY/SELL أو Telegram حي بهذا الاختبار.
-الدليل دون توكن: docs/evidence/tradingview-mes-delivery-2026-11-13.json.
-
-## مرحلة v6.4.1
-حُفظ v6.4.1 في الملف الخاص القديم واجتاز التجميع على TradingView، مع RR 2.5 ودرجة أدلة 1 والفلاتر الجديدة معطلة افتراضيًا. النسخة القديمة مخفية للرجوع، وليست محذوفة. مصدر المنصة وسجل البصمة جاهزان مع 64 اختبار خلفية ناجح؛ النشر وتحديث تنبيه MES إلى النسخة الجديدة قيد التنفيذ. التفاصيل: docs/PINE_VERSION_SYNC.md.
+الدليل: docs/evidence/pine-v6-4-1-delivery-2026-11-13.json. لا توجد موافقة تشغيل معلقة لهذه الخطوات. بقية نطاق المشروع في REMAINING_BLOCKERS.md.

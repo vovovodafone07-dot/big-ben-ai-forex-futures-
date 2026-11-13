@@ -97,6 +97,24 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(result["count"], 1)
         self.assertIsNone(result["symbols"][0]["new_signal"])
 
+    def test_pine_api_matches_synced_registry(self):
+        self.assertEqual(self.request("GET", "/api/pine/current")[0], 401)
+        status, result=self.request("GET", "/api/pine/current", auth=self.auth)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["version"], "v6.4.1-sync")
+        self.assertIn(result["pine_title"], result["code"])
+
+    def test_pine_registry_mismatch_returns_503(self):
+        with patch.object(app,"current_strategy_source",side_effect=ValueError("private path")):
+            status, result=self.request("GET", "/api/pine/current", auth=self.auth)
+        self.assertEqual(status,503)
+        self.assertEqual(result,{"error":"source_unavailable_or_mismatched"})
+
+    def test_new_pine_metadata_is_accepted(self):
+        payload=self.payload("BUY")
+        payload.update(strategy_version="v6.4.1-sync",timeframe="5",tick_size=.25)
+        self.assertEqual(self.request("POST", "/v1/tradingview/events",payload)[0],202)
+
     def test_missing_token_rejected_and_not_persisted(self):
         payload = self.payload()
         payload.pop("token")

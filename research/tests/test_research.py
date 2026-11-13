@@ -21,7 +21,7 @@ class ResearchTests(unittest.TestCase):
   with patch.dict(os.environ,{"BIGBEN_BARCHART_SYMBOL_MAP":'{"EURUSD":"^EURUSD"}'}):
    self.assertEqual(load_requested_symbols(),{"EURUSD":"^EURUSD"})
  def test_historical_response_is_validated(self):
-  start=datetime(2026,11,10,tzinfo=timezone.utc)
+  start=datetime.now(timezone.utc)-timedelta(hours=12)
   candles=[{"timestamp":(start+timedelta(minutes=5*i)).isoformat(),"open":100,"high":101,"low":99,"close":100} for i in range(130)]
   body=json.dumps({"status":{"code":200,"message":"Success"},"results":candles}).encode()
   with patch("barchart_adapter.urllib.request.urlopen",return_value=io.BytesIO(body)):

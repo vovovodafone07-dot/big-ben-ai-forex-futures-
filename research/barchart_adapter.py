@@ -50,6 +50,8 @@ def get_m5(symbol,api_key,days=30):
   except (ValueError,KeyError,TypeError,OverflowError):continue
  rows.sort(key=lambda x:x["time"])
  if len(rows)<120:raise ProviderError("Insufficient valid M5 bars for "+symbol+" ("+str(len(rows))+")")
+ if (datetime.datetime.now(datetime.timezone.utc)-datetime.datetime.fromisoformat(rows[-1]["time"])).total_seconds()>4*86400:
+  raise ProviderError("Historical data is stale for "+symbol+"; verify exchange session and source permissions")
  if any((datetime.datetime.fromisoformat(rows[i]["time"])-datetime.datetime.fromisoformat(rows[i-1]["time"])).total_seconds()<300 for i in range(1,len(rows))):
   raise ProviderError("Sub-5m or duplicate timestamps detected")
  return rows

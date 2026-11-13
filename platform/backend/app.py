@@ -1,30 +1,11 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
 import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error
-from contextlib import contextmanager
 from datetime import datetime,timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit,parse_qs
 DB=Path(os.getenv("BIGBEN_DB_PATH","/tmp/bigben-dev.sqlite3"))
 LAST_TEST_SENT=0
-# Load the sibling migration module also when imported through a test spec.
-import importlib.util
-_mspec=importlib.util.spec_from_file_location("bigben_migrations",Path(__file__).with_name("migrations.py"))
-_migrations=importlib.util.module_from_spec(_mspec)
-_mspec.loader.exec_module(_migrations)
-_aspec=importlib.util.spec_from_file_location("bigben_analysis",Path(__file__).with_name("analysis.py"))
-_analysis=importlib.util.module_from_spec(_aspec)
-_aspec.loader.exec_module(_analysis)
-_sspec=importlib.util.spec_from_file_location("bigben_scalping",Path(__file__).with_name("scalping.py"))
-_scalping=importlib.util.module_from_spec(_sspec)
-_sspec.loader.exec_module(_scalping)
-
-def secure_equal(supplied, expected):
- return isinstance(supplied,str) and hmac.compare_digest(supplied.encode("utf-8"),expected.encode("utf-8"))
-def twelve_data_key():
- # Both spellings already appear in the legacy and Pro services.
- return os.getenv("TWELVE_DATA_API_KEY","").strip() or os.getenv("TWELVEDATA_API_KEY","").strip()
-
 def postgres_enabled():
  return bool(os.getenv("DATABASE_URL", "").strip())
 def storage_kind():
@@ -34,41 +15,27 @@ def pg_connect():
  # Never attempt a pip installation while processing a TradingView webhook.
  import psycopg
  return psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=3)
-@contextmanager
-def sqlite_connection():
- # sqlite3 context managers commit/rollback but do not close the handle.
- connection=sqlite3.connect(DB)
- try:
-  with connection:
-   yield connection
- finally:
-  connection.close()
-
 def init():
  if postgres_enabled():
   with pg_connect() as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, symbol TEXT NOT NULL, event TEXT NOT NULL, time TEXT NOT NULL, payload TEXT NOT NULL)")
-   _migrations.migrate_events(c,postgres=True)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
-  with sqlite_connection() as c:
+  with sqlite3.connect(DB) as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
-   _migrations.migrate_events(c)
 def list_events(limit=500, kind="all"):
  if postgres_enabled():
   with pg_connect() as c:
    return c.execute("SELECT symbol,event,time,payload FROM events WHERE (%s = 'all' OR (%s = 'trades' AND event IN ('BUY','SELL')) OR (%s = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT %s",(kind,kind,kind,limit)).fetchall()
- with sqlite_connection() as c:
+ with sqlite3.connect(DB) as c:
   return c.execute("SELECT symbol,event,time,payload FROM events WHERE (? = 'all' OR (? = 'trades' AND event IN ('BUY','SELL')) OR (? = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT ?",(kind,kind,kind,limit)).fetchall()
 def save_event(d):
- received_at=datetime.now(timezone.utc).isoformat()
- stored={**d,"received_at":received_at}
- vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(stored),received_at)
+ vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(d))
  if postgres_enabled():
   with pg_connect() as c:
-   return c.execute("INSERT INTO events (id,symbol,event,time,payload,received_at) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
- with sqlite_connection() as c:
-  return c.execute("INSERT OR IGNORE INTO events (id,symbol,event,time,payload,received_at) VALUES (?,?,?,?,?,?)",vals).rowcount==0
+   return c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
+ with sqlite3.connect(DB) as c:
+  return c.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?)",vals).rowcount==0
 def evaluate_signals(limit=100):
  # Observational outcomes only: a M5 close beyond SL/TP is NOT proof of an
  # actual fill or the first intrabar level touched. Never backfill fake trades.
@@ -179,7 +146,7 @@ def validate(d):
  try:
   t=datetime.fromisoformat(d["time"].replace("Z","+00:00"))
   if t.tzinfo is None or abs(t.timestamp()-time.time())>600:raise ValueError()
- except (ValueError,TypeError,KeyError,AttributeError,OverflowError,OSError):raise ValueError("time")
+ except (ValueError,TypeError,KeyError,AttributeError):raise ValueError("time")
  if d["event"] in ("BUY","SELL"):
   try:entry,sl,tp,rr=[d[k] for k in ("entry","sl","tp","rr")]
   except KeyError:raise ValueError("levels")
@@ -192,20 +159,6 @@ def validate(d):
   for tf in ("m15","h1","h4"):
    if tf in d and (type(d[tf]) not in (int,float) or d[tf] not in (-1,0,1)):raise ValueError("bias")
  return d
-def trade_notification_text(d):
- pair=_scalping.levels(d)
- full,scalp=pair["full_trade"],pair["scalp"]
- return ("📊 Big Ben AI Pro\n"+str(d["event"])+" | "+str(d["symbol"])
-  +"\n\nالصفقة الكاملة — الهدف الأصلي"
-  +"\nEntry: "+str(full["entry"])+" | SL: "+str(full["sl"])
-  +"\nTP: "+str(full["tp"])+" | RR: "+str(round(full["rr"],4))
-  +"\n\nخيار السكالب — هدف حسابي بديل"
-  +"\nEntry: "+str(scalp["entry"])+" | SL: "+str(scalp["sl"])
-  +"\nTP: "+str(scalp["tp"])+" | RR: "+str(round(scalp["rr"],4))
-  +"\nليس إشارة مستقلة؛ التكاليف وحجم التيك غير مؤكدين."
-  +"\nاختر أحد الخيارين؛ فتحهما معًا يضاعف التعرض."
-  +"\nتحليل فقط — لا يوجد تنفيذ أوامر.")
-
 def telegram_notify(d):
  # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -214,7 +167,11 @@ def telegram_notify(d):
   return "not_configured"
  if d.get("event") not in ("BUY","SELL"):
   return "skipped"
- message=trade_notification_text(d)
+ message=("📊 Big Ben AI Pro\n"
+          +str(d["event"])+" | "+str(d["symbol"])+"\n"
+          +"Entry: "+str(d["entry"])+"\nSL: "+str(d["sl"])
+          +"\nTP: "+str(d["tp"])+"\nRR: "+str(d["rr"])
+          +"\nAnalysis only — no order execution")
  payload=json.dumps({"chat_id":chat,"text":message}).encode()
  req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
  try:
@@ -238,7 +195,7 @@ def dashboard_authenticated(headers):
  password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
  if len(password)<20:return False
  expected="Basic "+base64.b64encode(("bigben:"+password).encode()).decode()
- return secure_equal(headers.get("Authorization",""),expected)
+ return hmac.compare_digest(headers.get("Authorization",""),expected)
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*args):pass
  def reply(self,status,obj):
@@ -253,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=os.getenv("TELEGRAM_CHAT_ID","").strip()
-   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True}})
+   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()}})
   if path=="/healthz/storage":
    try:
     init()
@@ -265,31 +222,22 @@ class Handler(BaseHTTPRequestHandler):
       c.execute("SELECT id FROM events WHERE id=%s", ("__bigben_health_probe__",)).fetchone()
       c.rollback()
     else:
-     with sqlite_connection() as c:c.execute("SELECT 1").fetchone()
+     with sqlite3.connect(DB) as c:c.execute("SELECT 1").fetchone()
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
   expected="Basic "+base64.b64encode(("bigben:"+password).encode()).decode()
-  if not secure_equal(supplied,expected):
+  if not hmac.compare_digest(supplied,expected):
    self.send_response(401)
    self.send_header("WWW-Authenticate",'Basic realm="Big Ben Private Preview"')
    self.send_header("Cache-Control","no-store")
    self.send_header("Content-Length","0")
    self.end_headers()
    return
-  if path=="/api/scalping":
-   try:
-    rr=parse_qs(urlsplit(self.path).query).get("rr",["1"])[0]
-    return self.reply(200,_scalping.scenarios(list_events(2000,"all"),rr))
-   except ValueError:return self.reply(400,{"error":"invalid_rr","range":"0.5..3"})
-   except Exception:return self.reply(503,{"error":"scalping_unavailable"})
-  if path=="/api/analysis":
-   try:return self.reply(200,_analysis.analyze_events(list_events(2000,"heartbeat")))
-   except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if path=="/api/pine/current":
    # Protected source preview of the versioned candidate. Edits are local draft only.
    pine_file=Path(__file__).resolve().parents[2]/"tradingview"/"Big_Ben_AI_Hybrid_M5_v6_4_Review.pine"
@@ -300,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
    # Configuration/readiness only. Never report entitlement or real-time support without a licensed probe.
    barchart_key=bool(os.getenv("BARCHART_API_KEY","").strip())
    mapping_configured=bool(os.getenv("BIGBEN_BARCHART_SYMBOL_MAP","").strip())
-   twelve_key=bool(twelve_data_key())
+   twelve_key=bool(os.getenv("TWELVE_DATA_API_KEY","").strip())
    return self.reply(200,{"status":"configuration_only","preferred_provider":"Barchart OnDemand",
      "barchart":{"api_key_configured":barchart_key,"symbol_mapping_configured":mapping_configured,
                   "licensed_symbol_coverage":"unverified","live_and_historical_entitlements":"unverified",
@@ -314,7 +262,7 @@ class Handler(BaseHTTPRequestHandler):
    q=parse_qs(urlsplit(self.path).query)
    symbol=q.get("symbol",["EUR/USD"])[0].strip().upper()
    if not re.fullmatch(r"[A-Z0-9:/._-]{2,32}",symbol):return self.reply(400,{"error":"symbol"})
-   key=twelve_data_key()
+   key=os.getenv("TWELVE_DATA_API_KEY","").strip()
    if not key:return self.reply(503,{"error":"market_provider_not_configured","provider":"Twelve Data"})
    from urllib.parse import urlencode
    url="https://api.twelvedata.com/price?"+urlencode({"symbol":symbol,"apikey":key})
@@ -340,7 +288,7 @@ class Handler(BaseHTTPRequestHandler):
         return {"symbol":symbol,"time":t,"age_seconds":age,"fresh":age<720}
        except (ValueError,TypeError,AttributeError):pass
      return None
-    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(twelve_data_key()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
+    return self.reply(200,{"status":"ok","storage":storage_kind(),"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"market_provider_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and re.fullmatch(r"-?[0-9]{5,20}",os.getenv("TELEGRAM_CHAT_ID",""))),"last_heartbeat":recent(("HEARTBEAT",)),"last_trade":recent(("BUY","SELL")),"last_event":recent(("BUY","SELL","HEARTBEAT")),"note":"No synthetic trades; fresh means received within 12 minutes, not a guarantee of TradingView market availability."})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if path=="/api/agent":
    # Operational agent panel: actual observed states, not simulated AI decisions.
@@ -357,7 +305,7 @@ class Handler(BaseHTTPRequestHandler):
      except (ValueError,TypeError,AttributeError):continue
     result=research_report()
     return self.reply(200,{"agent":"Big Ben reliability + research","mode":"read_only","checked_at":now.isoformat(),
-      "services":{"storage":storage_kind(),"twelve_data_key_configured":bool(twelve_data_key()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))},
+      "services":{"storage":storage_kind(),"twelve_data_key_configured":bool(os.getenv("TWELVE_DATA_API_KEY","").strip()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))},
       "tracked_symbols":list(latest.values()),"research":{"status":result["status"],"observed_outcomes":result["observed_outcomes"],"signals_examined":result["signals_examined"]},
       "capabilities":["Monitor TradingView heartbeat freshness","Audit historical signal observations","Report missing provider configuration"],
       "not_enabled":["Automatic Pine editing","Automatic strategy retraining","Broker order execution"]})
@@ -395,7 +343,7 @@ class Handler(BaseHTTPRequestHandler):
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
-    events.append({"symbol":symbol,"event":event,"time":t,"received_at":d.get("received_at"),"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
+    events.append({"symbol":symbol,"event":event,"time":t,"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
    return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
@@ -422,7 +370,7 @@ class Handler(BaseHTTPRequestHandler):
   except (ValueError,UnicodeDecodeError):return self.reply(400,{"error":"json"})
   if not isinstance(d,dict):return self.reply(400,{"error":"json"})
   token=d.pop("token","")
-  if not isinstance(token,str) or not secure_equal(token,secret):return self.reply(401,{"error":"unauthorized"})
+  if not isinstance(token,str) or not hmac.compare_digest(token,secret):return self.reply(401,{"error":"unauthorized"})
   try:validate(d)
   except ValueError as e:return self.reply(422,{"error":str(e)})
   try:duplicate=save_event(d)

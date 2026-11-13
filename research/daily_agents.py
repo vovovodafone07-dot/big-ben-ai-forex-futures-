@@ -3,10 +3,15 @@ import csv,json,sys,statistics
 from pathlib import Path
 
 def load(path):
- from candle_quality import validate_candles
- with open(path,newline="",encoding="utf-8") as handle:
-  rows=list(csv.DictReader(handle))
- return validate_candles(rows)[0]
+ rows=[]
+ with open(path,newline="",encoding="utf-8") as f:
+  for r in csv.DictReader(f):
+   try:
+    d={k:float(r[k]) for k in ("open","high","low","close")}
+    if min(d.values())<=0 or d["high"]<max(d["open"],d["close"],d["low"]) or d["low"]>min(d["open"],d["close"]):continue
+    d["time"]=r["time"];rows.append(d)
+   except (KeyError,ValueError,TypeError):continue
+ return rows
 
 def signal(rows,i,lookback=20,rr=3):
  """Research-only breakout baseline, NOT exact TradingView v6.4 parity."""

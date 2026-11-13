@@ -13,16 +13,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Run research only if a real historical OHLC dataset is present
+      - name: Validate research engine and data adapter
+        run: python -m unittest discover -s research/tests -v
+      - name: Research with licensed Barchart feed when configured
+        env:
+          BARCHART_API_KEY: ${{ secrets.BARCHART_API_KEY }}
+          BIGBEN_BARCHART_SYMBOL_MAP: ${{ vars.BIGBEN_BARCHART_SYMBOL_MAP }}
         shell: bash
         run: |
           mkdir -p research/reports
-          if [ -f research/data/market_m5.csv ]; then
+          if [ -f research/data/market_m5.csv ] && [ -z "$BARCHART_API_KEY" ]; then
             python research/daily_agents.py research/data/market_m5.csv > research/reports/latest.json
           else
-            echo '{"status":"awaiting_real_ohlc_data","reason":"No research/data/market_m5.csv; no simulated or fabricated backtest"}' > research/reports/latest.json
+            python research/run_provider_research.py
           fi
-      - uses: actions/upload-artifact@v4
+      - name: Save research evidence for human review
+        uses: actions/upload-artifact@v4
         with:
           name: bigben-daily-research
           path: research/reports/latest.json

@@ -1,0 +1,133 @@
+{
+  "checked_at": "2026-11-13T21:41:17.414749+00:00",
+  "tradingview": {
+    "symbols": [
+      {
+        "symbol": "CME_MINI:MNQ1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:02.342125+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "CME_MINI:NQ1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:02.452834+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "CME_MINI:ES1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:02.645320+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "OANDA:USDJPY",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:03.428250+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "OANDA:EURUSD",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:04.588945+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "CBOT_MINI:YM1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:05.798558+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "OANDA:GBPUSD",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:06.176247+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "CME:6E1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:34.505276+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      },
+      {
+        "symbol": "CME_MINI:MES1!",
+        "source_time": "2026-11-13T21:40:00Z",
+        "received_at": "2026-11-13T21:40:02.392974+00:00",
+        "fresh": true,
+        "strategy_version": "v6.4.1-sync",
+        "bridge_version": "v6.4.2-telemetry"
+      }
+    ],
+    "fresh_symbols": 9,
+    "expected_symbols": 9
+  },
+  "news": [
+    {
+      "source": "Federal Reserve",
+      "source_id": "fed",
+      "state": "CONNECTED",
+      "checked_at": "2026-11-13T21:03:21.617215+00:00",
+      "last_success_at": "2026-11-13T21:03:21.617215+00:00",
+      "reason": "validated_feed",
+      "kind": "rss",
+      "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "fresh": true
+    },
+    {
+      "source": "ECB",
+      "source_id": "ecb",
+      "state": "CONNECTED",
+      "checked_at": "2026-11-13T21:03:21.617215+00:00",
+      "last_success_at": "2026-11-13T21:03:21.617215+00:00",
+      "reason": "validated_feed",
+      "kind": "rss",
+      "url": "https://www.ecb.europa.eu/rss/press.html",
+      "fresh": true
+    },
+    {
+      "source": "BLS Calendar",
+      "source_id": "bls",
+      "state": "CONNECTED",
+      "checked_at": "2026-11-13T21:03:21.617215+00:00",
+      "last_success_at": "2026-11-13T21:03:21.617215+00:00",
+      "reason": "validated_feed",
+      "kind": "calendar",
+      "url": "https://www.bls.gov/schedule/news_release/bls.ics",
+      "fresh": true
+    }
+  ],
+  "ai": {
+    "provider": "Gemini",
+    "key_configured": true,
+    "enabled": true,
+    "model": "gemini-3.8-flash",
+    "connection_verified": false,
+    "last_check": {
+      "state": "UNAVAILABLE",
+      "reason": "provider_http_error",
+      "checked_at": "2026-11-13T21:40:09.602371+00:00"
+    },
+    "state": "CONFIGURED",
+    "daily_request_budget": 10,
+    "automatic_strategy_changes": false
+  },
+  "storage": "postgres",
+  "broker_execution": false
+}

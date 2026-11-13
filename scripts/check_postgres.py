@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"platform"/"backend"))
 from migrations import migrate_events
+from market_history import migrate as migrate_history, store_check, coverage
 import psycopg
 
 url=os.environ["BIGBEN_TEST_DATABASE_URL"]
@@ -18,5 +19,12 @@ with psycopg.connect(url) as connection:
     migrate_events(connection,postgres=True)
     assert connection.execute("SELECT id,received_at FROM events").fetchall()==[("old",None)]
     assert connection.execute("SELECT version FROM schema_migrations").fetchall()==[("001_event_receipt",)]
+    migrate_history(connection)
+    migrate_history(connection)
+    result={"symbol":"EUR/USD","state":"CONNECTED","reason":"validated_closed_m5_history","checked_at":"2026-11-13T18:00:00+00:00","last_candle":"2026-11-13T17:55:00+00:00"}
+    rows=[{"time":"2026-11-13T17:55:00+00:00","open":1.1,"high":1.2,"low":1.0,"close":1.15}]
+    assert store_check(connection,"EUR/USD",result,rows,postgres=True)["candles_inserted"]==1
+    assert store_check(connection,"EUR/USD",result,rows,postgres=True)["candles_inserted"]==0
+    assert coverage(connection,postgres=True)["symbols"][0]["stored_candles"]==1
     connection.rollback()
 print("PostgreSQL migration preserves existing rows and is repeatable")

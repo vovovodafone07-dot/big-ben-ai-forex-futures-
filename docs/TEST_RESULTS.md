@@ -13,3 +13,9 @@
 
 ## Final verified cutover — 2026-11-13 18:00 UTC
 This section supersedes earlier pending-cutover or confirmation notes. PR #7 is merged and deploy dep-dbrkpretlv9c73au4rdg is live at ce5e2d0bd52edc4ffc7487a90c4e6a8e5600710a. The existing MES alert now uses v6.4.1-sync revision 8; the duplicate legacy MES alert is stopped manually, not deleted. Both original gold alerts remain active and unchanged. TradingView confirmed delivery of the 18:00 UTC v6.4.1-sync heartbeat; Render accepted it at 18:00:13.032726795Z with 202 and no duplicate observed in the check window. CI: 64 backend +15 research tests, Windows/Linux, isolated PostgreSQL; frontend JS checks passed. Live BUY/SELL and Telegram delivery remain unverified. See evidence/pine-v6-4-1-delivery-2026-11-13.json.
+
+
+## شموع الفوركس واختبار الإشعارات — قيد نشر التحديث
+أُضيف محول Twelve Data لشموع M5 المغلقة للأزواج EUR/USD وGBP/USD وUSD/JPY، حفظ إضافي في market_candles وفحص جودة UTC/OHLC والتكرار والفجوات، ونقطة /api/market/coverage المحمية وبطاقات التغطية. حد الدورة 3 طلبات كل 6 ساعات أثناء عمل الخادم، دون retry؛ وقت آخر محاولة محفوظ فلا يعيد التشغيل الطلبات قبل الموعد. لم تُختبر التغطية التاريخية الحقيقية بعد النشر بعد.
+نجح محليًا 75 اختبار خلفية و15 بحث وفحص 6 كتل JS. محاولة داخل العزل فشلت في مقابس localhost WinError10013؛ إعادة التنفيذ بالصلاحية المعتمدة نجحت. اختبار PostgreSQL المضاف ينتظر CI.
+Telegram: قبل المزود رسالة اختبار واضحة دون صفقة، وأظهر UI قبول الإرسال وسجل Render telegram_test_delivery=sent عند 2026-11-13T18:12:48.47579619Z؛ لا يثبت ذلك تسليم صفقة BUY/SELL فعلية أو قراءة المستخدم لها.

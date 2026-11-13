@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error,hashlib
+import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error,hashlib,threading
 from contextlib import contextmanager
 from datetime import datetime,timezone
 from pathlib import Path
@@ -21,6 +21,9 @@ _sspec.loader.exec_module(_scalping)
 _pspec=importlib.util.spec_from_file_location("bigben_market_probe",Path(__file__).with_name("market_probe.py"))
 _probe=importlib.util.module_from_spec(_pspec)
 _pspec.loader.exec_module(_probe)
+_hspec=importlib.util.spec_from_file_location("bigben_history",Path(__file__).with_name("market_history.py"))
+_history=importlib.util.module_from_spec(_hspec)
+_hspec.loader.exec_module(_history)
 MARKET_DATA_DIAGNOSTIC={"state":"UNKNOWN","reason":"probe_not_completed","realtime_verified":False,"futures_coverage_verified":False}
 
 def check_market_connection():
@@ -70,11 +73,43 @@ def init():
   with pg_connect() as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, symbol TEXT NOT NULL, event TEXT NOT NULL, time TEXT NOT NULL, payload TEXT NOT NULL)")
    _migrations.migrate_events(c,postgres=True)
+   _history.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
    c.execute("CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY,symbol TEXT,event TEXT,time TEXT,payload TEXT)")
    _migrations.migrate_events(c)
+   _history.migrate(c)
+def history_connection():
+ return pg_connect() if postgres_enabled() else sqlite_connection()
+
+def refresh_market_history():
+ """Three requests max per six-hour cycle; no retries or guessed contracts."""
+ for symbol in _history.FOREX:
+  now=datetime.now(timezone.utc)
+  with history_connection() as c:
+   checks=_history.coverage(c,now,postgres=postgres_enabled())["symbols"]
+  prior=next(item for item in checks if item["symbol"]==symbol)
+  if prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<21600:
+   continue
+  try:
+   rows,result=_history.fetch_m5(symbol,twelve_data_key(),now)
+   result.update(state="CONNECTED",reason="validated_closed_m5_history")
+  except _history.HistoryError as error:
+   rows=[]
+   result={"symbol":symbol,"state":"DEGRADED" if twelve_data_key() else "DISCONNECTED",
+     "reason":str(error),"checked_at":now.isoformat(),"realtime_verified":False}
+  with history_connection() as c:
+   result=_history.store_check(c,symbol,result,rows,postgres=postgres_enabled())
+  print("market_history symbol="+symbol+" state="+result["state"]+" reason="+result["reason"]+" inserted="+str(result["candles_inserted"]),flush=True)
+
+def history_worker():
+ # A sleeping free Render service cannot guarantee a wall-clock schedule.
+ while True:
+  try:refresh_market_history()
+  except Exception:print("market_history cycle=failed reason=storage_or_internal_failure",flush=True)
+  time.sleep(21600)
+
 def list_events(limit=500, kind="all"):
  if postgres_enabled():
   with pg_connect() as c:
@@ -290,7 +325,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -302,6 +337,11 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/market/coverage":
+   try:
+    with history_connection() as c:result=_history.coverage(c,postgres=postgres_enabled())
+    return self.reply(200,result)
+   except Exception:return self.reply(503,{"error":"history_unavailable"})
   if path=="/api/scalping":
    try:
     rr=parse_qs(urlsplit(self.path).query).get("rr",["1"])[0]
@@ -457,4 +497,5 @@ if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
  import threading
  threading.Thread(target=check_market_connection,daemon=True).start()
+ threading.Thread(target=history_worker,daemon=True).start()
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

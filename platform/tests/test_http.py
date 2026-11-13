@@ -73,6 +73,24 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_history_coverage_is_private_and_never_guesses_contracts(self):
+        self.assertEqual(self.request("GET", "/api/market/coverage")[0], 401)
+        status, result = self.request("GET", "/api/market/coverage", auth=self.auth)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(result["symbols"]), 9)
+        self.assertFalse(result["futures_coverage_verified"])
+        self.assertEqual(result["symbols"][3]["reason"], "licensed_contract_mapping_required")
+
+    def test_history_refresh_is_bounded_and_restart_safe(self):
+        with patch.object(app._history, "fetch_m5", side_effect=app._history.HistoryError("rate_limited")) as fetch:
+            app.refresh_market_history()
+            app.refresh_market_history()
+        self.assertEqual(fetch.call_count, 3)
+        with app.history_connection() as c:
+            checks=app._history.coverage(c)["symbols"][:3]
+        self.assertTrue(all(s["reason"]=="rate_limited" for s in checks))
+        self.assertEqual(app.list_events(), [])
+
     def test_scalp_api_is_private_and_paired(self):
         self.assertEqual(self.request("GET", "/api/scalping")[0], 401)
         self.request("POST", "/v1/tradingview/events", self.payload("BUY"))

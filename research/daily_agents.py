@@ -51,6 +51,35 @@ def agent_validation(rows):
  if split<100 or len(rows)-split<50:return {"agent":"validation","status":"insufficient_data"}
  train=backtest(rows[:split]);test=backtest(rows[split:])
  return {"agent":"validation","status":"research_only","train":agent_quality(train),"out_of_sample":agent_quality(test),"warning":"A historical holdout is not a forward test"}
+def agent_hypotheses(rows):
+ """Generate falsifiable parameter experiments, never strategy patches or live signals."""
+ split=int(len(rows)*0.7)
+ if split<100 or len(rows)-split<50:
+  return {"agent":"hypotheses","status":"insufficient_history","proposals":[]}
+ train=rows[:split];unseen=rows[split:]
+ choices=[]
+ for rr in (1.5,2.0,3.0,4.0):
+  t=backtest(train,rr=rr)
+  q=agent_quality(t)
+  if q["resolved"]<30:continue
+  net_r=(q["tp"]*rr-q["sl"]-q["ambiguous"]*1.0)/max(1,len(t))
+  choices.append((net_r,rr,q))
+ if not choices:
+  return {"agent":"hypotheses","status":"insufficient_resolved_train_trades","proposals":[]}
+ choices.sort(reverse=True)
+ _,candidate_rr,train_quality=choices[0]
+ test_trades=backtest(unseen,rr=candidate_rr)
+ test_quality=agent_quality(test_trades)
+ benchmark=agent_quality(backtest(unseen,rr=3.0))
+ return {"agent":"hypotheses","status":"backtest_experiment_only","proposals":[
+  {"hypothesis":"Test an RR parameter candidate on a separate sample",
+   "candidate_rr":candidate_rr,"training":train_quality,"out_of_sample":test_quality,
+   "benchmark_rr3_out_of_sample":benchmark,
+   "manual_review_required":True,"safe_to_auto_deploy":False,
+   "limitations":["Proxy breakout differs from TradingView Pine and does not model all filters",
+                  "No spread, slippage, fees or tick first-touch resolution",
+                  "Training-selected candidate must survive walk-forward and Pine bar-by-bar parity"]}]}
+
 def agent_reviewer(report):
  q=report["quality"];v=report["validation"]
  reasons=[]
@@ -64,6 +93,7 @@ def run(path):
  if len(rows)<120:raise ValueError("At least 120 valid historical OHLC candles required")
  trades=backtest(rows)
  report={"source_file":Path(path).name,"candles":len(rows),"engine":"research_breakout_proxy_not_pine_v6_4","quality":agent_quality(trades),"risk":agent_risk(trades),"validation":agent_validation(rows)}
+ report["hypothesis_agent"]=agent_hypotheses(rows)
  report["reviewer"]=agent_reviewer(report)
  return report
 if __name__=="__main__":

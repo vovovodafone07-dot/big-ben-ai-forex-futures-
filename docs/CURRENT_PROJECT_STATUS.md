@@ -10,7 +10,7 @@
 |Twelve Data — EUR/USD price|VERIFIED WORKING|استجابة سعر حقيقية في 2026-11-13T16:35:00Z؛ الخادم سجل CONNECTED/valid_price_response دون كشف المفتاح|
 |بث مستمر/أسعار لحظية/فيوتشرز|IMPLEMENTED BUT UNVERIFIED|فحص السعر الواحد لا يثبت ترخيص البث أو تغطية العقود؛ حقول التحقق تبقى false|
 |Webhook|PARTIALLY IMPLEMENTED|HTTP محلي ومصادقة وحفظ وتكرار مختبرة؛ سجلات accepted تاريخية؛ لا accepted منذ 12:00 UTC يوم الفحص|
-|Pine v6.3/v6.4|IMPLEMENTED BUT UNVERIFIED|نسختان محفوظتان؛ توثيق v6.4 ينفي تنفيذ تجميع TradingView؛ لم يتغير الكود|
+|Pine v6.3/v6.4|PARTIALLY IMPLEMENTED|شاهدنا v6.3 على MES M5 في جلسة الحساب؛ v6.4 مرشح غير مجمع؛ لم يتغير الكود|
 |أهداف السكالب|PARTIALLY IMPLEMENTED|API وواجهة وتنبيه منشورة؛ API يعيد 401 دون دخول كما ينبغي؛ الاختبارات ناجحة؛ لا تحقق بصري أو رسالة حية مؤكدة|
 |Telegram|PARTIALLY IMPLEMENTED|الاعتمادات مضبوطة؛ تنبيه مزدوج مختبر آليًا؛ تسليم حي غير مثبت|
 |التحليل المرصود|PARTIALLY IMPLEMENTED|API محمي وبطاقات أدلة وفصل وقت المصدر/الاستلام؛ لا ادعاء توقع أو درجات احتمال|
@@ -22,3 +22,6 @@
 
 72 اختبارًا (57 خلفية + 15 بحث) ناجحة في CI run 43463797018 على Linux وWindows؛ فحص 6 كتل JS وترحيل PostgreSQL المعزول ناجحان.
 دليل آلي موجز: docs/evidence/release-2026-11-13.json.
+
+## TradingView: الوصول والمسودة
+استُعيد الوصول إلى حساب TradingView المسجل. تنبيها BUY/SELL على XAUUSD نشطان في القائمة الظاهرة. مسودة تنبيه MES M5 باسم Big Ben Pro | MES M5 | JSON Bridge جاهزة بشرط Any alert() function call وWebhook فقط ورابط الخادم الصحيح، ولم تُحفظ بعد. طلب تأكيد تفعيلها معلق. ظهر تحذير repaint من TradingView للمؤشر الحالي.

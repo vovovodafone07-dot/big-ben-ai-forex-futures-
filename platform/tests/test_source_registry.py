@@ -31,6 +31,14 @@ class SourceRegistryTests(unittest.TestCase):
         def core(source):return source.split('webhookSymbol =',1)[1].split('var box riskBox =',1)[0].split('// Read-only telemetry',1)[0]
         self.assertEqual(core(old),core(new));self.assertEqual(new.count('analysisJson ='),1)
         self.assertEqual(new.count('"analysis":'),2)
+    def test_multiasset_release_only_adds_telemetry_not_entry_rules(self):
+        root=Path(__file__).resolve().parents[2]/'tradingview'
+        old=(root/'Big_Ben_AI_Hybrid_M5_v6_4_2_Telemetry.pine').read_text(encoding='utf-8')
+        new=(root/'Big_Ben_AI_Pro_Multiasset_M5_v6_4_3.pine').read_text(encoding='utf-8')
+        def core(source):return source.split('webhookSymbol =',1)[1].split('// Read-only telemetry',1)[0]
+        self.assertEqual(core(old),core(new))
+        for key in ('cisd_buy','cisd_sell','smt_buy','smt_sell','enable_smt','smt_symbol'):
+            self.assertIn('"'+key+'"',new)
     def test_wrong_source_hash_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory=Path(tmp)

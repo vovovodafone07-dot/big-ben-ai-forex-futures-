@@ -1,12 +1,12 @@
 {
   "version": "v6.4.1-sync",
-  "source": "Big_Ben_AI_Hybrid_M5_v6_4_2_Telemetry.pine",
-  "source_sha256": "ce18f800f8b723bb6c98e05c7a9a3dd2e8a173c58ed18ebc004dbce5d5300c59",
-  "pine_title": "Big Ben AI | Hybrid M5 v6.4.2 | Evidence Bridge",
+  "source": "Big_Ben_AI_Pro_Multiasset_M5_v6_4_3.pine",
+  "source_sha256": "30e65421b20c4bfefd62ee21d56c7ace1779e58da271cfddc77abb22dbed7b64",
+  "pine_title": "Big Ben AI Pro | Forex & Futures M5 | v6.4.3",
   "tradingview_compilation_verified": true,
   "verification_date": "2026-11-14",
   "saved_script_name": "Big Ben AI | Hybrid M5 v6.1 | Pro Webhook",
-  "saved_script_revision": 9,
+  "saved_script_revision": 10,
   "compatibility_defaults": {
     "rr": 2.5,
     "min_evidence": 1,
@@ -14,8 +14,8 @@
     "use_atr_floor": false
   },
   "profitability_validated": false,
-  "bridge_version": "v6.4.2-telemetry",
-  "alert_snapshot_cutover": "verified_nine_symbol_delivery",
+  "bridge_version": "v6.4.3-multiasset",
+  "alert_snapshot_cutover": "pending_v6_4_3_snapshot_update",
   "strategy_core_unchanged": true,
-  "alert_snapshot_verified_at": "2026-11-13T21:40:00Z"
+  "previous_alert_snapshot_bridge": "v6.4.2-telemetry"
 }

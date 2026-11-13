@@ -182,6 +182,30 @@ def news_worker():
   except Exception:print("news_refresh state=failed",flush=True)
   time.sleep(3600)
 
+SIGNAL_ANALYSIS_SLOTS=threading.BoundedSemaphore(2)
+
+def analyze_instrument(symbol,include_ai=False):
+ with history_connection() as c:news=_news.snapshot(c)
+ result=_desk.analyze(symbol,list_events(2000,"all"),news)
+ with history_connection() as c:reports=_replay.latest(c)["runs"]
+ report=next((r for r in reports if _desk.normalize(r["symbol"])==symbol),None)
+ result["learning"]={"historical_report_available":bool(report),"pine_parity_verified":False,"automatic_changes":False,
+  "rejection_counts":report.get("rejection_counts",{}) if report else {},"metrics":report.get("metrics",{}) if report else {}}
+ for task in result["agent_tasks"]:
+  if task["role"]=="learning":task["output"]="تقرير المحاكاة متاح لمراجعة حالات الرفض والنتائج؛ لا تعديل تلقائي" if report else "لا يوجد تقرير تاريخي لهذا الرمز؛ لا يُستنتج تحسن أو تعلم مثبت"
+ result["ai"]=_ai_provider.review(result,history_connection,postgres_enabled()) if include_ai else _ai_provider.status()
+ with history_connection() as c:_desk.record(c,result,postgres_enabled())
+ return result
+
+def run_signal_analysis(symbol):
+ if not SIGNAL_ANALYSIS_SLOTS.acquire(blocking=False):
+  print("signal_analysis skipped=capacity",flush=True);return
+ try:
+  result=analyze_instrument(symbol,True)
+  print("signal_analysis state=completed decision="+result["decision"]+" ai_state="+result["ai"]["state"],flush=True)
+ except Exception:print("signal_analysis state=failed",flush=True)
+ finally:SIGNAL_ANALYSIS_SLOTS.release()
+
 def integration_status():
  rows=list_events(2000,"all");now=datetime.now(timezone.utc);tracked={}
  for symbol,kind,stamp,payload in rows:
@@ -433,7 +457,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -445,6 +469,11 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/analysis/runs":
+   try:
+    with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
+    return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","ai_daily_request_limit":10})
+   except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
   if path=="/api/instruments":
    try:
     with history_connection() as c:preferences=_destinations.read(c)
@@ -626,16 +655,7 @@ class Handler(BaseHTTPRequestHandler):
     symbol=_desk.normalize(request.get("symbol"))
    except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"symbol_or_json","symbols":list(_desk.SYMBOLS)})
    try:
-    with history_connection() as c:news=_news.snapshot(c)
-    result=_desk.analyze(symbol,list_events(2000,"all"),news)
-    with history_connection() as c:reports=_replay.latest(c)["runs"]
-    report=next((r for r in reports if _desk.normalize(r["symbol"])==symbol),None)
-    result["learning"]={"historical_report_available":bool(report),"pine_parity_verified":False,"automatic_changes":False,
-     "rejection_counts":report.get("rejection_counts",{}) if report else {},"metrics":report.get("metrics",{}) if report else {}}
-    for task in result["agent_tasks"]:
-     if task["role"]=="learning":task["output"]="تقرير المحاكاة متاح لمراجعة حالات الرفض والنتائج؛ لا تعديل تلقائي" if report else "لا يوجد تقرير تاريخي لهذا الرمز؛ لا يُستنتج تحسن أو تعلم مثبت"
-    result["ai"]=_ai_provider.review(result,history_connection,postgres_enabled()) if request.get("ai") is True else _ai_provider.status()
-    with history_connection() as c:_desk.record(c,result,postgres_enabled())
+    result=analyze_instrument(symbol,request.get("ai") is True)
     return self.reply(200,result)
    except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if urlsplit(self.path).path=="/api/test-telegram":
@@ -672,6 +692,7 @@ class Handler(BaseHTTPRequestHandler):
      with history_connection() as c:_destinations.receipt(c,d["event_id"],"telegram",status,postgres_enabled())
     except Exception:print("delivery_receipt storage_unavailable",flush=True)
     print("telegram_delivery="+status,flush=True)
+    if os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1":run_signal_analysis(d["symbol"])
    threading.Thread(target=deliver,daemon=True).start()
 if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.

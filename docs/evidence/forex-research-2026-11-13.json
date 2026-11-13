@@ -1,0 +1,53 @@
+{
+  "verified_at": "2026-11-13T18:28:39Z",
+  "code_commit": "de3c20d143fecbcd8aa08b220c96a3697ea0a3dd",
+  "render_deploy": "dep-dbrldbon74is7396v5ag",
+  "render_status": "live",
+  "provider": "Twelve Data",
+  "forex": [
+    {
+      "symbol": "EUR/USD",
+      "closed_candles_inserted": 999,
+      "state": "CONNECTED",
+      "reason": "validated_closed_m5_history",
+      "last_candle": "2026-11-13T18:20:00+00:00"
+    },
+    {
+      "symbol": "GBP/USD",
+      "closed_candles_inserted": 999,
+      "state": "CONNECTED",
+      "reason": "validated_closed_m5_history",
+      "last_candle": "2026-11-13T18:20:00+00:00"
+    },
+    {
+      "symbol": "USD/JPY",
+      "closed_candles_inserted": 999,
+      "state": "CONNECTED",
+      "reason": "validated_closed_m5_history",
+      "last_candle": "2026-11-13T18:20:00+00:00"
+    }
+  ],
+  "total_candles": 2997,
+  "research": {
+    "reports": 3,
+    "tasks_per_report": 9,
+    "total_tasks": 27,
+    "status": "research_only",
+    "engine": "research_breakout_proxy_not_pine_v6_4",
+    "promotion_allowed": false
+  },
+  "telegram_test": {
+    "provider_accepted": true,
+    "server_acknowledged_at": "2026-11-13T18:12:48.47579619Z",
+    "trade_signal": false,
+    "user_read_receipt": false
+  },
+  "tests": {
+    "backend": 78,
+    "research": 20,
+    "inline_js_blocks": 7,
+    "ci_run": 43482631173
+  },
+  "realtime_verified": false,
+  "futures_coverage_verified": false
+}

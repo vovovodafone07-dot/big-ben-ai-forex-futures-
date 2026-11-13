@@ -35,6 +35,12 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(rows[-1]["time"], "2026-11-13T17:55:00+00:00")
         self.assertFalse(result["realtime_verified"])
 
+    def test_forex_metadata_can_omit_exchange_timezone_as_in_live_api(self):
+        data=payload();data["meta"].pop("exchange_timezone")
+        rows,result=self.fetch(data)
+        self.assertEqual(len(rows),2)
+        self.assertIn("documented_forex_UTC",result["timezone_basis"])
+
     def test_unclosed_last_bar_excluded(self):
         data = payload()
         data["values"][-1]["datetime"] = "2026-11-13 18:00:00"

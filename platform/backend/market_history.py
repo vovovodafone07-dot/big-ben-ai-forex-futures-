@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 FOREX = ("EUR/USD", "GBP/USD", "USD/JPY")
 FUTURES = ("NQ", "MNQ", "ES", "MES", "YM", "6E")
 MAX_BYTES = 2_000_000
+ADAPTER_VERSION = 2
 
 
 class HistoryError(ValueError):
@@ -47,7 +48,7 @@ def fetch_m5(symbol, key, now=None):
             "429": "rate_limited"}.get(str(data.get("code")), "provider_rejected"))
     meta = data.get("meta") or {}
     if (not isinstance(meta, dict) or meta.get("symbol") != symbol
-            or meta.get("interval") != "5min" or meta.get("exchange_timezone") != "UTC"
+            or meta.get("interval") != "5min" or meta.get("exchange_timezone", "UTC") != "UTC"
             or meta.get("type") != "Physical Currency"):
         raise HistoryError("instrument_metadata_mismatch")
     items = data["values"]
@@ -87,6 +88,7 @@ def fetch_m5(symbol, key, now=None):
     if not rows:
         raise HistoryError("no_closed_candles")
     return rows, {"provider": "Twelve Data", "symbol": symbol, "interval": "5min",
+        "adapter_version": ADAPTER_VERSION, "timezone_basis": "explicit_UTC_request_and_documented_forex_UTC",
         "candles_received": len(rows), "incomplete_candles_excluded": incomplete,
         "first_candle": rows[0]["time"], "last_candle": rows[-1]["time"],
         "gaps": gaps, "calendar_verified": False, "synthetic_bars_created": 0,

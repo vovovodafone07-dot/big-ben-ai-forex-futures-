@@ -1,0 +1,14 @@
+{
+  "event": "HEARTBEAT",
+  "event_id": "CME_MINI:MES1_-1794589200000-HEARTBEAT",
+  "symbol": "CME_MINI:MES1!",
+  "source_time": "2026-11-13T17:00:00Z",
+  "accepted_http_status": 202,
+  "duplicate_http_status": 200,
+  "server_receipt_time": "2026-11-13T17:00:30.116195299Z",
+  "verified_from": "TradingView alert log plus Render receiver logs",
+  "active_matching_alerts": 2,
+  "newest_duplicate_pause": "awaiting_owner_confirmation",
+  "original_gold_alerts_preserved": true,
+  "pine_strategy_changed": false
+}

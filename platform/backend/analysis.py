@@ -39,6 +39,7 @@ def analyze_events(rows, now=None):
             confirmed.append("البيانات قديمة أو مستقبلية؛ لا تدعم وصف الاتجاه الحالي")
         result.append({
             "symbol": symbol, "source_time": stamp.isoformat(),
+            "strategy_version": data.get("strategy_version") if isinstance(data.get("strategy_version"),str) and len(data["strategy_version"])<=80 else None,
             "received_at": data.get("received_at"), "age_seconds": round(age),
             "state": "CONNECTED" if fresh else "UNKNOWN",
             "market_state": "UNKNOWN", "source": "TradingView heartbeat",

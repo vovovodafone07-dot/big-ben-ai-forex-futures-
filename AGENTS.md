@@ -12,3 +12,5 @@ Update progress, status and blockers after every meaningful milestone. Do not cl
 Production account connections require supported access. Do not bypass browser policy or database IP restrictions.
 
 Owner subsequently requested updating the existing TradingView source and retesting. v6.4.1-sync was saved/compiled in the existing private script (revision 8), preserving observed RR 2.5/evidence 1 and disabling the new optional filters by default. Read docs/PINE_VERSION_SYNC.md. Updating source does not update alert snapshots; inspect existing alerts before any cutover and do not create duplicates.
+
+Current continuation: nine requested TradingView symbols are active on M5/v6.4.1 with9 confirmed deliveries at2026-11-13T19:15Z. Do not recreate them. Read evidence/expanded-alerts-2026-11-13.json. Render has2997 real closed forex candles and3 persisted nine-role proxy reports (27 tasks). Preserve the distinction between proxy RR3 and live Pine RR2.5. Do not treat widget embed denial as webhook outage. Current code ff1cb75686d03b70062224a6efabfe61ea5b2222, with a fresh-analysis/chart fix in progress.

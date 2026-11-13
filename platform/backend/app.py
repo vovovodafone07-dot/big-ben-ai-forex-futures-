@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error
+import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error,hashlib
 from contextlib import contextmanager
 from datetime import datetime,timezone
 from pathlib import Path
@@ -27,6 +27,18 @@ def check_market_connection():
  global MARKET_DATA_DIAGNOSTIC
  MARKET_DATA_DIAGNOSTIC=_probe.probe_twelve_data(twelve_data_key())
  print("market_probe state="+MARKET_DATA_DIAGNOSTIC["state"]+" reason="+MARKET_DATA_DIAGNOSTIC["reason"],flush=True)
+
+def current_strategy_source(directory=None):
+ directory=Path(directory) if directory is not None else Path(__file__).resolve().parents[2]/"tradingview"
+ manifest=json.loads((directory/"current_strategy.json").read_text(encoding="utf-8"))
+ source_name=manifest["source"]
+ if not isinstance(source_name,str) or Path(source_name).name!=source_name or not source_name.endswith(".pine"):
+  raise ValueError("invalid_source_manifest")
+ content=(directory/source_name).read_text(encoding="utf-8")
+ digest=hashlib.sha256(content.encode("utf-8")).hexdigest()
+ if not hmac.compare_digest(digest,manifest["source_sha256"]):raise ValueError("source_manifest_mismatch")
+ return {**manifest,"code":content,"mode":"read_only_versioned_source",
+  "changes_to_live_tradingview":False}
 
 def secure_equal(supplied, expected):
  return isinstance(supplied,str) and hmac.compare_digest(supplied.encode("utf-8"),expected.encode("utf-8"))
@@ -300,11 +312,8 @@ class Handler(BaseHTTPRequestHandler):
    try:return self.reply(200,_analysis.analyze_events(list_events(2000,"heartbeat")))
    except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if path=="/api/pine/current":
-   # Protected source preview of the versioned candidate. Edits are local draft only.
-   pine_file=Path(__file__).resolve().parents[2]/"tradingview"/"Big_Ben_AI_Hybrid_M5_v6_4_Review.pine"
-   if not pine_file.is_file():return self.reply(404,{"error":"source_unavailable"})
-   return self.reply(200,{"version":"v6.4_review","code":pine_file.read_text(encoding="utf-8"),
-      "mode":"read_only_versioned_candidate","changes_to_live_tradingview":False})
+   try:return self.reply(200,current_strategy_source())
+   except (OSError,ValueError,KeyError,TypeError):return self.reply(503,{"error":"source_unavailable_or_mismatched"})
   if path=="/api/data-sources":
    # Configuration/readiness only. Never report entitlement or real-time support without a licensed probe.
    barchart_key=bool(os.getenv("BARCHART_API_KEY","").strip())

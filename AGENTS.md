@@ -10,3 +10,5 @@ Run python -m unittest discover -s platform/tests -v and python -m unittest disc
 Run python scripts/check_frontend.py with Node available. CI additionally validates PostgreSQL migration on an isolated database.
 Update progress, status and blockers after every meaningful milestone. Do not claim completion of all acceptance criteria.
 Production account connections require supported access. Do not bypass browser policy or database IP restrictions.
+
+Owner subsequently requested updating the existing TradingView source and retesting. v6.4.1-sync was saved/compiled in the existing private script (revision 8), preserving observed RR 2.5/evidence 1 and disabling the new optional filters by default. Read docs/PINE_VERSION_SYNC.md. Updating source does not update alert snapshots; inspect existing alerts before any cutover and do not create duplicates.

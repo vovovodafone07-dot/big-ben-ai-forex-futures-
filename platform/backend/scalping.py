@@ -114,6 +114,7 @@ def scenarios(rows, scalp_rr=1, now=None):
             rejected["closed_observed"]+=1
             continue
         result.append({"event_id":data.get("event_id"),"symbol":symbol,"event":side,
+                       "strategy_version":data.get("strategy_version","unreported"),
                        "source_time":stamp.isoformat(),"received_at":data.get("received_at"),
                        "age_seconds":int(age),"timeframe":data.get("timeframe"),
                        "timeframe_verified":data.get("timeframe") in ("5","M5","5m"),

@@ -19,3 +19,5 @@ Reproduce locally without any provider API request:
 ```powershell
 python scripts/run_walk_forward_snapshot.py PATH_TO_VERIFIED_EXPORT.json --output NEW_REPORT.json
 ```
+
+Next parity acquisition step: use the existing authorized TradingView chart CSV export, which includes chart OHLC and script plots per official documentation (https://www.tradingview.com/support/solutions/43000537255-how-to-export-chart-data/ and https://www.tradingview.com/pine-script-docs/faq/indicators/). Inspect account availability without upgrading or creating alerts. A downloaded CSV is only an input; same-feed alignment and bar-by-bar agreement must be measured separately. No CSV has been acquired in this release yet.

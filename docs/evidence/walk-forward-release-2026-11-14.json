@@ -1,0 +1,24 @@
+{
+  "pr": 24,
+  "head": "d6309e449f36e8c3197b0fb96feed3b68c8fafde",
+  "merge": "1d95a1e826c8d2f120c353b3705effee8a25672d",
+  "deploy": "dep-dbsb8jqfngtc73c8gdk0",
+  "backend_tests": 136,
+  "research_tests": 42,
+  "inline_js": 14,
+  "ci_checks": 7,
+  "ci": "all_passed",
+  "reports": 3,
+  "candles_per_symbol": 1220,
+  "folds_per_symbol": 4,
+  "status": "INSUFFICIENT_EVIDENCE",
+  "pine_changed": false,
+  "promotion_allowed": false,
+  "production_ui_verified": false,
+  "live_at": "2026-11-14T19:20:23.058991Z",
+  "health": {
+    "service": 200,
+    "postgres": 200,
+    "private_research_route_without_auth": 401
+  }
+}

@@ -1,8 +1,8 @@
 # Big Ben AI Pro — current status, 14 November 2026
 
 Platform: https://bigben-ai-pro-api.onrender.com/#analyze
-Live code:f569e53ecafc72806552eb5555579e5ddd468c0c (PR23).
-Render deploy:dep-dbs71q3rjlhs73dbvmu0, live18:32Muscat.
+Live code:1d95a1e826c8d2f120c353b3705effee8a25672d (PR24).
+Render deploy:dep-dbsb8jqfngtc73c8gdk0, live23:20Muscat.
 The owner chose to keep the service free and subsequently selected design A.
 
 ## Current release
@@ -44,3 +44,5 @@ Data preservation PR23 merged atf569e53ecafc72806552eb5555579e5ddd468c0c; Render
 Production export and offline restoration now VERIFIED:17 tables/4129 rows/12954161 bytes. Read-only comparison confirms every restored row matches the production export. Private archive and restored database remain outside Git. WhatsApp and nine new alerts are both deferred by owner.
 
 Walk-forward research release pending:3 dated historical reports,1220 candles/symbol,4 chronological folds and final20% holdout, no holdout-based selection. All3 are INSUFFICIENT_EVIDENCE. Cost feed and same-source Pine parity remain unverified; baselineRR2.5 and production Pine remain unchanged.
+
+PR24 now live. All7 CI checks passed:136 backend +42 research tests and14JS blocks. Production health/storage200; walk-forward API401 without auth. Native UI verification and same-feed TradingView CSV acquisition are next. WhatsApp and additional alerts remain deferred.

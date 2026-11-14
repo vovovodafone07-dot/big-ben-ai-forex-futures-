@@ -83,6 +83,17 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_application_export_is_private_complete_and_cannot_restore_over_http(self):
+        self.assertEqual(self.request('GET','/api/backup/export')[0],401)
+        self.assertEqual(self.request('POST','/api/backup/restore',{},auth=self.auth)[0],404)
+        status,bundle=self.request('GET','/api/backup/export',auth=self.auth)
+        self.assertEqual(status,200);self.assertTrue(bundle['complete'])
+        self.assertEqual(app._backup.verify(bundle),bundle['row_count'])
+        with patch.object(app._backup,'MAX_BYTES',10):
+            status,result=self.request('GET','/api/backup/export',auth=self.auth)
+        self.assertEqual(status,413);self.assertNotIn('tables',result)
+        self.assertEqual(self.request('GET','/api/backup/export',auth=self.auth)[0],200)
+
     def test_workspace_routes_are_private_and_drafts_and_notes_persist(self):
         for endpoint in ('/api/workspace/drafts','/api/workspace/notes','/api/operations'):
             self.assertEqual(self.request('GET',endpoint)[0],401)

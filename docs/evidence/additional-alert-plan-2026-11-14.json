@@ -20,5 +20,7 @@
   "cost_policy": "no purchase or subscription upgrade",
   "preserve_existing": true,
   "verify_duplicates_before_creation": true,
-  "created": false
+  "created": false,
+  "owner_decision": "defer_new_alerts_continue_other_work",
+  "deferred": true
 }

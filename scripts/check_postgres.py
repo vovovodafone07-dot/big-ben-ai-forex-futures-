@@ -61,4 +61,26 @@ with psycopg.connect(url) as connection:
     marker='%s'
     assert connection.execute('INSERT INTO ai_daily_budget(day,requests) VALUES (%s,1) ON CONFLICT(day) DO UPDATE SET requests=ai_daily_budget.requests+1 WHERE ai_daily_budget.requests<10 RETURNING requests',('2026-11-14',)).fetchone()[0]==1
     connection.rollback()
-print("PostgreSQL migration preserves existing rows and is repeatable")
+import tempfile
+import app as backup_app
+original_url=os.environ.get('DATABASE_URL')
+try:
+    os.environ['DATABASE_URL']=url
+    backup_app.init()
+    with backup_app.history_connection() as connection:
+        backup_app._workspace.save_note(connection,{'symbol':'EURUSD','text':'PostgreSQL portable snapshot fixture'},instruments.normalize,True)
+    with backup_app.history_connection() as connection:
+        bundle=backup_app._backup.snapshot(connection,True)
+    assert backup_app._backup.verify(bundle)==bundle['row_count']
+    os.environ['DATABASE_URL']=''
+    with tempfile.TemporaryDirectory() as temporary:
+        backup_app.DB=Path(temporary)/'restored.sqlite3'
+        backup_app.init()
+        with backup_app.history_connection() as connection:
+            backup_app._backup.restore_new_database(connection,bundle)
+        with backup_app.history_connection() as connection:
+            assert backup_app._workspace.notes(connection)['notes'][0]['text']=='PostgreSQL portable snapshot fixture'
+finally:
+    if original_url is None:os.environ.pop('DATABASE_URL',None)
+    else:os.environ['DATABASE_URL']=original_url
+print("PostgreSQL migrations and portable snapshot restore verified on isolated CI data")

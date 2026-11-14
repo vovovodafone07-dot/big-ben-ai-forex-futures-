@@ -1,26 +1,31 @@
-# حالة المشروع — 14 نوفمبر 2026
+# Big Ben AI Pro — current status, 14 November 2026
 
-رابط المنصة: https://bigben-ai-pro-api.onrender.com/#analyze
-آخر كود منشور: 06c829fe9541b522c52d22fb57d4481955e375ea، PR19.
-نشر Render: dep-dbrpuj5g1s2s73d7h70g بحالة live؛ تحقق 14 نوفمبر 2026،03:38مسقط.
+Platform: https://bigben-ai-pro-api.onrender.com/#analyze
+Live code: 7212e80a6fb263e6436f6c8581ab58b0c74e152b (PR20).
+Render deploy: dep-dbrqi1lbedkc738hsjpg, live at 04:19 Muscat.
+The owner chose to keep the service free and subsequently selected design A.
 
-## التحقق الفعلي
-- عادت أداة المتصفح بعد توفير 2.94 جيجابايت وإعادة تهيئتها وتنشيط Chrome. نجح تبديل التبويب والتنقل الداخلي. لا ندعي إثبات السبب المباشر لكل توقف URL سابق.
-- نجحت مراجعة Gemini الإنتاجية الفعلية على MNQ بعد إصلاح قراءة الرد. عرضت المنصة «تم التحقق من المراجعة»، مع ملخص عربي وأربعة تخصصات: التداول، الأخبار، المخاطر، ومراجعة النتائج. النموذج gemini-3.8-flash، بالمفتاح الحالي من مشروع Free tier، دون تفعيل فوترة أو شراء.
-- أبقت المراجعة القرار WAIT لأن بيانات MNQ وقت الاختبار قديمة ولا توجد إشارة دخول حديثة. لا تُعرض مستويات صفقة مصطنعة. الدليل: evidence/gemini-review-verified-2026-11-14.json.
-- الواجهة B الفاتحة وAnalyze منشوران، مع شروط دخول متحققة أو فاشلة أو مجهولة وفلاتر معطلة، وأسباب الانتظار. تعرض الصفقة الكاملة والسكالب عند وجود إشارة فعلية حديثة وصالحة.
-- الملف الخاص القديم في TradingView محفوظ ومجمّع كـrevision 9 بعنوان v6.4.2 Evidence Bridge. استراتيجية v6.4.1-sync وقواعدها وإعداداتها الأصلية ثابتة؛ اختُبر تماثل نص القواعد.
-- حُدثت لقطات التنبيهات التسعة القائمة إلى revision 9. استلم الخادم الرموز التسعة من دورة 2026-11-13T21:40Z بإضافة v6.4.2-telemetry. الأسماء تشير إلى نسخة الاستراتيجية v6.4.1، وشرطها يختار revision 9. MES القديم المكرر موقوف، والذهب دون تغيير. الدليل: evidence/evidence-bridge-2026-11-14.json.
-- أصلح PR16 منطقة BLS الزمنية US-Eastern. الجلب الفعلي أعاد 16 حدثًا قادمًا، وظهر التقويم في المنصة. أخبار ECB وFed مخزنة مع حالة الاتصال وحداثة كل مصدر؛ لا يُفترض اتصال المصدر المتعطل.
-- PostgreSQL يعمل. Twelve Data حفظ 2997 شمعة M5 مغلقة للأزواج الثلاثة؛ الجلب محدود كل 6 ساعات أثناء تشغيل الخدمة. لا يثبت هذا بثًا لحظيًا مستقلًا أو ترخيص تاريخ الفيوتشرز.
-- ثلاث محاكاة قواعد RR2.5 محفوظة بسجل رفض ومصادر، منفصلة عن proxy RR3. مطابقة Pine بارًا ببار غير مثبتة.
-- مهام الفحص التسع حتمية ومسجلة، وتضاف إليها مراجعة النموذج بأربعة تخصصات. لا يُدعى تدريب مستقل أو تعديل تلقائي للاستراتيجية.
+## Current release
+- Implemented design A in HTML/CSS: navy right navigation, persisted recipient fields, chart beside reasons and paired full/scalp plans, actual CISD/SMT states and specialist review cards, responsive mobile layout. Generated mockup values are not production data.
+- Extensible qualified instrument identifiers, market names, custom watchlist and discovered symbols. Adding a watchlist item does not create a TradingView alert or data license. Analyze filters by symbol before choosing its latest signal.
+- Private Telegram Chat ID and international WhatsApp recipient settings; initial settings-load failures cannot silently erase existing recipients. Telegram messages contain both original target and alternative scalp1R with the same entry/stop.
+- Official Meta template adapter implemented and tested, DISABLED by default. It needs an existing Business account, approved nine-parameter template, credentials and recipient. No account, keys, template, paid plan or billing was created/enabled. See WHATSAPP_CLOUD_SETUP.md. API acceptance is not delivery.
+- New real BUY/SELL events trigger the shared analysis pipeline after webhook acknowledgment. Two concurrent tasks maximum; Gemini retains ten requests/day UTC, a five-minute evidence cache and no hidden retries. Nine deterministic evidence roles are separate from one model request containing four specialist sections. No broker execution or autonomous strategy changes.
+- Historical SMT research measures synchronized M5 returns from stored Twelve Data candles, with at least60 return samples. It excludes gaps/open/future bars, identifies its separate historical feed, cannot override Pine and never claims live SMT confirmation.
 
-## التحقق والحدود
-نجح 102 اختبار خلفية و37 بحث و8 كتل JavaScript في CI على Windows/Linux وPostgreSQL، run43519184758. فحص JS المحلي تعذر لغياب node.exe، وأكمله CI بنجاح.
-المهلة45ثانية وحد إخراج Gemini4096، والتفكيرLOW لهذا النموذج فقط، والحد10طلبات/يوم دون إعادة محاولات خفية. لا يستطيع النموذج تغيير مستويات الصفقة أو القرار الحسابي أو كود الاستراتيجية.
-لا تنفذ المنصة أوامر وساطة. تسليم صفقة BUY/SELL حقيقية إلى Telegram لم يُثبت؛ لا تُنشئ إشارة زائفة للتحقق منه. بقية الحدود في REMAINING_BLOCKERS.md.
+## Pine and alert snapshots
+Existing private script: revision10, title Big Ben AI Pro | Forex & Futures M5 | v6.4.3.
+Strategy remains v6.4.1-sync; bridge v6.4.3-multiasset adds CISD/SMT telemetry and a general title. Trading rules and SMT settings are text-identical to the previous release.
+Last verified v10 saves: EURUSD, GBPUSD,6E.
+Remaining v10 snapshot work: USDJPY,NQ,MNQ,ES,MES,YM. Inspect existing alerts; do not recreate duplicates.
+Both original gold alerts remain unchanged; the duplicate MES alert is stopped, not deleted.
+All nine delivered the21:40UTC13November cycle on bridge v6.4.2. No claim of a new nine-symbol v6.4.3 cycle during the closed market.
 
-
-## آخر استكمال: اختيار التصميمA — قيد الإصدار
-اختار المالكAثمأذنباستكمالالأجزاءأثناءغيابه. التغييرالمحلييشملتطبيقالتخطيطA،موصلWhatsAppاختياريًامعطلافتراضيًا،قياسSMTتاريخيًامقيدًابالبياناتالمحفوظة،وحمايةحفظالإعدادات. مر121اختبارخلفيةو37بحثو11كتلةJS. لايتغيرPineأوتراخيصوفوترةالخدماتفيهذاالتغيير،ولايدعىنشرهقبلتحققCIوRender.
+## Verification and limits
+PR20 CI passed all six checks:121 backend +37 research tests and11 inline JS blocks, including Windows/Linux and isolated PostgreSQL. HTML container and unique-ID checks passed locally. Render is live; production storage HTTP200. Error-log query since deploy start returned no entries.
+Visual verification of design A is pending. Browser control previously stopped on URL confidence checks; do not bypass enforcement.
+Gemini previously returned valid Arabic reviews on MNQ and EURUSD and respected WAIT. A valid EUR/USD Twelve Data price response does not prove continuous live prices or futures licensing.
+Official Fed/ECB feeds and BLS calendar have freshness/error metadata; there is no connected numeric consensus feed or invented future result.
+The free PostgreSQL database is available and expires11December2026. Free Render can sleep.
+Pine-rules RR2.5 research remains distinct from the older proxy RR3 reports. Profitability and bar-by-bar TradingView parity are unverified.
+See REMAINING_BLOCKERS.md and evidence/design-a-deployment-2026-11-14.json.

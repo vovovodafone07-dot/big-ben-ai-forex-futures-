@@ -1,29 +1,22 @@
-# العمل المتبقي وحدود التحقق — 14 نوفمبر 2026
+# Remaining work and verification limits —14November2026
 
-## ما تحقق
-- التنبيهات التسعة القائمة على M5 مرتبطة بإضافة v6.4.2-telemetry في revision 9، مع بقاء استراتيجية v6.4.1-sync. وصلت دورة21:40UTC من الرموز التسعة. لا تعِد إنشاء التنبيهات.
-- Gemini أعاد مراجعة إنتاجية صالحة بأربعة تخصصات بعد PR17. الدليل: evidence/gemini-review-verified-2026-11-14.json. نجاح الطلب لا يضمن توفر المزود دائمًا؛ تظهر الأخطاء والحصة اليومية عند تعذر المراجعة.
-- الواجهة B وAnalyze وشروط الدخول والأهداف المزدوجة والأخبار والتقويم تعمل. أُصلحت قراءة المنطقة الزمنية لتقويم BLS، وظهرت مواعيده.
-- استُعيد التحكم بالمتصفح بعد توفر2.94جيجابايت وإعادة التهيئة وتنشيط Chrome. لم يُثبت السبب المباشر لكل توقف سابق، ولا توجد موافقة عامة معلقة.
+## Account/browser work
+1. Finish six EXISTING TradingView alert snapshots at revision10/v6.4.3: USDJPY,NQ,MNQ,ES,MES,YM. EURUSD,GBPUSD,6E were saved already. Keep Any alert(),M5 and current Webhook. Preserve gold alerts and the stopped duplicate MES. Then verify actual incoming telemetry when the markets supply new bars.
+2. Visually verify the implemented A layout and capture actual desktop/mobile screenshots. Previous browser URL-confidence enforcement stopped tab changes. Use only supported native browser control and stop if enforcement stops the turn.
+3. Compare the owner's TradingView watchlist with actual alert coverage. Qualified symbol support is open, but a symbol in a watchlist is not an active webhook alert or a data subscription. Do not silently substitute CFDs for futures or purchase subscriptions.
+4. WhatsApp Cloud API adapter is implemented, tested and disabled by default. Actual connection needs an existing Business account/sender, approved compatible template, secret credentials and recipient. Configure only through supported account access; do not create charges under broad authorization. Manual sharing works independently. Provider acceptance is not device delivery; a delivery callback is not implemented.
 
-## المتبقي
-- التحقق من تسليم صفقة BUY/SELL سوقية حقيقية إلى Telegram مع الهدف الأصلي والسكالب. نجح اختبار اتصال Telegram سابقًا، ولا تُنشأ صفقة زائفة لهذا الغرض.
-- تاريخ فيوتشرز مرخص مستقل وبيانات العقود والتدوير والتقويم وتغطية كل رمز لدى مزود API. نبضات TradingView لا تعوض التاريخ الكامل أو تثبت ترخيص API أو اللحظية المستقلة.
-- مطابقة محاكاة قواعد RR2.5 مع TradingView بارًا ببار، وتكاليف التنفيذ وwalk-forward وعينة holdout واسعة. محرك proxy RR3 منفصل؛ لا تُنسب نتائجه للاستراتيجية الحية. المصدر المرجعي بالفيديو غير متاح للتحقق الدقيق.
-- التعلم الحالي مراجعة لسجل الرفض والنتائج، مع مراجعة لغوية اختيارية؛ ليس تدريبًا مثبتًا أو تعديلًا ذاتيًا للاستراتيجية. اعتماد المرشحين الدائم والتحقق المستقل الشامل متبقيان.
-- لا توجد بيانات إجماع أو نتائج أخبار مستقبلية موثقة؛ سيناريوهات الأخبار مشروطة. لا يخترع النموذج نتيجة إصدار أو احتمال نجاح.
-- الجدولة على خدمة Render المجانية أثناء تشغيلها فقط، ولا تضمن تشغيلًا مستمرًا أو توقيت cron. GitHub workflow القديم الخاص بـBarchart مستقل، ولا تنسب له تقارير Render.
-- بعض العقود ممنوعة في ودجت TradingView خارج الموقع؛ تُفتح بروابطها داخل TradingView. لا يُستبدل العقد بفوركس أو CFD.
-- تحديثات Pine تستخدم جلسة الحساب المدعومة واختبارات الإصدار وتحديث لقطات التنبيهات؛ لا يوجد API مفترض أو وعد بتحديث دائم بعد انتهاء الجلسة.
+## Real-data acceptance
+- Verify automatic specialists and Telegram paired-plan delivery with a NEW real signal; do not fabricate a trade to test the pipeline. Earlier Telegram connection test succeeded, but full real-signal delivery was not proven.
+- Independent futures history/realtime coverage, licensing, contract rolls and calendars remain unverified. A Twelve Data EUR/USD probe and stored forex candles have a narrower scope.
+- Historical paired-return SMT research is implemented for available matching stored data. It is a separate-feed historical observation, not current Pine SMT confirmation. Candidates for other markets need synchronized data and measured validation; preserve the existing Pine SMT setting.
+- Pine-rules RR2.5 replay is implemented with rejection logs, but bar-by-bar parity, realistic costs/fills, sessions/rolls, large out-of-sample validation and the unavailable reference video remain unresolved. Older proxy RR3 reports are separate.
+- Learning is an evidence review with bounded model commentary, not verified training or autonomous strategy promotion. Proposed changes need measured independent validation.
+- Official Fed/ECB news and BLS calendar are connected with freshness/error status. No numeric consensus feed is connected. Future news scenarios are conditional.
 
-## الصيانة
-- PostgreSQL المجاني ينتهي11ديسمبر2026. لا ترفع التكلفة دون سقف معتمد، ولا تفتح IP allowlist الخارجية.
-- راقب انتهاء التنبيهات؛ تاريخ MES المرصود9ديسمبر2026. الذهب بقي على لقطتيه الأصليتين، وMES المكرر موقوف دون حذف.
-- الاعتمادات في أسرار Render فقط. لا تطبع مفاتيح أو ردود مزود خام أو توكن Webhook أو اتصال قاعدة البيانات.
-- حد مراجعة النموذج10طلبات/يوم UTC، مع ذاكرة مؤقتة5دقائق للمدخلات نفسها ودون إعادة محاولات خفية. التحليل الحسابي لا يعتمد على توفر مراجعة النموذج.
-
-
-تحديث14نوفمبر: اختيار المالك إبقاء Render مجانيًا دون ترقية. الإرسال التلقائي WhatsApp غير متصل؛ رقم المستلم يتيح مشاركة يدوية فقط. قائمة الرموز تدعم الإضافات المؤهلة، لكن إضافة رمز في watchlist لا تنشئ TradingView alert ولا ترخيص بيانات. مرشحاتSMT بحثية غير مقاسة، وإظهارCISD/SMT الفعلي يتطلب telemetry من المصدر؛ قواعدCISD موجودة بالفعل فيPine الحالي.
-
-
-تحديثاختيارA: موصلWhatsAppالرسميأصبحمنفذًاومختبرًاصناعيًا،لكنهغيرمهيأولايرسلطلباتدونتمكينواسراروقالبصحيح. ينقصاتصالBusinessفعليوقالبمعتمدورقممستلم؛لايثبتقبولAPIتسليمالرسالة. قياسSMTالتاريخيأصبحممكنًاللأزواجذاتالتاريخالمتزامنالمحفوظ؛لايثبتمطابقةمصدرTradingViewأوSMTحيًا. لقطاتv10المؤكدةحاليًاEURUSD/GBPUSD/6E،وتبقىالستةالأخرىقيدالإكمال.
+## Operational choices
+- Owner explicitly chose free Render; sleep and non-guaranteed schedules are accepted constraints, not pending upgrade approval.
+- Free PostgreSQL expires11December2026. Arrange preservation/migration before expiry without opening the external IP allowlist or introducing unapproved costs.
+- Some TradingView alert expiries were observed on9December2026. Review renewal before expiry.
+- Gemini uses the existing free-tier project with10 request reservations/day UTC, five-minute cache and no automatic retries. Deterministic analysis continues without a model response.
+- Never print secrets, provider error bodies, webhook tokens or database URLs. Keep source/alert snapshot versions separate. No broker execution.

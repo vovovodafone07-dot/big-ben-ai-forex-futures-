@@ -1,0 +1,21 @@
+{
+  "verified_at": "2026-11-14T00:21:03.446Z",
+  "commit": "7212e80a6fb263e6436f6c8581ab58b0c74e152b",
+  "deploy": "dep-dbrqi1lbedkc738hsjpg",
+  "status": "live",
+  "backend_tests": 121,
+  "research_tests": 37,
+  "inline_js": 11,
+  "ci": "six checks successful; Windows/Linux and isolated PostgreSQL",
+  "storage_http": 200,
+  "whatsapp_automatic": "disabled; no account or billing changes",
+  "visual_verification": "pending",
+  "remaining_v10_alerts": [
+    "USDJPY",
+    "NQ",
+    "MNQ",
+    "ES",
+    "MES",
+    "YM"
+  ]
+}

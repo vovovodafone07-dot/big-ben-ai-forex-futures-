@@ -33,5 +33,38 @@
       "status": 401
     }
   ],
-  "live_at": "2026-11-14T13:47:35.913524Z"
+  "live_at": "2026-11-14T13:47:35.913524Z",
+  "native_worker": {
+    "started_at": "2026-11-14T13:47:29.222283+00:00",
+    "status": "COMPLETED",
+    "daily_reports": 1,
+    "history_sources_connected": 3,
+    "total_coverage_entries": 9,
+    "proxy_reports": 3,
+    "pine_replay_reports": 3,
+    "telegram_provider_status": "sent",
+    "elapsed_six_hour_cycle_verified": false
+  },
+  "native_lab": {
+    "baseline_draft_saved": true,
+    "draft_state": "DRAFT",
+    "source_unchanged": true,
+    "diff_verified_unchanged": true
+  },
+  "gemini_latest": "provider_timeout",
+  "native_notes": {
+    "saved": true,
+    "symbol": "OANDA:EURUSD",
+    "observed_at": "2026-11-14T13:57:10Z"
+  },
+  "watchlist_persisted_after_reload": true,
+  "watchlist_symbols": 13,
+  "phone_emulation": {
+    "width": 400,
+    "height": 844,
+    "navigation_verified": true,
+    "analyze_form_verified": true,
+    "paired_plans_verified": true,
+    "physical_phone_tested": false
+  }
 }

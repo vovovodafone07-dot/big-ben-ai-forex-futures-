@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-11-14T00:32:22.774Z",
+  "saved_revision": 10,
+  "bridge": "v6.4.3-multiasset",
+  "symbols": [
+    "OANDA:EURUSD",
+    "OANDA:GBPUSD",
+    "OANDA:USDJPY",
+    "CME_MINI:NQ1!",
+    "CME_MINI:MNQ1!",
+    "CME_MINI:ES1!",
+    "CME_MINI:MES1!",
+    "CBOT_MINI:YM1!",
+    "CME:6E1!"
+  ],
+  "timeframe": "5",
+  "condition": "Any alert() function call",
+  "webhook": "existing URL preserved",
+  "strategy_settings": "RR2.5/evidence1 and original filters preserved",
+  "new_alerts_created": 0,
+  "duplicate_mes": "stopped manually, preserved",
+  "gold_alerts": "preserved unchanged",
+  "new_nine_symbol_delivery_verified": false,
+  "notes": "UI saves confirmed; market delivery awaits new real bars. Alerts retain core strategy version in their names."
+}

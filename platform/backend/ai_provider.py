@@ -94,7 +94,7 @@ def review(evidence,connection_factory,postgres=False,now=None):
         LAST_CHECK={"state":"CONNECTED","reason":"valid_model_review","checked_at":now.isoformat()}
         return result
     except urllib.error.HTTPError as error:
-        reason={400:"provider_invalid_request",401:"provider_authentication_failed",403:"provider_permission_or_verification_required",404:"provider_model_unavailable",429:"provider_quota_exceeded"}.get(error.code,"provider_http_error")
+        reason={400:"provider_invalid_request",401:"provider_authentication_failed",403:"provider_permission_or_verification_required",404:"provider_model_unavailable",429:"provider_quota_exceeded",503:"provider_temporarily_unavailable"}.get(error.code,"provider_http_error")
         provider_status=None
         try:
             error_body=json.loads(error.read(16385))

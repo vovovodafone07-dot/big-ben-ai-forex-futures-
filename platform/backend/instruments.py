@@ -14,15 +14,22 @@ FUTURES = {
     "RTY": ("CME_MINI", "E-mini Russell 2000"), "M2K": ("CME_MINI", "Micro E-mini Russell 2000"),
     "6E": ("CME", "Euro FX"), "6B": ("CME", "British Pound"), "6J": ("CME", "Japanese Yen"),
     "6A": ("CME", "Australian Dollar"), "6C": ("CME", "Canadian Dollar"), "6S": ("CME", "Swiss Franc"),
-    "GC": ("COMEX", "Gold"), "MGC": ("COMEX", "Micro Gold"), "SI": ("COMEX", "Silver"),
+    "GC": ("COMEX", "Gold"), "MGC": ("COMEX_MINI", "Micro Gold"), "SI": ("COMEX", "Silver"),
     "HG": ("COMEX", "Copper"), "CL": ("NYMEX", "WTI Crude Oil"), "MCL": ("NYMEX", "Micro WTI Crude Oil"),
     "NG": ("NYMEX", "Natural Gas"), "ZB": ("CBOT", "US Treasury Bond"), "ZN": ("CBOT", "10-Year Treasury Note"),
     "ZF": ("CBOT", "5-Year Treasury Note"), "ZT": ("CBOT", "2-Year Treasury Note"),
     "ZC": ("CBOT", "Corn"), "ZW": ("CBOT", "Wheat"), "ZS": ("CBOT", "Soybeans"),
+    "MBT": ("CME", "Micro Bitcoin Futures"),
 }
 SYMBOLS = {**{pair: "OANDA:"+pair for pair in FOREX},
-           "XAUUSD": "OANDA:XAUUSD", "XAGUSD": "OANDA:XAGUSD",
-           **{root: exchange+":"+root+"1!" for root, (exchange, _) in FUTURES.items()}}
+           "XAUUSD": "FOREXCOM:XAUUSD", "XAGUSD": "OANDA:XAGUSD",
+           **{root: exchange+":"+root+"1!" for root, (exchange, _) in FUTURES.items()},
+           "BTCUSD":"BITSTAMP:BTCUSD", "US100":"CAPITALCOM:NAS100", "NAS100":"CAPITALCOM:NAS100",
+           "US30":"SKILLING:US30", "US500":"CAPITALCOM:SPX500", "SPX500":"CAPITALCOM:SPX500", "USOIL":"TVC:USOIL"}
+
+EXTRA_NAMES = {"BITSTAMP:BTCUSD":"Bitcoin / U.S. Dollar", "CAPITALCOM:NAS100":"US 100 Cash CFD",
+               "SKILLING:US30":"Dow Jones Index CFD", "CAPITALCOM:SPX500":"S&P 500 Index CFD",
+               "TVC:USOIL":"WTI Crude Oil CFD"}
 
 # Research comparison candidates, not guaranteed or measured correlations.
 PEERS = {
@@ -72,12 +79,16 @@ def describe(value):
     symbol = normalize(value)
     exchange, ticker = symbol.split(":", 1)
     root = ticker.removesuffix("1!")
-    if exchange in {"CME", "CME_MINI", "CBOT", "CBOT_MINI", "COMEX", "NYMEX", "ICEUS", "EUREX", "CME_DL", "NYMEX_DL", "COMEX_DL"}:
+    if exchange in {"CME", "CME_MINI", "CBOT", "CBOT_MINI", "COMEX", "COMEX_MINI", "NYMEX", "ICEUS", "EUREX", "CME_DL", "NYMEX_DL", "COMEX_DL"}:
         kind = "futures"
         name = FUTURES[root][1] if root in FUTURES else ticker
     elif exchange in {"OANDA", "FX", "FXCM", "FOREXCOM", "SAXO", "PEPPERSTONE"} and re.fullmatch(r"[A-Z]{6}", ticker):
         kind = "metals" if ticker[:3] in {"XAU", "XAG"} else "forex"
         name = ticker[:3]+" / "+ticker[3:]
+    elif exchange in {"CAPITALCOM", "SKILLING", "TVC"}:
+        kind, name = "cfd", EXTRA_NAMES.get(symbol,ticker)
+    elif exchange in {"BITSTAMP", "COINBASE", "BINANCE", "KRAKEN"}:
+        kind, name = "crypto", EXTRA_NAMES.get(symbol,ticker)
     else:
         kind, name = "other", ticker
     return {"symbol": symbol, "ticker": ticker, "name": name, "asset_class": kind, "smt_comparison": comparison(symbol),

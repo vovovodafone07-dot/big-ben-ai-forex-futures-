@@ -89,3 +89,5 @@ PR18 مدمج والكود78052c8a97454420537dfb09aae2d6ed64036674 منشور li
 
 ## PR20 منشور — 14نوفمبر04:19مسقط
 دُمجالإصدارونُشر7212e80a6fb263e6436f6c8581ab58b0c74e152b عبرdep-dbrqi1lbedkc738hsjpg بحالةlive. نجحتجميعفحوصCIللرأس6637f607e9cf7ebab677dcee85c3c61b36ad0cd3:121خلفية+37بحثو11كتلةJSعلىWindows/Linux/PostgreSQL. التخزينHTTP200. متابعةالفحصالمرئيوالستلقطاتالتنبيهات.
+
+14November continuation: all nine existing native TradingView snapshots now saved at v10/v6.4.3, with no new full-cycle delivery claim. Captured actual design A desktop screenshot. Recovered13 source-qualified watchlist symbols and corrected MGC/MBT/CFD/crypto catalog mappings. Latest Gemini attempt returned503, surfaced as unavailable. Local122 backend +37 research tests pass;11 inline JS blocks parse. Additional alert coverage and mobile verification remain.

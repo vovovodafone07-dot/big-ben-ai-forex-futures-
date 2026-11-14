@@ -90,6 +90,7 @@ def analyze(symbol,rows,news,now=None):
     return {"instrument":instruments.describe(symbol),"symbol":symbol,"generated_at":now.isoformat(),"decision":decision,"fresh":fresh,
         "source_time":latest[0].isoformat() if latest else None,"received_at":data.get("received_at"),
         "strategy_version":data.get("strategy_version") if isinstance(data.get("strategy_version"),str) else None,
+        "smt_source_symbol":telemetry.get("smt_symbol") if isinstance(telemetry.get("smt_symbol"),str) else None,
         "bridge_version":data.get("bridge_version") if isinstance(data.get("bridge_version"),str) else None,
         "observed_close":data.get("close",data.get("entry")),"checks":checks,"reasons":reasons,
         "failed_checks":failed,"full_trade":signal["full_trade"] if signal else None,

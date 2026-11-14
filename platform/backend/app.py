@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -193,6 +193,7 @@ def analyze_instrument(symbol,include_ai=False):
   "rejection_counts":report.get("rejection_counts",{}) if report else {},"metrics":report.get("metrics",{}) if report else {}}
  for task in result["agent_tasks"]:
   if task["role"]=="learning":task["output"]="تقرير المحاكاة متاح لمراجعة حالات الرفض والنتائج؛ لا تعديل تلقائي" if report else "لا يوجد تقرير تاريخي لهذا الرمز؛ لا يُستنتج تحسن أو تعلم مثبت"
+ with history_connection() as c:result["smt_research"]=_smt_research.from_storage(c,symbol,result["instrument"]["smt_comparison"]["candidate_symbol"],postgres_enabled())
  result["ai"]=_ai_provider.review(result,history_connection,postgres_enabled()) if include_ai else _ai_provider.status()
  with history_connection() as c:_desk.record(c,result,postgres_enabled())
  return result
@@ -388,6 +389,19 @@ def trade_notification_text(d):
   "", "اختر أحد الخيارين؛ ليس السكالب إشارة مستقلة.","التكاليف وحجم التيك غير مؤكدين. تحليل فقط — لا يوجد تنفيذ أوامر."])
  return "\n".join(lines)
 
+def whatsapp_notify(d):
+ if d.get("event") not in ("BUY","SELL"):return "skipped"
+ if not _whatsapp.status()["enabled"]:return "disabled"
+ try:
+  with history_connection() as c:recipient=_destinations.read(c)["whatsapp_number"]
+  levels=_scalping.levels(d);instrument=_instruments.describe(d["symbol"])
+  checks=_desk.condition_checks(d.get("analysis",{}) if isinstance(d.get("analysis"),dict) else {})
+  evidence="؛ ".join(c["label"] for c in checks if c["state"]=="PASSED")[:512] or "تفاصيل الأدلة غير مستلمة"
+  parameters=[instrument["name"]+" | "+instrument["symbol"],d["event"],str(levels["full_trade"]["entry"]),str(levels["full_trade"]["sl"]),str(levels["full_trade"]["tp"]),str(levels["scalp"]["tp"]),str(d["time"]),str(d.get("strategy_version","غير متاحة")),evidence]
+  return _whatsapp.send_template(recipient,parameters)
+ except (ValueError,KeyError,TypeError):return "invalid_signal"
+ except Exception:return "storage_unavailable"
+
 def telegram_destination():
  try:
   with history_connection() as c:chat=_destinations.read(c)["telegram_chat_id"]
@@ -484,7 +498,7 @@ class Handler(BaseHTTPRequestHandler):
    try:
     with history_connection() as c:
      preferences=_destinations.read(c);deliveries=_destinations.recent(c)
-    return self.reply(200,{**preferences,"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and (preferences["telegram_chat_id"] or os.getenv("TELEGRAM_CHAT_ID"))),"telegram_uses_server_default":not bool(preferences["telegram_chat_id"]),"whatsapp_mode":"manual_share","whatsapp_automatic_connected":False,"deliveries":deliveries})
+    return self.reply(200,{**preferences,"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and (preferences["telegram_chat_id"] or os.getenv("TELEGRAM_CHAT_ID"))),"telegram_uses_server_default":not bool(preferences["telegram_chat_id"]),"whatsapp_mode":"automatic_template" if _whatsapp.status()["enabled"] else "manual_share","whatsapp_automatic_connected":_whatsapp.status()["provider_connection_verified"],"whatsapp":_whatsapp.status(),"deliveries":deliveries})
    except Exception:return self.reply(503,{"error":"settings_unavailable"})
   if path=="/api/integrations":
    try:return self.reply(200,integration_status())
@@ -692,6 +706,12 @@ class Handler(BaseHTTPRequestHandler):
      with history_connection() as c:_destinations.receipt(c,d["event_id"],"telegram",status,postgres_enabled())
     except Exception:print("delivery_receipt storage_unavailable",flush=True)
     print("telegram_delivery="+status,flush=True)
+    whatsapp_status=whatsapp_notify(d)
+    if whatsapp_status!="disabled":
+     try:
+      with history_connection() as c:_destinations.receipt(c,d["event_id"],"whatsapp",whatsapp_status,postgres_enabled())
+     except Exception:print("whatsapp_receipt storage_unavailable",flush=True)
+     print("whatsapp_delivery="+whatsapp_status,flush=True)
     if os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1":run_signal_analysis(d["symbol"])
    threading.Thread(target=deliver,daemon=True).start()
 if __name__=="__main__":

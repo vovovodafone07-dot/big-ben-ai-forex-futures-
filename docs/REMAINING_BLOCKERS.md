@@ -24,3 +24,7 @@
 Workspace release in progress: draft storage/diff/export and per-symbol notes are implemented; candidate compilation, experiments, independent validation and release workflow remain unverified. Daily worker execution ledger and reports are implemented; production run and notification proof still required. No claim that a startup cycle proves a full elapsed six-hour cycle.
 
 Owner decision: nine additional TradingView alerts are deferred. Meta Business currently requires owner login; this is a concrete authentication dependency for WhatsApp, not a generic missing permission. New application-data export/restore support is being tested; actual export and a hosting migration remain separate.
+
+Owner deferred WhatsApp as well as the nine new alerts. Do not continue Meta setup or request sign-in again unless explicitly resumed; continue independent verification/research.
+
+Production application snapshot download and new-local-database restore are verified, including all17 tables/4129rows; this does not renew/migrate Render PostgreSQL or create recurring offsite backups. Walk-forward protocol has run on the available three forex histories, but sample sizes are insufficient; larger licensed histories, costs and same-feed Pine parity remain required. WhatsApp and additional alerts remain explicitly deferred.

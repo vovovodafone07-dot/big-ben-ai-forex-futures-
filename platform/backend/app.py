@@ -492,7 +492,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -504,6 +504,16 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/research/walk-forward":
+   try:
+    report=json.loads((Path(__file__).resolve().parents[2]/"research/reports/walk-forward-2026-11-14.json").read_text(encoding="utf-8"))
+    if report.get("mode")!="STATIC_DATED_RESEARCH_SNAPSHOT":raise ValueError("report_schema")
+    root=Path(__file__).resolve().parents[2]
+    runner_hash=hashlib.sha256(((root/"research/walk_forward.py").read_text(encoding="utf-8")+(root/"scripts/run_walk_forward_snapshot.py").read_text(encoding="utf-8")).encode()).hexdigest()
+    source_hash=current_strategy_source()["source_sha256"]
+    if any(r.get("runner_sha256")!=runner_hash or r.get("pine_source_sha256")!=source_hash or r.get("engine_sha256")!=_replay.ENGINE_SHA256 for r in report.get("runs",[])):raise ValueError("stale_research_source")
+    return self.reply(200,report)
+   except (OSError,ValueError,TypeError):return self.reply(503,{"error":"walk_forward_report_unavailable"})
   if path=="/api/backup/export":
    if not BACKUP_SLOT.acquire(blocking=False):return self.reply(429,{"error":"export_in_progress"})
    try:

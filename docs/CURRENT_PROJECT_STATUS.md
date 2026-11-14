@@ -16,16 +16,17 @@ The owner chose to keep the service free and subsequently selected design A.
 ## Pine and alert snapshots
 Existing private script: revision10, title Big Ben AI Pro | Forex & Futures M5 | v6.4.3.
 Strategy remains v6.4.1-sync; bridge v6.4.3-multiasset adds CISD/SMT telemetry and a general title. Trading rules and SMT settings are text-identical to the previous release.
-Last verified v10 saves: EURUSD, GBPUSD,6E.
-Remaining v10 snapshot work: USDJPY,NQ,MNQ,ES,MES,YM. Inspect existing alerts; do not recreate duplicates.
+All nine existing v10 snapshots saved and checked in the native UI: EURUSD,GBPUSD,USDJPY,NQ,MNQ,ES,MES,YM,6E. No new all-nine v6.4.3 delivery cycle has been verified.
 Both original gold alerts remain unchanged; the duplicate MES alert is stopped, not deleted.
 All nine delivered the21:40UTC13November cycle on bridge v6.4.2. No claim of a new nine-symbol v6.4.3 cycle during the closed market.
 
 ## Verification and limits
 PR20 CI passed all six checks:121 backend +37 research tests and11 inline JS blocks, including Windows/Linux and isolated PostgreSQL. HTML container and unique-ID checks passed locally. Render is live; production storage HTTP200. Error-log query since deploy start returned no entries.
-Visual verification of design A is pending. Browser control previously stopped on URL confidence checks; do not bypass enforcement.
+Design A was visually checked in native Chrome; actual screenshot: artifacts/design/design-A-live-desktop-2026-11-14.jpg. Mobile visual check remains pending.
 Gemini previously returned valid Arabic reviews on MNQ and EURUSD and respected WAIT. A valid EUR/USD Twelve Data price response does not prove continuous live prices or futures licensing.
 Official Fed/ECB feeds and BLS calendar have freshness/error metadata; there is no connected numeric consensus feed or invented future result.
 The free PostgreSQL database is available and expires11December2026. Free Render can sleep.
 Pine-rules RR2.5 research remains distinct from the older proxy RR3 reports. Profitability and bar-by-bar TradingView parity are unverified.
 See REMAINING_BLOCKERS.md and evidence/design-a-deployment-2026-11-14.json.
+
+Next release verified locally:122 backend +37 research tests. Corrected the owner’s actual source-qualified watchlist mappings, including COMEX_MINI:MGC1!, CME:MBT1!, CAPITALCOM:NAS100 and CAPITALCOM:SPX500; CFD and crypto remain distinct from futures. Watchlist evidence records13 symbols; this is not proof of alert coverage. Most recent Gemini production attempt returned HTTP503; deterministic analysis continued with WAIT. Four unavailable specialist cards make a failed review explicit.

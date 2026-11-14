@@ -1,8 +1,8 @@
 # Remaining work and verification limits —14November2026
 
 ## Account/browser work
-1. Finish six EXISTING TradingView alert snapshots at revision10/v6.4.3: USDJPY,NQ,MNQ,ES,MES,YM. EURUSD,GBPUSD,6E were saved already. Keep Any alert(),M5 and current Webhook. Preserve gold alerts and the stopped duplicate MES. Then verify actual incoming telemetry when the markets supply new bars.
-2. Visually verify the implemented A layout and capture actual desktop/mobile screenshots. Previous browser URL-confidence enforcement stopped tab changes. Use only supported native browser control and stop if enforcement stops the turn.
+1. All nine existing snapshots were saved at revision10/v6.4.3. Verify actual new market delivery; preserve gold alerts and the stopped MES duplicate.
+2. Actual desktop design A screenshot was captured. Complete the mobile visual check. Previous browser URL-confidence enforcement stopped tab changes. Use only supported native browser control and stop if enforcement stops the turn.
 3. Compare the owner's TradingView watchlist with actual alert coverage. Qualified symbol support is open, but a symbol in a watchlist is not an active webhook alert or a data subscription. Do not silently substitute CFDs for futures or purchase subscriptions.
 4. WhatsApp Cloud API adapter is implemented, tested and disabled by default. Actual connection needs an existing Business account/sender, approved compatible template, secret credentials and recipient. Configure only through supported account access; do not create charges under broad authorization. Manual sharing works independently. Provider acceptance is not device delivery; a delivery callback is not implemented.
 

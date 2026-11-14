@@ -77,6 +77,13 @@ class DeskTests(unittest.TestCase):
  def test_cisd_unknown_without_telemetry_and_smt_disabled_when_off(self):
   states={c['key']:c['state'] for c in desk.condition_checks({'filters':{'enable_smt':False}})}
   self.assertEqual(states['cisd_buy'],'UNKNOWN');self.assertEqual(states['smt_buy'],'DISABLED')
+ def test_owner_watchlist_sources_keep_cfd_crypto_and_futures_distinct(self):
+  self.assertEqual(desk.normalize('MGC'),'COMEX_MINI:MGC1!')
+  self.assertEqual(desk.normalize('MBT'),'CME:MBT1!')
+  self.assertEqual(desk.normalize('US100'),'CAPITALCOM:NAS100')
+  self.assertEqual(desk.normalize('XAUUSD'),'FOREXCOM:XAUUSD')
+  for source,kind in [('COMEX_MINI:MGC1!','futures'),('CAPITALCOM:NAS100','cfd'),('BITSTAMP:BTCUSD','crypto')]:
+   self.assertEqual(desk.instruments.describe(source)['asset_class'],kind)
 class AITests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.db=str(Path(self.temp.name)/'ai.db')

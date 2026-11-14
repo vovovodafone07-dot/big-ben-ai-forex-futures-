@@ -1,0 +1,20 @@
+{
+  "read_at": "2026-11-14T00:34:03.948Z",
+  "source": "TradingView native Advanced view, 13 symbols",
+  "symbols": [
+    "FOREXCOM:XAUUSD",
+    "BITSTAMP:BTCUSD",
+    "CAPITALCOM:NAS100",
+    "SKILLING:US30",
+    "CAPITALCOM:SPX500",
+    "TVC:USOIL",
+    "OANDA:GBPUSD",
+    "CME_MINI:MNQ1!",
+    "CME:MBT1!",
+    "CME_MINI:MES1!",
+    "COMEX_MINI:MGC1!",
+    "NYMEX:CL1!",
+    "CBOT_MINI:MYM1!"
+  ],
+  "alert_coverage_implied": false
+}

@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -91,6 +91,8 @@ def init():
    _desk.migrate(c)
    _destinations.migrate(c)
    _replay.migrate(c)
+   _workspace.migrate(c)
+   _operations.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -103,6 +105,8 @@ def init():
    _desk.migrate(c)
    _destinations.migrate(c)
    _replay.migrate(c)
+   _workspace.migrate(c)
+   _operations.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -223,13 +227,29 @@ def integration_status():
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":False}}
 
+def run_history_cycle():
+ with history_connection() as c:token=_operations.claim(c,"history_research",postgres=postgres_enabled())
+ if token is None:return "already_running"
+ stages=[]
+ for name,action in (("history",refresh_market_history),("proxy_research",run_daily_research),("pine_replay",run_pine_research)):
+  started=datetime.now(timezone.utc).isoformat()
+  try:
+   action();stages.append({"name":name,"status":"COMPLETED","started_at":started,"finished_at":datetime.now(timezone.utc).isoformat(),"meaning":"function returned; see data coverage and reports for actual results"})
+  except Exception:
+   stages.append({"name":name,"status":"FAILED","started_at":started,"finished_at":datetime.now(timezone.utc).isoformat(),"reason":"storage_or_internal_failure"})
+ with history_connection() as c:
+  status=_operations.finish(c,token,stages,postgres=postgres_enabled())
+  report=_operations.save_daily(c,{"coverage":_history.coverage(c,postgres=postgres_enabled()),
+      "research":_research.latest(c),"replay":_replay.latest(c),"cycle_status":status},postgres=postgres_enabled())
+ if report and os.getenv("BIGBEN_DAILY_TELEGRAM_ENABLED","1")=="1":
+  delivery=send_telegram_message(report["arabic_report"])
+  with history_connection() as c:_operations.notification_result(c,report,delivery,postgres_enabled())
+ return status
+
 def history_worker():
  # A sleeping free Render service cannot guarantee a wall-clock schedule.
  while True:
-  try:
-   refresh_market_history()
-   run_daily_research()
-   run_pine_research()
+  try:run_history_cycle()
   except Exception:print("market_history cycle=failed reason=storage_or_internal_failure",flush=True)
   time.sleep(21600)
 
@@ -471,7 +491,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -483,6 +503,17 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path in ("/api/workspace/drafts","/api/workspace/notes","/api/operations"):
+   try:
+    with history_connection() as c:
+     if path=="/api/workspace/drafts":result=_workspace.drafts(c,current_strategy_source())
+     elif path=="/api/operations":result=_operations.snapshot(c)
+     else:
+      raw=parse_qs(urlsplit(self.path).query).get("symbol",[None])[0]
+      result=_workspace.notes(c,_desk.normalize(raw) if raw else None,postgres_enabled())
+    return self.reply(200,result)
+   except ValueError:return self.reply(400,{"error":"symbol"})
+   except Exception:return self.reply(503,{"error":"workspace_unavailable"})
   if path=="/api/analysis/runs":
    try:
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
@@ -644,6 +675,20 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path in ("/api/workspace/drafts","/api/workspace/notes"):
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})
+   origin=self.headers.get("Origin")
+   if origin and urlsplit(origin).netloc!=self.headers.get("Host"):return self.reply(403,{"error":"origin"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=150000:return self.reply(413,{"error":"size"})
+    value=json.loads(self.rfile.read(size))
+    with history_connection() as c:
+     result=_workspace.create_draft(c,value,current_strategy_source(),postgres_enabled()) if urlsplit(self.path).path.endswith("drafts") else _workspace.save_note(c,value,_desk.normalize,postgres_enabled())
+    return self.reply(201,result)
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_workspace_input"})
+   except Exception:return self.reply(503,{"error":"workspace_unavailable"})
   if urlsplit(self.path).path=="/api/destinations":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})

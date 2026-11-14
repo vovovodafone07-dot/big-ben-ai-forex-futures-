@@ -20,3 +20,5 @@
 - Some TradingView alert expiries were observed on9December2026. Review renewal before expiry.
 - Gemini uses the existing free-tier project with10 request reservations/day UTC, five-minute cache and no automatic retries. Deterministic analysis continues without a model response.
 - Never print secrets, provider error bodies, webhook tokens or database URLs. Keep source/alert snapshot versions separate. No broker execution.
+
+Workspace release in progress: draft storage/diff/export and per-symbol notes are implemented; candidate compilation, experiments, independent validation and release workflow remain unverified. Daily worker execution ledger and reports are implemented; production run and notification proof still required. No claim that a startup cycle proves a full elapsed six-hour cycle.

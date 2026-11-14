@@ -467,7 +467,7 @@ class Handler(BaseHTTPRequestHandler):
  def reply(self,status,obj):
   if urlsplit(self.path).path=="/v1/tradingview/events":
    print("webhook_result status="+str(status)+" reason="+str(obj.get("error","accepted"))+" duplicate="+str(obj.get("duplicate",False)),flush=True)
-  b=json.dumps(obj,ensure_ascii=urlsplit(self.path).path!="/api/backup/export").encode();self.send_response(status)
+  b=_backup.canonical(obj) if urlsplit(self.path).path=="/api/backup/export" else json.dumps(obj).encode();self.send_response(status)
   for k,v in {"Content-Type":"application/json","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'","Content-Length":str(len(b))}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(b)
  def do_GET(self):

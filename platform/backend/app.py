@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -187,6 +187,7 @@ def news_worker():
   time.sleep(3600)
 
 SIGNAL_ANALYSIS_SLOTS=threading.BoundedSemaphore(2)
+BACKUP_SLOT=threading.BoundedSemaphore(1)
 
 def analyze_instrument(symbol,include_ai=False):
  with history_connection() as c:news=_news.snapshot(c)
@@ -466,7 +467,7 @@ class Handler(BaseHTTPRequestHandler):
  def reply(self,status,obj):
   if urlsplit(self.path).path=="/v1/tradingview/events":
    print("webhook_result status="+str(status)+" reason="+str(obj.get("error","accepted"))+" duplicate="+str(obj.get("duplicate",False)),flush=True)
-  b=json.dumps(obj).encode();self.send_response(status)
+  b=_backup.canonical(obj) if urlsplit(self.path).path=="/api/backup/export" else json.dumps(obj).encode();self.send_response(status)
   for k,v in {"Content-Type":"application/json","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'","Content-Length":str(len(b))}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(b)
  def do_GET(self):
@@ -491,7 +492,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -503,6 +504,14 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/backup/export":
+   if not BACKUP_SLOT.acquire(blocking=False):return self.reply(429,{"error":"export_in_progress"})
+   try:
+    with history_connection() as c:result=_backup.snapshot(c,postgres_enabled())
+    return self.reply(200,result)
+   except ValueError:return self.reply(413,{"error":"snapshot_too_large_native_database_backup_required"})
+   except Exception:return self.reply(503,{"error":"backup_unavailable"})
+   finally:BACKUP_SLOT.release()
   if path in ("/api/workspace/drafts","/api/workspace/notes","/api/operations"):
    try:
     with history_connection() as c:

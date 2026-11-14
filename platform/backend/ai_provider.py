@@ -54,7 +54,7 @@ def review(evidence,connection_factory,postgres=False,now=None):
     if not info["key_configured"] or not info["enabled"] or not info["model"]:
         return {**info,"state":"NOT_CONFIGURED","summary":None,"roles":{},"reason":"provider_secret_or_model_not_configured"}
     # Only allow-listed public market observations and attributed headlines enter a model.
-    safe={"symbol":evidence["symbol"],"instrument":evidence.get("instrument",{}),"decision":evidence["decision"],
+    safe={"symbol":evidence["symbol"],"instrument":evidence.get("instrument",{}),"smt_research":evidence.get("smt_research",{}),"decision":evidence["decision"],
         "checks":evidence["checks"],"news":evidence.get("news",[])[:6],
         "learning":evidence.get("learning",{}),"fresh":evidence.get("fresh"),"source_time":evidence.get("source_time"),
         "reasons":evidence.get("reasons",[]),"upcoming_events":evidence.get("upcoming_events",[])[:6],"consensus_available":False}

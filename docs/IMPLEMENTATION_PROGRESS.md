@@ -93,3 +93,5 @@ PR18 مدمج والكود78052c8a97454420537dfb09aae2d6ed64036674 منشور li
 14November continuation: all nine existing native TradingView snapshots now saved at v10/v6.4.3, with no new full-cycle delivery claim. Captured actual design A desktop screenshot. Recovered13 source-qualified watchlist symbols and corrected MGC/MBT/CFD/crypto catalog mappings. Latest Gemini attempt returned503, surfaced as unavailable. Local122 backend +37 research tests pass;11 inline JS blocks parse. Additional alert coverage and mobile verification remain.
 
 استكمال طلب جميع النواقص: أضيف محليًا حفظ مسوداتPine ومقارنتها بأساس ثابت وتصديرها، وملاحظات خاصة لكل رمز، وسجل دوري دائم معlease ومنعالتداخل وتسجيلالانقطاع، وتقاريرعربيةيوميةومحاولةTelegramواحدة. تحسنتقائمةالجواللإتاحةكلالأزرار. نجح129اختبارخلفية+37بحثو12كتلةJS محليًا؛ النشر والتحقق الإنتاجي لاحقان. لا تغيير لقواعدPine أوتغطيةسوقمدعاة.
+
+PR22 مدمج ومنشورlive17:47مسقط:0b5de4a1a2da9a7e12c718fc6c9091bb13f8d1e4 /dep-dbs6ckafngtc73brk87g. جميعفحوصCIالستةناجحة،129+37اختبارًاو12JS. الصحةوالتخزين200،والمساراتالخاصةالجديدة401دونتوثيق. لا أخطاءفي استعلامسجلما بعدبدءالنشر. التحققمنالواجهةوالدورةالفعليةتالٍ.

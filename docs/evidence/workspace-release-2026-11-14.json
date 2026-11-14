@@ -1,0 +1,37 @@
+{
+  "pr": 22,
+  "head": "0f82f604db46e34094917626c7d00ff432ac5d96",
+  "merge": "0b5de4a1a2da9a7e12c718fc6c9091bb13f8d1e4",
+  "deploy": "dep-dbs6ckafngtc73brk87g",
+  "local_tests": {
+    "backend": 129,
+    "research": 37,
+    "inline_js": 12
+  },
+  "ci": "all_six_passed",
+  "production_verified": "live_health_and_private_route_auth_only",
+  "pine_changed": false,
+  "production_health": [
+    {
+      "path": "/healthz",
+      "status": 200
+    },
+    {
+      "path": "/healthz/storage",
+      "status": 200
+    },
+    {
+      "path": "/api/workspace/drafts",
+      "status": 401
+    },
+    {
+      "path": "/api/workspace/notes",
+      "status": 401
+    },
+    {
+      "path": "/api/operations",
+      "status": 401
+    }
+  ],
+  "live_at": "2026-11-14T13:47:35.913524Z"
+}

@@ -1,8 +1,8 @@
 # Big Ben AI Pro — current status, 14 November 2026
 
 Platform: https://bigben-ai-pro-api.onrender.com/#analyze
-Live code: 4e8df0ff475dd7c8729f66587728eefda5749bf0 (PR21), before the pending workspace release.
-Render deploy: dep-dbrqtnjrjlhs73c9buq0, live at04:44Muscat.
+Live code:0b5de4a1a2da9a7e12c718fc6c9091bb13f8d1e4 (PR22).
+Render deploy:dep-dbs6ckafngtc73brk87g, live17:47Muscat.
 The owner chose to keep the service free and subsequently selected design A.
 
 ## Current release
@@ -32,3 +32,5 @@ See REMAINING_BLOCKERS.md and evidence/design-a-deployment-2026-11-14.json.
 Next release verified locally:122 backend +37 research tests. Corrected the owner’s actual source-qualified watchlist mappings, including COMEX_MINI:MGC1!, CME:MBT1!, CAPITALCOM:NAS100 and CAPITALCOM:SPX500; CFD and crypto remain distinct from futures. Watchlist evidence records13 symbols; this is not proof of alert coverage. Most recent Gemini production attempt returned HTTP503; deterministic analysis continued with WAIT. Four unavailable specialist cards make a failed review explicit.
 
 Pending workspace release: durable private Pine drafts with immutable baseline comparison/export and no promotion, symbol-scoped notes, real worker cycle ledger with overlap lease/recovery, once-per-UTC-day Arabic evidence reports and one existing-channel Telegram attempt. Mobile navigation wraps into reachable rows.129 backend +37 research local tests and12JS blocks pass. Production confirmation remains pending. Owner watchlist13-symbol save succeeded in native UI, persistence reload verification was interrupted by URL-confidence enforcement.
+
+PR22 is now LIVE. All six CI checks passed including PostgreSQL additive migration tests. Production health and storage return200; new workspace/operations routes correctly return401 without authentication. No error entries in the post-start error-log query. Native authenticated UI, real cycle/report and notification evidence are the next verification steps.

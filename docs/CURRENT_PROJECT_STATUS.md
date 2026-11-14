@@ -1,8 +1,8 @@
 # Big Ben AI Pro — current status, 14 November 2026
 
 Platform: https://bigben-ai-pro-api.onrender.com/#analyze
-Live code: 7212e80a6fb263e6436f6c8581ab58b0c74e152b (PR20).
-Render deploy: dep-dbrqi1lbedkc738hsjpg, live at 04:19 Muscat.
+Live code: 4e8df0ff475dd7c8729f66587728eefda5749bf0 (PR21), before the pending workspace release.
+Render deploy: dep-dbrqtnjrjlhs73c9buq0, live at04:44Muscat.
 The owner chose to keep the service free and subsequently selected design A.
 
 ## Current release
@@ -30,3 +30,5 @@ Pine-rules RR2.5 research remains distinct from the older proxy RR3 reports. Pro
 See REMAINING_BLOCKERS.md and evidence/design-a-deployment-2026-11-14.json.
 
 Next release verified locally:122 backend +37 research tests. Corrected the owner’s actual source-qualified watchlist mappings, including COMEX_MINI:MGC1!, CME:MBT1!, CAPITALCOM:NAS100 and CAPITALCOM:SPX500; CFD and crypto remain distinct from futures. Watchlist evidence records13 symbols; this is not proof of alert coverage. Most recent Gemini production attempt returned HTTP503; deterministic analysis continued with WAIT. Four unavailable specialist cards make a failed review explicit.
+
+Pending workspace release: durable private Pine drafts with immutable baseline comparison/export and no promotion, symbol-scoped notes, real worker cycle ledger with overlap lease/recovery, once-per-UTC-day Arabic evidence reports and one existing-channel Telegram attempt. Mobile navigation wraps into reachable rows.129 backend +37 research local tests and12JS blocks pass. Production confirmation remains pending. Owner watchlist13-symbol save succeeded in native UI, persistence reload verification was interrupted by URL-confidence enforcement.

@@ -8,7 +8,8 @@ from migrations import migrate_events
 from market_history import migrate as migrate_history, store_check, coverage
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"research"))
 from orchestrator import migrate as migrate_research, save as save_research, latest as latest_research
-import news, ai_provider, pine_replay, desk
+import news, ai_provider, pine_replay, desk, workspace, operations, instruments
+from datetime import datetime,timezone,timedelta
 import psycopg
 
 url=os.environ["BIGBEN_TEST_DATABASE_URL"]
@@ -36,7 +37,7 @@ with psycopg.connect(url) as connection:
     assert not save_research(connection,fixture,postgres=True)
     assert latest_research(connection)["count"]==1
     assert connection.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0]==1
-    for module in (news,ai_provider,pine_replay,desk):
+    for module in (news,ai_provider,pine_replay,desk,workspace,operations):
         module.migrate(connection);module.migrate(connection)
     news.save(connection,'fed',{'source':'fixture','items':[]},postgres=True)
     assert news.load(connection)['fed']['source']=='fixture'
@@ -44,6 +45,19 @@ with psycopg.connect(url) as connection:
     assert pine_replay.save(connection,replay_fixture,postgres=True)
     assert not pine_replay.save(connection,replay_fixture,postgres=True)
     assert pine_replay.latest(connection)['count']==1
+    stable={'code':'//@version=6\nindicator("baseline")','source_sha256':'b'*64,'version':'fixture'}
+    candidate=workspace.create_draft(connection,{'title':'fixture','rationale':'Test durable candidate storage','code':'//@version=6\nindicator("candidate")'},stable,True)
+    assert workspace.drafts(connection,stable)['drafts'][0]['id']==candidate['id']
+    assert not candidate['promotion_allowed']
+    workspace.save_note(connection,{'symbol':'EURUSD','text':'CI note'},instruments.normalize,True)
+    assert len(workspace.notes(connection,'OANDA:EURUSD',True)['notes'])==1
+    now=datetime.now(timezone.utc)
+    token=operations.claim(connection,'ci_research',now,True)
+    assert token and operations.claim(connection,'ci_research',now,True) is None
+    assert operations.finish(connection,token,[{'name':'ci','status':'COMPLETED'}],now+timedelta(seconds=1),True)=='COMPLETED'
+    report=operations.save_daily(connection,{'coverage':{'symbols':[]},'research':{'runs':[]},'replay':{'runs':[]}},now,True)
+    assert report and operations.save_daily(connection,report['evidence'],now,True) is None
+    assert len(operations.snapshot(connection)['daily_reports'])==1
     marker='%s'
     assert connection.execute('INSERT INTO ai_daily_budget(day,requests) VALUES (%s,1) ON CONFLICT(day) DO UPDATE SET requests=ai_daily_budget.requests+1 WHERE ai_daily_budget.requests<10 RETURNING requests',('2026-11-14',)).fetchone()[0]==1
     connection.rollback()

@@ -83,6 +83,30 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_workspace_routes_are_private_and_drafts_and_notes_persist(self):
+        for endpoint in ('/api/workspace/drafts','/api/workspace/notes','/api/operations'):
+            self.assertEqual(self.request('GET',endpoint)[0],401)
+            self.assertEqual(self.request('GET',endpoint,auth=self.auth)[0],200)
+        draft={'title':'HTTP research candidate','rationale':'Review a controlled research hypothesis','code':'//@version=6\nindicator("draft")\n'}
+        self.assertEqual(self.request('POST','/api/workspace/drafts',draft)[0],401)
+        status,result=self.request('POST','/api/workspace/drafts',draft,auth=self.auth)
+        self.assertEqual(status,201);self.assertFalse(result['promotion_allowed'])
+        self.assertEqual(len(self.request('GET','/api/workspace/drafts',auth=self.auth)[1]['drafts']),1)
+        self.assertEqual(self.request('POST','/api/workspace/notes',{'symbol':'EURUSD','text':'Review after market open'},auth=self.auth)[0],201)
+        self.assertEqual(len(self.request('GET','/api/workspace/notes?symbol=EURUSD',auth=self.auth)[1]['notes']),1)
+        self.assertEqual(self.request('GET','/api/workspace/notes?symbol=INVALID',auth=self.auth)[0],400)
+
+    def test_history_cycle_records_partial_failure_and_daily_report_without_duplicate_delivery(self):
+        with patch.object(app,'refresh_market_history',side_effect=RuntimeError('private credential')),patch.object(app,'run_daily_research'),patch.object(app,'run_pine_research'),patch.object(app,'send_telegram_message',return_value='sent') as send:
+            self.assertEqual(app.run_history_cycle(),'FAILED')
+            self.assertEqual(app.run_history_cycle(),'FAILED')
+        self.assertEqual(send.call_count,1)
+        status,result=self.request('GET','/api/operations',auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual(len(result['runs']),2)
+        self.assertEqual(len(result['daily_reports']),1)
+        self.assertNotIn('private credential',json.dumps(result))
+        self.assertEqual(result['daily_reports'][0]['notification_status'],'sent')
+
     def test_history_coverage_is_private_and_never_guesses_contracts(self):
         self.assertEqual(self.request("GET", "/api/market/coverage")[0], 401)
         status, result = self.request("GET", "/api/market/coverage", auth=self.auth)

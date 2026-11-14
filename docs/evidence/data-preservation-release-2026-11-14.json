@@ -1,0 +1,39 @@
+{
+  "pr": 23,
+  "head": "ee49daaf209195f0d28b7b08d2621156e6a5040a",
+  "merge": "f569e53ecafc72806552eb5555579e5ddd468c0c",
+  "deploy": "dep-dbs71q3rjlhs73dbvmu0",
+  "ci": "all_six_passed",
+  "expected_ci_backend_tests": 134,
+  "research_tests": 37,
+  "inline_js": 13,
+  "postgres_to_sqlite_ci": true,
+  "production_export_download_verified": true,
+  "owner_deferred_new_alerts": true,
+  "meta_login_required": true,
+  "live_at": "2026-11-14T14:32:50.196952Z",
+  "health_checks": [
+    {
+      "path": "/healthz",
+      "status": 200
+    },
+    {
+      "path": "/healthz/storage",
+      "status": 200
+    },
+    {
+      "path": "/api/backup/export",
+      "status": 401
+    }
+  ],
+  "production_snapshot": {
+    "created_at": "2026-11-14T19:07:23.262350+00:00",
+    "rows": 4129,
+    "tables": 17,
+    "bytes": 12954161,
+    "sha256": "ac14136ce474e21ad0a3f93f26be7df43790244c4e86b890105951ee51e0bbe5",
+    "local_restore_completed": true,
+    "read_only_comparison": "all tables and rows matched"
+  },
+  "owner_deferred_whatsapp": true
+}

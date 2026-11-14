@@ -1,0 +1,2618 @@
+{
+  "mode": "STATIC_DATED_RESEARCH_SNAPSHOT",
+  "created_at": "2026-11-14T19:15:56.583025+00:00",
+  "input_snapshot_created_at": "2026-11-14T19:07:23.262350+00:00",
+  "runs": [
+    {
+      "kind": "chronological_walk_forward_research",
+      "created_at": "2026-11-14T19:07:23.262350+00:00",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "pine_source_sha256": "30e65421b20c4bfefd62ee21d56c7ace1779e58da271cfddc77abb22dbed7b64",
+      "engine_sha256": "e94e59562e5124d9eab43d6081603921880adb097bbdd17805818c6e33ac1a48",
+      "dataset_sha256": "64b2d5797c61c4813a6f7d337156e59ad8c9a407c48b3953449431651486b40d",
+      "candles": 1220,
+      "start": "2026-11-10T07:10:00+00:00",
+      "end": "2026-11-14T12:45:00+00:00",
+      "baseline_parameters": {
+        "rr": 2.5,
+        "side": "Both",
+        "mode": "Breakout + Retest",
+        "lookback": 20,
+        "retest_bars": 6,
+        "swing": 8,
+        "cooldown": 8,
+        "min_body": 0.25,
+        "break_buffer": 0.05,
+        "max_risk_atr": 4.0,
+        "htf_mode": "Balanced",
+        "use_hybrid": true,
+        "min_evidence": 1,
+        "pivot_len": 3,
+        "enable_smt": false,
+        "use_ha": false,
+        "use_atr_floor": false,
+        "atr_floor_len": 50,
+        "atr_floor_factor": 0.6
+      },
+      "tick_size": 1e-05,
+      "cost_assumptions": null,
+      "quality": {
+        "candles": 1220,
+        "gaps": [],
+        "calendar_verified": false,
+        "synthetic_bars_created": 0
+      },
+      "folds": [
+        {
+          "train_range": [
+            0,
+            480
+          ],
+          "test_range": [
+            480,
+            600
+          ],
+          "training_last_open": "2026-11-11T23:05:00+00:00",
+          "test_first_open": "2026-11-11T23:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 3.5,
+                "profit_factor": 4.5,
+                "expectancy_r": 0.875,
+                "net_r": null,
+                "conservative_r": 3.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.875,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 5.0,
+                "profit_factor": 6.0,
+                "expectancy_r": 1.25,
+                "net_r": null,
+                "conservative_r": 5.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.25,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 6.5,
+                "profit_factor": 7.5,
+                "expectancy_r": 1.625,
+                "net_r": null,
+                "conservative_r": 6.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.625,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 8.0,
+                "profit_factor": 9.0,
+                "expectancy_r": 2.0,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.0,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": []
+        },
+        {
+          "train_range": [
+            0,
+            600
+          ],
+          "test_range": [
+            600,
+            720
+          ],
+          "training_last_open": "2026-11-12T09:05:00+00:00",
+          "test_first_open": "2026-11-12T09:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 3.5,
+                "profit_factor": 4.5,
+                "expectancy_r": 0.875,
+                "net_r": null,
+                "conservative_r": 3.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.875,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 5.0,
+                "profit_factor": 6.0,
+                "expectancy_r": 1.25,
+                "net_r": null,
+                "conservative_r": 5.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.25,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 6.5,
+                "profit_factor": 7.5,
+                "expectancy_r": 1.625,
+                "net_r": null,
+                "conservative_r": 6.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.625,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 8.0,
+                "profit_factor": 9.0,
+                "expectancy_r": 2.0,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.0,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": []
+        },
+        {
+          "train_range": [
+            0,
+            720
+          ],
+          "test_range": [
+            720,
+            840
+          ],
+          "training_last_open": "2026-11-12T19:05:00+00:00",
+          "test_first_open": "2026-11-12T19:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 3.5,
+                "profit_factor": 4.5,
+                "expectancy_r": 0.875,
+                "net_r": null,
+                "conservative_r": 3.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.875,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 5.0,
+                "profit_factor": 6.0,
+                "expectancy_r": 1.25,
+                "net_r": null,
+                "conservative_r": 5.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.25,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 6.5,
+                "profit_factor": 7.5,
+                "expectancy_r": 1.625,
+                "net_r": null,
+                "conservative_r": 6.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.625,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 3,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.75,
+                "gross_r": 8.0,
+                "profit_factor": 9.0,
+                "expectancy_r": 2.0,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30064184258240184,
+                  0.9544127391902995
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.0,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "SELL",
+              "entry_index": 774,
+              "time": "2026-11-12T23:45:00+00:00",
+              "entry": 1.10512,
+              "sl": 1.1057241987442628,
+              "tp": 1.1036095031393436,
+              "rr": 2.5,
+              "evidence": 1,
+              "outcome": "sl",
+              "exit_time": "2026-11-13T01:10:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 791
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            840
+          ],
+          "test_range": [
+            840,
+            960
+          ],
+          "training_last_open": "2026-11-13T05:05:00+00:00",
+          "test_first_open": "2026-11-13T05:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 3,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.6,
+                "gross_r": 2.5,
+                "profit_factor": 2.25,
+                "expectancy_r": 0.5,
+                "net_r": null,
+                "conservative_r": 2.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.2307242812760128,
+                  0.882379225767352
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.5,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 3,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.6,
+                "gross_r": 4.0,
+                "profit_factor": 3.0,
+                "expectancy_r": 0.8,
+                "net_r": null,
+                "conservative_r": 4.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.2307242812760128,
+                  0.882379225767352
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.8,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 3,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.6,
+                "gross_r": 5.5,
+                "profit_factor": 3.75,
+                "expectancy_r": 1.1,
+                "net_r": null,
+                "conservative_r": 5.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.2307242812760128,
+                  0.882379225767352
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.1,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 3,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.6,
+                "gross_r": 7.0,
+                "profit_factor": 4.5,
+                "expectancy_r": 1.4,
+                "net_r": null,
+                "conservative_r": 7.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.2307242812760128,
+                  0.882379225767352
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.4,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 2,
+            "resolved": 2,
+            "wins": 0,
+            "losses": 2,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -2,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -2,
+            "max_drawdown_r_conservative": 2,
+            "max_consecutive_losses_conservative": 2,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.6576197724933469
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 2,
+            "resolved": 2,
+            "wins": 0,
+            "losses": 2,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -2,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -2,
+            "max_drawdown_r_conservative": 2,
+            "max_consecutive_losses_conservative": 2,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.6576197724933469
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "BUY",
+              "entry_index": 866,
+              "time": "2026-11-13T07:25:00+00:00",
+              "entry": 1.10645,
+              "sl": 1.105640671411656,
+              "tp": 1.1084733214708598,
+              "rr": 2.5,
+              "evidence": 3,
+              "outcome": "sl",
+              "exit_time": "2026-11-13T09:35:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 892
+            },
+            {
+              "side": "SELL",
+              "entry_index": 913,
+              "time": "2026-11-13T11:20:00+00:00",
+              "entry": 1.10509,
+              "sl": 1.1055076623481979,
+              "tp": 1.1040458441295051,
+              "rr": 2.5,
+              "evidence": 3,
+              "outcome": "sl",
+              "exit_time": "2026-11-13T11:35:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 916
+            }
+          ]
+        }
+      ],
+      "out_of_sample_metrics": {
+        "trades": 3,
+        "resolved": 3,
+        "wins": 0,
+        "losses": 3,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "win_rate": 0.0,
+        "gross_r": -3,
+        "profit_factor": 0.0,
+        "expectancy_r": -1.0,
+        "net_r": null,
+        "conservative_r": -3,
+        "max_drawdown_r_conservative": 3,
+        "max_consecutive_losses_conservative": 3,
+        "minimum_review_trades_met": false,
+        "resolved_win_rate_wilson95": [
+          5.551115123125783e-17,
+          0.5614970317550454
+        ],
+        "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+      },
+      "holdout": {
+        "range": [
+          976,
+          1220
+        ],
+        "selection_uses_holdout": false,
+        "frozen_rr": 2.5,
+        "candidate_metrics": {
+          "trades": 0,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 0,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "baseline_metrics": {
+          "trades": 0,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 0,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "trades": []
+      },
+      "promotion_allowed": false,
+      "pine_parity_verified": false,
+      "automatic_updates": false,
+      "limitations": [
+        "Historical research snapshot, not live execution or ongoing scheduled validation",
+        "RR candidates only; original production strategy is unchanged",
+        "Continuous candidate replay retains pre-window position/cooldown state; only new entries are scored",
+        "At least30 resolved training trades are required to select a candidate; otherwise retain baseline",
+        "No verified spread/slippage/commission feed when costs are null; gross results are not net returns",
+        "Same-feed Pine parity, exchange session boundaries, contract rolls and reference video remain unverified",
+        "Small correlated samples and repeated RR comparisons do not establish profitability"
+      ],
+      "symbol": "OANDA:EURUSD",
+      "history_symbol": "EUR/USD",
+      "source_provider": "Twelve Data",
+      "source_feed_differs_from_pine": true,
+      "tick_size_source": "stored authenticated TradingView event",
+      "input_snapshot_sha256": "ac14136ce474e21ad0a3f93f26be7df43790244c4e86b890105951ee51e0bbe5",
+      "runner_sha256": "67e53abe91442a849236cf22df21a0b119c414761375324760352a609986155d"
+    },
+    {
+      "kind": "chronological_walk_forward_research",
+      "created_at": "2026-11-14T19:07:23.262350+00:00",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "pine_source_sha256": "30e65421b20c4bfefd62ee21d56c7ace1779e58da271cfddc77abb22dbed7b64",
+      "engine_sha256": "e94e59562e5124d9eab43d6081603921880adb097bbdd17805818c6e33ac1a48",
+      "dataset_sha256": "99fefda60e83bab347e4d998bd9aa72d63188a4946794a0793d0ac2993ad6b4c",
+      "candles": 1220,
+      "start": "2026-11-10T07:10:00+00:00",
+      "end": "2026-11-14T12:45:00+00:00",
+      "baseline_parameters": {
+        "rr": 2.5,
+        "side": "Both",
+        "mode": "Breakout + Retest",
+        "lookback": 20,
+        "retest_bars": 6,
+        "swing": 8,
+        "cooldown": 8,
+        "min_body": 0.25,
+        "break_buffer": 0.05,
+        "max_risk_atr": 4.0,
+        "htf_mode": "Balanced",
+        "use_hybrid": true,
+        "min_evidence": 1,
+        "pivot_len": 3,
+        "enable_smt": false,
+        "use_ha": false,
+        "use_atr_floor": false,
+        "atr_floor_len": 50,
+        "atr_floor_factor": 0.6
+      },
+      "tick_size": 1e-05,
+      "cost_assumptions": null,
+      "quality": {
+        "candles": 1220,
+        "gaps": [],
+        "calendar_verified": false,
+        "synthetic_bars_created": 0
+      },
+      "folds": [
+        {
+          "train_range": [
+            0,
+            480
+          ],
+          "test_range": [
+            480,
+            600
+          ],
+          "training_last_open": "2026-11-11T23:05:00+00:00",
+          "test_first_open": "2026-11-11T23:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 8,
+                "resolved": 8,
+                "wins": 5,
+                "losses": 3,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.625,
+                "gross_r": 4.5,
+                "profit_factor": 2.5,
+                "expectancy_r": 0.5625,
+                "net_r": null,
+                "conservative_r": 4.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.30574239460262737,
+                  0.8631557141764026
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.5625,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 7,
+                "resolved": 7,
+                "wins": 4,
+                "losses": 3,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5714285714285714,
+                "gross_r": 5.0,
+                "profit_factor": 2.6666666666666665,
+                "expectancy_r": 0.7142857142857143,
+                "net_r": null,
+                "conservative_r": 5.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.2504583645276572,
+                  0.8417801447485302
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.7142857142857143,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 6,
+                "resolved": 6,
+                "wins": 3,
+                "losses": 3,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5,
+                "gross_r": 4.5,
+                "profit_factor": 2.5,
+                "expectancy_r": 0.75,
+                "net_r": null,
+                "conservative_r": 4.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.1876163064826506,
+                  0.8123836935173494
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.75,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 6,
+                "resolved": 6,
+                "wins": 3,
+                "losses": 3,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5,
+                "gross_r": 6.0,
+                "profit_factor": 3.0,
+                "expectancy_r": 1.0,
+                "net_r": null,
+                "conservative_r": 6.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.1876163064826506,
+                  0.8123836935173494
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.0,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "SELL",
+              "entry_index": 566,
+              "time": "2026-11-12T06:25:00+00:00",
+              "entry": 1.32572,
+              "sl": 1.3264119889998012,
+              "tp": 1.3239900275004972,
+              "rr": 2.5,
+              "evidence": 5,
+              "outcome": "sl",
+              "exit_time": "2026-11-12T07:05:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 574
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            600
+          ],
+          "test_range": [
+            600,
+            720
+          ],
+          "training_last_open": "2026-11-12T09:05:00+00:00",
+          "test_first_open": "2026-11-12T09:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 9,
+                "resolved": 9,
+                "wins": 5,
+                "losses": 4,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5555555555555556,
+                "gross_r": 3.5,
+                "profit_factor": 1.875,
+                "expectancy_r": 0.3888888888888889,
+                "net_r": null,
+                "conservative_r": 3.5,
+                "max_drawdown_r_conservative": 3.0,
+                "max_consecutive_losses_conservative": 3,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.26665129349549305,
+                  0.8112214789023355
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.3888888888888889,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 8,
+                "resolved": 8,
+                "wins": 4,
+                "losses": 4,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5,
+                "gross_r": 4.0,
+                "profit_factor": 2.0,
+                "expectancy_r": 0.5,
+                "net_r": null,
+                "conservative_r": 4.0,
+                "max_drawdown_r_conservative": 3.0,
+                "max_consecutive_losses_conservative": 3,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.21521606221387757,
+                  0.7847839377861224
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.5,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 7,
+                "resolved": 7,
+                "wins": 3,
+                "losses": 4,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.42857142857142855,
+                "gross_r": 3.5,
+                "profit_factor": 1.875,
+                "expectancy_r": 0.5,
+                "net_r": null,
+                "conservative_r": 3.5,
+                "max_drawdown_r_conservative": 3.0,
+                "max_consecutive_losses_conservative": 3,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.15821985525146975,
+                  0.7495416354723428
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.5,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 7,
+                "resolved": 7,
+                "wins": 3,
+                "losses": 4,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.42857142857142855,
+                "gross_r": 5.0,
+                "profit_factor": 2.25,
+                "expectancy_r": 0.7142857142857143,
+                "net_r": null,
+                "conservative_r": 5.0,
+                "max_drawdown_r_conservative": 3.0,
+                "max_consecutive_losses_conservative": 3,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.15821985525146975,
+                  0.7495416354723428
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.7142857142857143,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "SELL",
+              "entry_index": 651,
+              "time": "2026-11-12T13:30:00+00:00",
+              "entry": 1.32567,
+              "sl": 1.3268328422341795,
+              "tp": 1.3227628944145509,
+              "rr": 2.5,
+              "evidence": 6,
+              "outcome": "sl",
+              "exit_time": "2026-11-12T14:05:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 658
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            720
+          ],
+          "test_range": [
+            720,
+            840
+          ],
+          "training_last_open": "2026-11-12T19:05:00+00:00",
+          "test_first_open": "2026-11-12T19:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 10,
+                "resolved": 10,
+                "wins": 5,
+                "losses": 5,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.5,
+                "gross_r": 2.5,
+                "profit_factor": 1.5,
+                "expectancy_r": 0.25,
+                "net_r": null,
+                "conservative_r": 2.5,
+                "max_drawdown_r_conservative": 4.0,
+                "max_consecutive_losses_conservative": 4,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.236593090512564,
+                  0.7634069094874361
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.25,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 9,
+                "resolved": 9,
+                "wins": 4,
+                "losses": 5,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.4444444444444444,
+                "gross_r": 3.0,
+                "profit_factor": 1.6,
+                "expectancy_r": 0.3333333333333333,
+                "net_r": null,
+                "conservative_r": 3.0,
+                "max_drawdown_r_conservative": 4.0,
+                "max_consecutive_losses_conservative": 4,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.18877852109766452,
+                  0.733348706504507
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.3333333333333333,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 8,
+                "resolved": 8,
+                "wins": 3,
+                "losses": 5,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.375,
+                "gross_r": 2.5,
+                "profit_factor": 1.5,
+                "expectancy_r": 0.3125,
+                "net_r": null,
+                "conservative_r": 2.5,
+                "max_drawdown_r_conservative": 4.0,
+                "max_consecutive_losses_conservative": 4,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.13684428582359742,
+                  0.6942576053973727
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.3125,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 8,
+                "resolved": 8,
+                "wins": 3,
+                "losses": 5,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.375,
+                "gross_r": 4.0,
+                "profit_factor": 1.8,
+                "expectancy_r": 0.5,
+                "net_r": null,
+                "conservative_r": 4.0,
+                "max_drawdown_r_conservative": 4.0,
+                "max_consecutive_losses_conservative": 4,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.13684428582359742,
+                  0.6942576053973727
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.5,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 2,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 1,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 2,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 1,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "SELL",
+              "entry_index": 776,
+              "time": "2026-11-12T23:55:00+00:00",
+              "entry": 1.32295,
+              "sl": 1.3237994307456251,
+              "tp": 1.3208264231359375,
+              "rr": 2.5,
+              "evidence": 2,
+              "outcome": "sl",
+              "exit_time": "2026-11-13T01:20:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 793
+            },
+            {
+              "side": "SELL",
+              "entry_index": 834,
+              "time": "2026-11-13T04:45:00+00:00",
+              "entry": 1.32302,
+              "sl": 1.3236966437637472,
+              "tp": 1.3213283905906323,
+              "rr": 2.5,
+              "evidence": 3,
+              "outcome": "unresolved",
+              "exit_time": null,
+              "gross_r": null,
+              "net_r": null,
+              "cost_r": null
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            840
+          ],
+          "test_range": [
+            840,
+            960
+          ],
+          "training_last_open": "2026-11-13T05:05:00+00:00",
+          "test_first_open": "2026-11-13T05:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 12,
+                "resolved": 11,
+                "wins": 5,
+                "losses": 6,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.45454545454545453,
+                "gross_r": 1.5,
+                "profit_factor": 1.25,
+                "expectancy_r": 0.13636363636363635,
+                "net_r": null,
+                "conservative_r": 1.5,
+                "max_drawdown_r_conservative": 5.0,
+                "max_consecutive_losses_conservative": 5,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.21271271622459764,
+                  0.719908462590678
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.13636363636363635,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 11,
+                "resolved": 10,
+                "wins": 4,
+                "losses": 6,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.4,
+                "gross_r": 2.0,
+                "profit_factor": 1.3333333333333333,
+                "expectancy_r": 0.2,
+                "net_r": null,
+                "conservative_r": 2.0,
+                "max_drawdown_r_conservative": 5.0,
+                "max_consecutive_losses_conservative": 5,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.16818032970623614,
+                  0.6873262302663417
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.2,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 10,
+                "resolved": 9,
+                "wins": 3,
+                "losses": 6,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.3333333333333333,
+                "gross_r": 1.5,
+                "profit_factor": 1.25,
+                "expectancy_r": 0.16666666666666666,
+                "net_r": null,
+                "conservative_r": 1.5,
+                "max_drawdown_r_conservative": 5.0,
+                "max_consecutive_losses_conservative": 5,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.1205838183869109,
+                  0.6457978644196036
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.16666666666666666,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 10,
+                "resolved": 9,
+                "wins": 3,
+                "losses": 6,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.3333333333333333,
+                "gross_r": 3.0,
+                "profit_factor": 1.5,
+                "expectancy_r": 0.3333333333333333,
+                "net_r": null,
+                "conservative_r": 3.0,
+                "max_drawdown_r_conservative": 5.0,
+                "max_consecutive_losses_conservative": 5,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.1205838183869109,
+                  0.6457978644196036
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.3333333333333333,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": []
+        }
+      ],
+      "out_of_sample_metrics": {
+        "trades": 4,
+        "resolved": 3,
+        "wins": 0,
+        "losses": 3,
+        "ambiguous": 0,
+        "unresolved": 1,
+        "win_rate": 0.0,
+        "gross_r": -3,
+        "profit_factor": 0.0,
+        "expectancy_r": -1.0,
+        "net_r": null,
+        "conservative_r": -3,
+        "max_drawdown_r_conservative": 3,
+        "max_consecutive_losses_conservative": 3,
+        "minimum_review_trades_met": false,
+        "resolved_win_rate_wilson95": [
+          5.551115123125783e-17,
+          0.5614970317550454
+        ],
+        "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+      },
+      "holdout": {
+        "range": [
+          976,
+          1220
+        ],
+        "selection_uses_holdout": false,
+        "frozen_rr": 2.5,
+        "candidate_metrics": {
+          "trades": 1,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 1,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "baseline_metrics": {
+          "trades": 1,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 1,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "trades": [
+          {
+            "side": "SELL",
+            "entry_index": 979,
+            "time": "2026-11-13T16:50:00+00:00",
+            "entry": 1.32159,
+            "sl": 1.3225669870119352,
+            "tp": 1.3191475324701623,
+            "rr": 2.5,
+            "evidence": 3,
+            "outcome": "unresolved",
+            "exit_time": null,
+            "gross_r": null,
+            "net_r": null,
+            "cost_r": null
+          }
+        ]
+      },
+      "promotion_allowed": false,
+      "pine_parity_verified": false,
+      "automatic_updates": false,
+      "limitations": [
+        "Historical research snapshot, not live execution or ongoing scheduled validation",
+        "RR candidates only; original production strategy is unchanged",
+        "Continuous candidate replay retains pre-window position/cooldown state; only new entries are scored",
+        "At least30 resolved training trades are required to select a candidate; otherwise retain baseline",
+        "No verified spread/slippage/commission feed when costs are null; gross results are not net returns",
+        "Same-feed Pine parity, exchange session boundaries, contract rolls and reference video remain unverified",
+        "Small correlated samples and repeated RR comparisons do not establish profitability"
+      ],
+      "symbol": "OANDA:GBPUSD",
+      "history_symbol": "GBP/USD",
+      "source_provider": "Twelve Data",
+      "source_feed_differs_from_pine": true,
+      "tick_size_source": "stored authenticated TradingView event",
+      "input_snapshot_sha256": "ac14136ce474e21ad0a3f93f26be7df43790244c4e86b890105951ee51e0bbe5",
+      "runner_sha256": "67e53abe91442a849236cf22df21a0b119c414761375324760352a609986155d"
+    },
+    {
+      "kind": "chronological_walk_forward_research",
+      "created_at": "2026-11-14T19:07:23.262350+00:00",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "pine_source_sha256": "30e65421b20c4bfefd62ee21d56c7ace1779e58da271cfddc77abb22dbed7b64",
+      "engine_sha256": "e94e59562e5124d9eab43d6081603921880adb097bbdd17805818c6e33ac1a48",
+      "dataset_sha256": "06a7b1ef9a378a22abc9dcc62bd10579516f983424df86b79b5f3ef554dba8cc",
+      "candles": 1220,
+      "start": "2026-11-10T07:10:00+00:00",
+      "end": "2026-11-14T12:45:00+00:00",
+      "baseline_parameters": {
+        "rr": 2.5,
+        "side": "Both",
+        "mode": "Breakout + Retest",
+        "lookback": 20,
+        "retest_bars": 6,
+        "swing": 8,
+        "cooldown": 8,
+        "min_body": 0.25,
+        "break_buffer": 0.05,
+        "max_risk_atr": 4.0,
+        "htf_mode": "Balanced",
+        "use_hybrid": true,
+        "min_evidence": 1,
+        "pivot_len": 3,
+        "enable_smt": false,
+        "use_ha": false,
+        "use_atr_floor": false,
+        "atr_floor_len": 50,
+        "atr_floor_factor": 0.6
+      },
+      "tick_size": 0.001,
+      "cost_assumptions": null,
+      "quality": {
+        "candles": 1220,
+        "gaps": [],
+        "calendar_verified": false,
+        "synthetic_bars_created": 0
+      },
+      "folds": [
+        {
+          "train_range": [
+            0,
+            480
+          ],
+          "test_range": [
+            480,
+            600
+          ],
+          "training_last_open": "2026-11-11T23:05:00+00:00",
+          "test_first_open": "2026-11-11T23:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 5,
+                "losses": 0,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 1.0,
+                "gross_r": 7.5,
+                "profit_factor": null,
+                "expectancy_r": 1.5,
+                "net_r": null,
+                "conservative_r": 7.5,
+                "max_drawdown_r_conservative": 0,
+                "max_consecutive_losses_conservative": 0,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.5655175352168251,
+                  1
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.5,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 5,
+                "losses": 0,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 1.0,
+                "gross_r": 10.0,
+                "profit_factor": null,
+                "expectancy_r": 2.0,
+                "net_r": null,
+                "conservative_r": 10.0,
+                "max_drawdown_r_conservative": 0,
+                "max_consecutive_losses_conservative": 0,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.5655175352168251,
+                  1
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.0,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 4,
+                "losses": 0,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 1.0,
+                "gross_r": 10.0,
+                "profit_factor": null,
+                "expectancy_r": 2.5,
+                "net_r": null,
+                "conservative_r": 10.0,
+                "max_drawdown_r_conservative": 0,
+                "max_consecutive_losses_conservative": 0,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.5101091635454027,
+                  1
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.5,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 4,
+                "resolved": 4,
+                "wins": 4,
+                "losses": 0,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 1.0,
+                "gross_r": 12.0,
+                "profit_factor": null,
+                "expectancy_r": 3.0,
+                "net_r": null,
+                "conservative_r": 12.0,
+                "max_drawdown_r_conservative": 0,
+                "max_consecutive_losses_conservative": 0,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.5101091635454027,
+                  1
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 3.0,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "BUY",
+              "entry_index": 566,
+              "time": "2026-11-12T06:25:00+00:00",
+              "entry": 159.7882,
+              "sl": 159.6597938316833,
+              "tp": 160.10921542079174,
+              "rr": 2.5,
+              "evidence": 4,
+              "outcome": "sl",
+              "exit_time": "2026-11-12T08:50:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 595
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            600
+          ],
+          "test_range": [
+            600,
+            720
+          ],
+          "training_last_open": "2026-11-12T09:05:00+00:00",
+          "test_first_open": "2026-11-12T09:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 6,
+                "resolved": 6,
+                "wins": 5,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.8333333333333334,
+                "gross_r": 6.5,
+                "profit_factor": 7.5,
+                "expectancy_r": 1.0833333333333333,
+                "net_r": null,
+                "conservative_r": 6.5,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.43649717781352987,
+                  0.9699466302516935
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.0833333333333333,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 6,
+                "resolved": 6,
+                "wins": 5,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.8333333333333334,
+                "gross_r": 9.0,
+                "profit_factor": 10.0,
+                "expectancy_r": 1.5,
+                "net_r": null,
+                "conservative_r": 9.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.43649717781352987,
+                  0.9699466302516935
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.5,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 4,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.8,
+                "gross_r": 9.0,
+                "profit_factor": 10.0,
+                "expectancy_r": 1.8,
+                "net_r": null,
+                "conservative_r": 9.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.37553462976252533,
+                  0.9637758913675698
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.8,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 5,
+                "resolved": 5,
+                "wins": 4,
+                "losses": 1,
+                "ambiguous": 0,
+                "unresolved": 0,
+                "win_rate": 0.8,
+                "gross_r": 11.0,
+                "profit_factor": 12.0,
+                "expectancy_r": 2.2,
+                "net_r": null,
+                "conservative_r": 11.0,
+                "max_drawdown_r_conservative": 1.0,
+                "max_consecutive_losses_conservative": 1,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.37553462976252533,
+                  0.9637758913675698
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 2.2,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 2,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 1,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 2,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 1,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "SELL",
+              "entry_index": 622,
+              "time": "2026-11-12T11:05:00+00:00",
+              "entry": 159.58501,
+              "sl": 159.66270252547653,
+              "tp": 159.3907786863087,
+              "rr": 2.5,
+              "evidence": 4,
+              "outcome": "sl",
+              "exit_time": "2026-11-12T11:15:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 624
+            },
+            {
+              "side": "BUY",
+              "entry_index": 719,
+              "time": "2026-11-12T19:10:00+00:00",
+              "entry": 159.87743,
+              "sl": 159.76379099295963,
+              "tp": 160.16152751760094,
+              "rr": 2.5,
+              "evidence": 2,
+              "outcome": "unresolved",
+              "exit_time": null,
+              "gross_r": null,
+              "net_r": null,
+              "cost_r": null
+            }
+          ]
+        },
+        {
+          "train_range": [
+            0,
+            720
+          ],
+          "test_range": [
+            720,
+            840
+          ],
+          "training_last_open": "2026-11-12T19:05:00+00:00",
+          "test_first_open": "2026-11-12T19:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 8,
+                "resolved": 7,
+                "wins": 5,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.7142857142857143,
+                "gross_r": 5.5,
+                "profit_factor": 3.75,
+                "expectancy_r": 0.7857142857142857,
+                "net_r": null,
+                "conservative_r": 5.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.35893445183261935,
+                  0.9177810759959433
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.7857142857142857,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 8,
+                "resolved": 7,
+                "wins": 5,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.7142857142857143,
+                "gross_r": 8.0,
+                "profit_factor": 5.0,
+                "expectancy_r": 1.1428571428571428,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.35893445183261935,
+                  0.9177810759959433
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.1428571428571428,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 7,
+                "resolved": 6,
+                "wins": 4,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.6666666666666666,
+                "gross_r": 8.0,
+                "profit_factor": 5.0,
+                "expectancy_r": 1.3333333333333333,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.299993315138392,
+                  0.9032285888942195
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.3333333333333333,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 7,
+                "resolved": 6,
+                "wins": 4,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.6666666666666666,
+                "gross_r": 10.0,
+                "profit_factor": 6.0,
+                "expectancy_r": 1.6666666666666667,
+                "net_r": null,
+                "conservative_r": 10.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.299993315138392,
+                  0.9032285888942195
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.6666666666666667,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 0,
+            "resolved": 0,
+            "wins": 0,
+            "losses": 0,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": null,
+            "gross_r": 0,
+            "profit_factor": null,
+            "expectancy_r": null,
+            "net_r": null,
+            "conservative_r": 0,
+            "max_drawdown_r_conservative": 0,
+            "max_consecutive_losses_conservative": 0,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": null,
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": []
+        },
+        {
+          "train_range": [
+            0,
+            840
+          ],
+          "test_range": [
+            840,
+            960
+          ],
+          "training_last_open": "2026-11-13T05:05:00+00:00",
+          "test_first_open": "2026-11-13T05:10:00+00:00",
+          "training_candidates": [
+            {
+              "rr": 1.5,
+              "metrics": {
+                "trades": 8,
+                "resolved": 7,
+                "wins": 5,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.7142857142857143,
+                "gross_r": 5.5,
+                "profit_factor": 3.75,
+                "expectancy_r": 0.7857142857142857,
+                "net_r": null,
+                "conservative_r": 5.5,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.35893445183261935,
+                  0.9177810759959433
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 0.7857142857142857,
+              "eligible": false
+            },
+            {
+              "rr": 2.0,
+              "metrics": {
+                "trades": 8,
+                "resolved": 7,
+                "wins": 5,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.7142857142857143,
+                "gross_r": 8.0,
+                "profit_factor": 5.0,
+                "expectancy_r": 1.1428571428571428,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.35893445183261935,
+                  0.9177810759959433
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.1428571428571428,
+              "eligible": false
+            },
+            {
+              "rr": 2.5,
+              "metrics": {
+                "trades": 7,
+                "resolved": 6,
+                "wins": 4,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.6666666666666666,
+                "gross_r": 8.0,
+                "profit_factor": 5.0,
+                "expectancy_r": 1.3333333333333333,
+                "net_r": null,
+                "conservative_r": 8.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.299993315138392,
+                  0.9032285888942195
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.3333333333333333,
+              "eligible": false
+            },
+            {
+              "rr": 3.0,
+              "metrics": {
+                "trades": 7,
+                "resolved": 6,
+                "wins": 4,
+                "losses": 2,
+                "ambiguous": 0,
+                "unresolved": 1,
+                "win_rate": 0.6666666666666666,
+                "gross_r": 10.0,
+                "profit_factor": 6.0,
+                "expectancy_r": 1.6666666666666667,
+                "net_r": null,
+                "conservative_r": 10.0,
+                "max_drawdown_r_conservative": 2.0,
+                "max_consecutive_losses_conservative": 2,
+                "minimum_review_trades_met": false,
+                "resolved_win_rate_wilson95": [
+                  0.299993315138392,
+                  0.9032285888942195
+                ],
+                "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+              },
+              "score": 1.6666666666666667,
+              "eligible": false
+            }
+          ],
+          "selected_rr": 2.5,
+          "selection": "baseline_retained_insufficient_training_trades",
+          "test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "baseline_test_metrics": {
+            "trades": 1,
+            "resolved": 1,
+            "wins": 0,
+            "losses": 1,
+            "ambiguous": 0,
+            "unresolved": 0,
+            "win_rate": 0.0,
+            "gross_r": -1,
+            "profit_factor": 0.0,
+            "expectancy_r": -1.0,
+            "net_r": null,
+            "conservative_r": -1,
+            "max_drawdown_r_conservative": 1,
+            "max_consecutive_losses_conservative": 1,
+            "minimum_review_trades_met": false,
+            "resolved_win_rate_wilson95": [
+              0,
+              0.7934506856227626
+            ],
+            "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+          },
+          "test_trades": [
+            {
+              "side": "BUY",
+              "entry_index": 923,
+              "time": "2026-11-13T12:10:00+00:00",
+              "entry": 159.97088,
+              "sl": 159.90579631931982,
+              "tp": 160.13358920170043,
+              "rr": 2.5,
+              "evidence": 4,
+              "outcome": "sl",
+              "exit_time": "2026-11-13T13:35:00+00:00",
+              "gross_r": -1,
+              "net_r": null,
+              "cost_r": null,
+              "exit_index": 940
+            }
+          ]
+        }
+      ],
+      "out_of_sample_metrics": {
+        "trades": 4,
+        "resolved": 3,
+        "wins": 0,
+        "losses": 3,
+        "ambiguous": 0,
+        "unresolved": 1,
+        "win_rate": 0.0,
+        "gross_r": -3,
+        "profit_factor": 0.0,
+        "expectancy_r": -1.0,
+        "net_r": null,
+        "conservative_r": -3,
+        "max_drawdown_r_conservative": 3,
+        "max_consecutive_losses_conservative": 3,
+        "minimum_review_trades_met": false,
+        "resolved_win_rate_wilson95": [
+          5.551115123125783e-17,
+          0.5614970317550454
+        ],
+        "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+      },
+      "holdout": {
+        "range": [
+          976,
+          1220
+        ],
+        "selection_uses_holdout": false,
+        "frozen_rr": 2.5,
+        "candidate_metrics": {
+          "trades": 1,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 1,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "baseline_metrics": {
+          "trades": 1,
+          "resolved": 0,
+          "wins": 0,
+          "losses": 0,
+          "ambiguous": 0,
+          "unresolved": 1,
+          "win_rate": null,
+          "gross_r": 0,
+          "profit_factor": null,
+          "expectancy_r": null,
+          "net_r": null,
+          "conservative_r": 0,
+          "max_drawdown_r_conservative": 0,
+          "max_consecutive_losses_conservative": 0,
+          "minimum_review_trades_met": false,
+          "resolved_win_rate_wilson95": null,
+          "uncertainty_scope": "resolved trades only; excludes ambiguous/unresolved; independence not verified"
+        },
+        "trades": [
+          {
+            "side": "SELL",
+            "entry_index": 1034,
+            "time": "2026-11-13T21:25:00+00:00",
+            "entry": 159.69443,
+            "sl": 159.8582876297234,
+            "tp": 159.28478592569152,
+            "rr": 2.5,
+            "evidence": 2,
+            "outcome": "unresolved",
+            "exit_time": null,
+            "gross_r": null,
+            "net_r": null,
+            "cost_r": null
+          }
+        ]
+      },
+      "promotion_allowed": false,
+      "pine_parity_verified": false,
+      "automatic_updates": false,
+      "limitations": [
+        "Historical research snapshot, not live execution or ongoing scheduled validation",
+        "RR candidates only; original production strategy is unchanged",
+        "Continuous candidate replay retains pre-window position/cooldown state; only new entries are scored",
+        "At least30 resolved training trades are required to select a candidate; otherwise retain baseline",
+        "No verified spread/slippage/commission feed when costs are null; gross results are not net returns",
+        "Same-feed Pine parity, exchange session boundaries, contract rolls and reference video remain unverified",
+        "Small correlated samples and repeated RR comparisons do not establish profitability"
+      ],
+      "symbol": "OANDA:USDJPY",
+      "history_symbol": "USD/JPY",
+      "source_provider": "Twelve Data",
+      "source_feed_differs_from_pine": true,
+      "tick_size_source": "stored authenticated TradingView event",
+      "input_snapshot_sha256": "ac14136ce474e21ad0a3f93f26be7df43790244c4e86b890105951ee51e0bbe5",
+      "runner_sha256": "67e53abe91442a849236cf22df21a0b119c414761375324760352a609986155d"
+    }
+  ],
+  "skipped": [],
+  "automatic_refresh": false,
+  "promotion_allowed": false
+}

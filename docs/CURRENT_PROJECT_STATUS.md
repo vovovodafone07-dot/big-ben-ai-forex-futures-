@@ -1,8 +1,8 @@
 # Big Ben AI Pro — current status, 14 November 2026
 
 Platform: https://bigben-ai-pro-api.onrender.com/#analyze
-Live code:0b5de4a1a2da9a7e12c718fc6c9091bb13f8d1e4 (PR22).
-Render deploy:dep-dbs6ckafngtc73brk87g, live17:47Muscat.
+Live code:f569e53ecafc72806552eb5555579e5ddd468c0c (PR23).
+Render deploy:dep-dbs71q3rjlhs73dbvmu0, live18:32Muscat.
 The owner chose to keep the service free and subsequently selected design A.
 
 ## Current release
@@ -38,3 +38,9 @@ PR22 is now LIVE. All six CI checks passed including PostgreSQL additive migrati
 Production native verification: one real startup worker cycle COMPLETED at13:47:29UTC, one daily Arabic report persisted, Telegram provider returnedsent. A baseline v6.4.3 DRAFT was saved; UI diff confirms no code changes. A real EURUSD note persisted and appeared. Thirteen-symbol watchlist was re-read after reload. Chrome400x844 emulation verified navigation, Analyze form and paired full/scalp panels without overlap; physical phone/Safari remain untested. Latest explicit Gemini retry returnedprovider_timeout; no further retry was made.
 
 Owner deferred the nine NEW alerts: do not create or ask again unless the owner resumes them. Meta Business opened to a login page; owner sign-in is required and auth dialogs must not be automated. Work continues independently. Application-data snapshot/export and offline new-database restoration are implemented locally, pending CI/deploy. No production migration, renewal or full infrastructure backup is claimed.
+
+Data preservation PR23 merged atf569e53ecafc72806552eb5555579e5ddd468c0c; Renderdep-dbs71q3rjlhs73dbvmu0 is rolling out. All six CI checks passed, including PostgreSQL-to-SQLite snapshot restoration. UI export has not yet been tested against production. Meta remains on login page; new alerts remain deferred.
+
+Production export and offline restoration now VERIFIED:17 tables/4129 rows/12954161 bytes. Read-only comparison confirms every restored row matches the production export. Private archive and restored database remain outside Git. WhatsApp and nine new alerts are both deferred by owner.
+
+Walk-forward research release pending:3 dated historical reports,1220 candles/symbol,4 chronological folds and final20% holdout, no holdout-based selection. All3 are INSUFFICIENT_EVIDENCE. Cost feed and same-source Pine parity remain unverified; baselineRR2.5 and production Pine remain unchanged.

@@ -83,6 +83,20 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_walk_forward_snapshot_is_private_and_never_promotes(self):
+        self.assertEqual(self.request('GET','/api/research/walk-forward')[0],401)
+        status,report=self.request('GET','/api/research/walk-forward',auth=self.auth)
+        self.assertEqual(status,200);self.assertFalse(report['automatic_refresh'])
+        self.assertTrue(report['runs'])
+        for run in report['runs']:
+            self.assertFalse(run['promotion_allowed']);self.assertFalse(run['holdout']['selection_uses_holdout'])
+
+    def test_walk_forward_report_fails_closed_when_source_changes(self):
+        source=app.current_strategy_source()
+        with patch.object(app,'current_strategy_source',return_value={**source,'source_sha256':'b'*64}):
+            status,result=self.request('GET','/api/research/walk-forward',auth=self.auth)
+        self.assertEqual(status,503);self.assertEqual(result,{'error':'walk_forward_report_unavailable'})
+
     def test_application_export_is_private_complete_and_cannot_restore_over_http(self):
         self.assertEqual(self.request('GET','/api/backup/export')[0],401)
         self.assertEqual(self.request('POST','/api/backup/restore',{},auth=self.auth)[0],404)

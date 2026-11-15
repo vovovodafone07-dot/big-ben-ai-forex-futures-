@@ -1,5 +1,5 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,urllib.request,urllib.error,hashlib,threading
+import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading
 from contextlib import contextmanager
 from datetime import datetime,timezone
 from pathlib import Path
@@ -470,6 +470,16 @@ class Handler(BaseHTTPRequestHandler):
   b=_backup.canonical(obj) if urlsplit(self.path).path=="/api/backup/export" else json.dumps(obj).encode();self.send_response(status)
   for k,v in {"Content-Type":"application/json","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'","Content-Length":str(len(b))}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(b)
+ def csv_reply(self,rows,filename):
+  output=io.StringIO(newline="")
+  fields=("time","received_at","symbol","event","event_id","entry","sl","tp","rr","close","m15","h1","h4","timeframe","strategy_version","bridge_version")
+  writer=csv.DictWriter(output,fieldnames=fields,extrasaction="ignore",lineterminator="\n")
+  writer.writeheader()
+  for row in rows:writer.writerow(row)
+  body=output.getvalue().encode("utf-8-sig")
+  self.send_response(200)
+  for k,v in {"Content-Type":"text/csv; charset=utf-8","Content-Disposition":"attachment; filename=\""+filename+"\"","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Content-Length":str(len(body))}.items():self.send_header(k,v)
+  self.end_headers();self.wfile.write(body)
  def do_GET(self):
   path=urlsplit(self.path).path
   if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
@@ -492,7 +502,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
-  if path not in ("/","/dashboard","/api/events","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -504,6 +514,13 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Content-Length","0")
    self.end_headers()
    return
+  if path=="/api/events.csv":
+   rows=[]
+   for symbol,event,stamp,payload in list_events(5000,"all"):
+    try:data=json.loads(payload)
+    except (ValueError,TypeError):data={}
+    rows.append({"time":stamp,"received_at":data.get("received_at"),"symbol":symbol,"event":event,"event_id":data.get("event_id"),**data})
+   return self.csv_reply(rows,"bigben-tradingview-events.csv")
   if path=="/api/research/walk-forward":
    try:
     report=json.loads((Path(__file__).resolve().parents[2]/"research/reports/walk-forward-2026-11-14.json").read_text(encoding="utf-8"))

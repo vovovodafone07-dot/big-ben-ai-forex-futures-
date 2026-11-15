@@ -46,3 +46,7 @@ Production export and offline restoration now VERIFIED:17 tables/4129 rows/12954
 Walk-forward research release pending:3 dated historical reports,1220 candles/symbol,4 chronological folds and final20% holdout, no holdout-based selection. All3 are INSUFFICIENT_EVIDENCE. Cost feed and same-source Pine parity remain unverified; baselineRR2.5 and production Pine remain unchanged.
 
 PR24 now live. All7 CI checks passed:136 backend +42 research tests and14JS blocks. Production health/storage200; walk-forward API401 without auth. Native UI verification and same-feed TradingView CSV acquisition are next. WhatsApp and additional alerts remain deferred.
+
+## Readiness audit — 16 November 2026
+
+The current live deployment under audit is Render commit `c180051`; the local working tree used for code inspection is `1d3874a` and should not be treated as the live SHA without synchronization. Live health and PostgreSQL storage are healthy. The focused audit confirmed private API/CSV authentication and the read-only boundary. It also confirmed that Twelve Data currently proves only a single EUR/USD request: realtime, futures coverage, and quote timestamps remain unverified. Physical phone/Safari validation, new full TradingView/Pine delivery parity, repeated free-Render worker cycles, real-signal Telegram delivery, larger licensed futures history, realistic costs/fills, and same-feed Pine parity remain open. See `docs/READINESS_AUDIT_2026-11-16.md` for the prioritized decision record.

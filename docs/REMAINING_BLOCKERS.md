@@ -28,3 +28,7 @@ Owner decision: nine additional TradingView alerts are deferred. Meta Business c
 Owner deferred WhatsApp as well as the nine new alerts. Do not continue Meta setup or request sign-in again unless explicitly resumed; continue independent verification/research.
 
 Production application snapshot download and new-local-database restore are verified, including all17 tables/4129rows; this does not renew/migrate Render PostgreSQL or create recurring offsite backups. Walk-forward protocol has run on the available three forex histories, but sample sizes are insufficient; larger licensed histories, costs and same-feed Pine parity remain required. WhatsApp and additional alerts remain explicitly deferred.
+
+## Focused audit — 16 November 2026
+
+The live service is healthy and remains read-only. A separate endpoint audit confirmed that the private APIs and `/api/events.csv` require Basic Auth, while the TradingView webhook requires its independent token. The remaining blockers are evidence and operations, not an observed private-route exposure: continuous realtime data, licensed Futures coverage and rolls, same-feed Pine parity, larger cost-aware out-of-sample research, repeated production worker/notification proof, physical mobile/Safari validation, and recurring offsite backup. The prioritized record is `docs/READINESS_AUDIT_2026-11-16.md`.

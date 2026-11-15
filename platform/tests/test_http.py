@@ -253,6 +253,17 @@ class WebhookHTTPTests(unittest.TestCase):
             app.run_signal_analysis('EURUSD')
             analyze.assert_not_called();slots.release.assert_not_called()
 
+    def test_integration_status_reports_agent_activation_and_recent_delivery(self):
+        with patch.dict(os.environ, {"BIGBEN_SIGNAL_ANALYSIS_ENABLED":"1","TELEGRAM_BOT_TOKEN":"configured","TELEGRAM_CHAT_ID":"123456789"}):
+            with app.history_connection() as c:
+                app._destinations.receipt(c,"event-1","telegram","sent")
+            status=app.integration_status()
+        self.assertTrue(status["agents"]["signal_analysis_enabled"])
+        self.assertEqual(status["agents"]["deterministic_roles"],9)
+        self.assertEqual(status["agents"]["mode"],"read_only")
+        self.assertTrue(status["telegram"]["delivery_verified_now"])
+        self.assertEqual(status["telegram"]["last_delivery"]["event_id"],"event-1")
+
     def test_analysis_api_is_private_and_uses_stored_heartbeat(self):
         self.assertEqual(self.request("GET", "/api/analysis")[0], 401)
         self.request("POST", "/v1/tradingview/events", self.payload())

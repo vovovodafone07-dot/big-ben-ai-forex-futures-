@@ -1,13 +1,28 @@
 services:
   - type: web
-    name: bigben-ai-readonly
+    name: bigben-ai-pro-api
     runtime: python
     plan: free
-    buildCommand: "python -m compileall -q server.py"
-    startCommand: "python server.py"
-    healthCheckPath: /health
+    buildCommand: "python -m pip install -r platform/backend/requirements.txt && python -m compileall -q platform/backend"
+    startCommand: "python platform/backend/app.py"
+    healthCheckPath: /healthz
+    autoDeploy: true
     envVars:
-      - key: TWELVEDATA_API_KEY
+      - key: DATABASE_URL
         sync: false
+      - key: BIGBEN_DASHBOARD_PASSWORD
+        sync: false
+      - key: BIGBEN_WEBHOOK_TOKEN
+        sync: false
+      - key: TWELVE_DATA_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: BIGBEN_DAILY_TELEGRAM_ENABLED
+        value: "1"
+      - key: BIGBEN_SIGNAL_ANALYSIS_ENABLED
+        value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"

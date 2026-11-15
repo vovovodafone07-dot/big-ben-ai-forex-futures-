@@ -83,6 +83,23 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_tradingview_csv_export_is_private_and_uses_utf8_bom(self):
+        self.assertEqual(self.request("GET", "/api/events.csv")[0], 401)
+        self.assertEqual(self.request("POST", "/v1/tradingview/events", self.payload("HEARTBEAT"))[0], 202)
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        try:
+            conn.request("GET", "/api/events.csv", headers={"Authorization": self.auth})
+            response = conn.getresponse()
+            body = response.read()
+        finally:
+            conn.close()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.getheader("Content-Type"), "text/csv; charset=utf-8")
+        self.assertIn("attachment; filename=\"bigben-tradingview-events.csv\"", response.getheader("Content-Disposition"))
+        self.assertTrue(body.startswith(b"\xef\xbb\xbf"))
+        self.assertIn(b"event_id", body)
+        self.assertIn(b"synthetic-http-HEARTBEAT", body)
+
     def test_walk_forward_snapshot_is_private_and_never_promotes(self):
         self.assertEqual(self.request('GET','/api/research/walk-forward')[0],401)
         status,report=self.request('GET','/api/research/walk-forward',auth=self.auth)

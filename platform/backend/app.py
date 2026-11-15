@@ -224,9 +224,20 @@ def integration_status():
  with history_connection() as c:
   feeds=_news.snapshot(c)
   coverage=_history.coverage(c,postgres=postgres_enabled())
+  deliveries=_destinations.recent(c)
+ telegram_deliveries=[d for d in deliveries if d["channel"]=="telegram"]
+ last_telegram=telegram_deliveries[0] if telegram_deliveries else None
+ telegram_recent=False
+ if last_telegram:
+  try:
+   delivery_age=(now-datetime.fromisoformat(last_telegram["created_at"].replace("Z","+00:00"))).total_seconds()
+   telegram_recent=last_telegram["status"]=="sent" and 0<=delivery_age<86400
+  except (ValueError,TypeError,AttributeError):
+   telegram_recent=False
  return {"checked_at":now.isoformat(),"tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
-  "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":False}}
+  "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"read_only"},
+  "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram}}
 
 def run_history_cycle():
  with history_connection() as c:token=_operations.claim(c,"history_research",postgres=postgres_enabled())
@@ -553,7 +564,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/api/analysis/runs":
    try:
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
-    return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","ai_daily_request_limit":10})
+    return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"read_only","ai_daily_request_limit":10})
    except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
   if path=="/api/instruments":
    try:

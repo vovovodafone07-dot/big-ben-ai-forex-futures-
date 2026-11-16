@@ -1,4 +1,4 @@
-"""Read-only Big Ben reliability agent. Never trades or modifies production."""
+"""Big Ben live-analysis reliability agent. Sends diagnostics only; never places orders."""
 import json, os, sys, urllib.request, urllib.error
 from datetime import datetime, timezone
 BASE=os.getenv("BIGBEN_BASE_URL","https://bigben-ai-pro-rebound.onrender.com").rstrip("/")
@@ -36,7 +36,7 @@ def main():
      if name=="agent":
       report[name]["mode"]=payload.get("mode")
       report[name]["tracked_symbols"]=len(payload.get("tracked_symbols",[]))
-      if payload.get("mode")!="read_only":errors.append("agent mode unexpected")
+      if payload.get("mode")!="alerts_only":errors.append("agent mode unexpected")
      if name=="research":report[name]["signals_examined"]=payload.get("signals_examined")
      if name=="outcomes":report[name]["count"]=payload.get("count")
     except (urllib.error.URLError,ValueError,TimeoutError) as e:

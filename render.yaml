@@ -24,5 +24,17 @@ services:
         value: "1"
       - key: BIGBEN_SIGNAL_ANALYSIS_ENABLED
         value: "1"
+      - key: BIGBEN_WHATSAPP_ENABLED
+        value: "1"
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_API_VERSION
+        sync: false
+      - key: WHATSAPP_TEMPLATE_NAME
+        sync: false
+      - key: WHATSAPP_TEMPLATE_LANGUAGE
+        sync: false
       - key: PYTHONUNBUFFERED
         value: "1"

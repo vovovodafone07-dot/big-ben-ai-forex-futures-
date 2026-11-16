@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -93,6 +93,7 @@ def init():
    _replay.migrate(c)
    _workspace.migrate(c)
    _operations.migrate(c)
+   _market_pulses.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -107,6 +108,7 @@ def init():
    _replay.migrate(c)
    _workspace.migrate(c)
    _operations.migrate(c)
+   _market_pulses.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -185,6 +187,25 @@ def news_worker():
   try:_news.refresh(history_connection,postgres_enabled())
   except Exception:print("news_refresh state=failed",flush=True)
   time.sleep(3600)
+
+def market_pulse_worker():
+ """Analyze stored closed candles periodically; never emits BUY/SELL or orders."""
+ while True:
+  try:
+   now=datetime.now(timezone.utc)
+   with history_connection() as c:
+    coverage=_history.coverage(c,now,postgres=postgres_enabled())
+    for item in coverage.get("symbols",[]):
+     symbol=item.get("symbol")
+     if symbol not in _history.FOREX:continue
+     marker="%s" if postgres_enabled() else "?"
+     rows=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time ASC LIMIT 1000",(symbol,)).fetchall()
+     result=_market_pulses.analyze(symbol,rows,now)
+     _market_pulses.save(c,result,postgres_enabled())
+     print("market_pulse symbol="+symbol+" state="+result["state"]+" decision="+result["decision"],flush=True)
+  except Exception:
+   print("market_pulse state=failed reason=storage_or_internal_failure",flush=True)
+  time.sleep(int(os.getenv("BIGBEN_MARKET_PULSE_SECONDS","300")))
 
 def agent_watchdog():
  """Resident operational monitor; records symptoms in logs, never edits Pine or executes orders."""
@@ -530,7 +551,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -578,6 +599,10 @@ class Handler(BaseHTTPRequestHandler):
     return self.reply(200,result)
    except ValueError:return self.reply(400,{"error":"symbol"})
    except Exception:return self.reply(503,{"error":"workspace_unavailable"})
+  if path=="/api/market/pulses":
+   try:
+    with history_connection() as c:return self.reply(200,{"pulses":_market_pulses.latest(c),"source":"stored closed candles","trades_created":False})
+   except Exception:return self.reply(503,{"error":"market_pulses_unavailable"})
   if path=="/api/analysis/runs":
    try:
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
@@ -839,4 +864,5 @@ if __name__=="__main__":
  threading.Thread(target=check_market_connection,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()
  threading.Thread(target=news_worker,daemon=True).start()
+ threading.Thread(target=market_pulse_worker,daemon=True).start()
  ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()

@@ -286,6 +286,26 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(result["count"], 1)
         self.assertIsNone(result["symbols"][0]["new_signal"])
 
+    def test_market_pulse_uses_closed_candles_without_creating_trade(self):
+        now = datetime.now(timezone.utc)
+        rows = []
+        for i in range(60):
+            stamp = now - timedelta(minutes=5 * (60 - i))
+            close = 100 + i * 0.05
+            rows.append((stamp.isoformat(), close - 0.02, close + 0.10, close - 0.10, close))
+        with app.history_connection() as connection:
+            result = app._market_pulses.analyze("EUR/USD", rows, now)
+            app._market_pulses.save(connection, result)
+        self.assertIn(result["state"], ("BULLISH", "MIXED", "STALE"))
+        self.assertEqual(result["decision"], "MONITOR_LONG_SETUP" if result["state"] == "BULLISH" else "WAIT")
+        self.assertIsNone(result["entry"])
+        self.assertEqual(self.request("GET", "/api/market/pulses")[0], 401)
+        status, payload = self.request("GET", "/api/market/pulses", auth=self.auth)
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["pulses"])
+        self.assertFalse(payload["trades_created"])
+        self.assertEqual(app.list_events(), [])
+
     def test_pine_api_matches_synced_registry(self):
         self.assertEqual(self.request("GET", "/api/pine/current")[0], 401)
         status, result=self.request("GET", "/api/pine/current", auth=self.auth)

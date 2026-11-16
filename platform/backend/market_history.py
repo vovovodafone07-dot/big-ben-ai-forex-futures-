@@ -5,9 +5,22 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
+import importlib.util
 
 FOREX = ("EUR/USD", "GBP/USD", "USD/JPY")
-FUTURES = ("NQ", "MNQ", "ES", "MES", "YM", "6E")
+try:
+    from . import instruments as _instruments
+except ImportError:
+    try:
+        import instruments as _instruments
+    except ImportError:
+        _ispec = importlib.util.spec_from_file_location("bigben_instruments", Path(__file__).with_name("instruments.py"))
+        _instruments = importlib.util.module_from_spec(_ispec)
+        _ispec.loader.exec_module(_instruments)
+
+# Inventory only: catalog presence is not live access or entitlement.
+FUTURES = tuple(_instruments.FUTURES)
 MAX_BYTES = 2_000_000
 ADAPTER_VERSION = 2
 
@@ -129,7 +142,9 @@ def coverage(connection, now=None, postgres=False):
             item["recent_closed_candle"] = item["last_candle_age_seconds"] <= 900
         symbols.append(item)
     for symbol in FUTURES:
+        exchange, name = _instruments.FUTURES[symbol]
         symbols.append({"symbol": symbol, "state": "UNKNOWN", "reason": "licensed_contract_mapping_required",
+            "asset_class": "futures", "exchange": exchange, "name": name,
             "provider_tested": False, "realtime_verified": False})
     return {"generated_at": now.isoformat(), "symbols": symbols, "provider": "Twelve Data",
         "mode": "bounded_historical_ingestion", "refresh_interval_hours": 6,

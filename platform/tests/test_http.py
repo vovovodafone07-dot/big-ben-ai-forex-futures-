@@ -165,7 +165,7 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/market/coverage")[0], 401)
         status, result = self.request("GET", "/api/market/coverage", auth=self.auth)
         self.assertEqual(status, 200)
-        self.assertEqual(len(result["symbols"]), 9)
+        self.assertEqual(len(result["symbols"]), 3 + len(app._history.FUTURES))
         self.assertFalse(result["futures_coverage_verified"])
         self.assertEqual(result["symbols"][3]["reason"], "licensed_contract_mapping_required")
 

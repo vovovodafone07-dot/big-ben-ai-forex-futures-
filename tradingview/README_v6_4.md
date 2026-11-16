@@ -12,6 +12,8 @@
 6. For a manually authorized alert migration, use **Any alert() function call** with webhook `https://bigben-ai-pro-rebound.onrender.com/v1/tradingview/events`. Do not create duplicates automatically; verify one fresh event on the new endpoint before retiring the old receiver. Enable mobile app notifications if wanted.
 7. Check `/healthz/integrations` and `/healthz/storage` on the Render service, then verify actual HEARTBEAT and BUY/SELL delivery.
 
+The webhook accepts exchange-qualified TradingView identifiers when an authenticated user creates a real alert. This does not prove that Twelve Data supplies live CME, CBOT, COMEX, or NYMEX prices: the backend keeps those contracts in the coverage inventory as `UNKNOWN` until a licensed provider entitlement and a real closed-candle probe are verified. Do not replace exchange futures with CFDs or spot commodities.
+
 ## Limitations
 - Analysis and alerts only; no real orders.
 - M5 entries only, higher timeframes provide directional context.

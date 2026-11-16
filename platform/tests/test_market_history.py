@@ -12,6 +12,9 @@ from urllib.error import HTTPError, URLError
 spec = importlib.util.spec_from_file_location("market_history", Path(__file__).resolve().parents[1]/"backend"/"market_history.py")
 history = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(history)
+instrument_spec = importlib.util.spec_from_file_location("instruments", Path(__file__).resolve().parents[1]/"backend"/"instruments.py")
+instruments = importlib.util.module_from_spec(instrument_spec)
+instrument_spec.loader.exec_module(instruments)
 NOW = datetime(2026, 11, 13, 18, 0, tzinfo=timezone.utc)
 
 
@@ -104,6 +107,16 @@ class HistoryTests(unittest.TestCase):
             self.assertFalse(view["symbols"][3]["provider_tested"])
             stale=history.coverage(c,datetime(2026,11,14,18,tzinfo=timezone.utc))
             self.assertFalse(stale["symbols"][0]["recent_closed_candle"])
+
+    def test_every_catalogued_future_is_visible_but_unverified(self):
+        with sqlite3.connect(":memory:") as c:
+            history.migrate(c)
+            view = history.coverage(c, NOW)
+        futures = {item["symbol"]: item for item in view["symbols"] if item.get("asset_class") == "futures"}
+        self.assertEqual(set(futures), set(instruments.FUTURES))
+        self.assertFalse(view["futures_coverage_verified"])
+        self.assertTrue(all(item["state"] == "UNKNOWN" for item in futures.values()))
+        self.assertTrue(all(item["provider_tested"] is False for item in futures.values()))
 
 
 if __name__ == "__main__":unittest.main()

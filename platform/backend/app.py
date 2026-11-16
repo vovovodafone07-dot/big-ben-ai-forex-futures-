@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -245,6 +245,34 @@ def run_signal_analysis(symbol):
  except Exception:print("signal_analysis state=failed",flush=True)
  finally:SIGNAL_ANALYSIS_SLOTS.release()
 
+def process_signal_event(symbol,d):
+ """Process one real TradingView signal without broker execution."""
+ if os.getenv("BIGBEN_ANALYSIS_KILL_SWITCH","0") == "1":
+  print("signal_analysis state=blocked reason=kill_switch",flush=True);return
+ if d.get("event") not in ("BUY","SELL"):return
+ for attempt in range(3):
+  try:
+   status=telegram_notify(d)
+   with history_connection() as c:_destinations.receipt(c,d["event_id"],"telegram",status,postgres_enabled())
+   print("telegram_delivery="+status+" attempt="+str(attempt+1),flush=True)
+   break
+  except Exception:
+   if attempt==2: print("telegram_delivery=failed retries=3",flush=True)
+   else: time.sleep(0.5*(2**attempt))
+ whatsapp_status=whatsapp_notify(d)
+ if whatsapp_status!="disabled":
+  try:
+   with history_connection() as c:_destinations.receipt(c,d["event_id"],"whatsapp",whatsapp_status,postgres_enabled())
+  except Exception:print("whatsapp_receipt storage_unavailable",flush=True)
+ if os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1":
+  for attempt in range(3):
+   try:run_signal_analysis(symbol);break
+   except Exception:
+    if attempt==2:print("signal_analysis state=failed retries=3 symbol="+symbol,flush=True)
+    else:time.sleep(0.5*(2**attempt))
+
+SIGNAL_PIPELINE=_event_pipeline.SymbolPipeline(process_signal_event,max_queue_per_symbol=int(os.getenv("BIGBEN_SYMBOL_QUEUE_SIZE","100")))
+
 def integration_status():
  rows=list_events(2000,"all");now=datetime.now(timezone.utc);tracked={}
  for symbol,kind,stamp,payload in rows:
@@ -272,6 +300,7 @@ def integration_status():
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
   "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"alerts_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram},
+  "pipeline":SIGNAL_PIPELINE.snapshot(),
   "whatsapp":_whatsapp.status()}
 
 def run_history_cycle():
@@ -859,22 +888,8 @@ class Handler(BaseHTTPRequestHandler):
   except Exception:return self.reply(503,{"error":"storage_unavailable"})
   self.reply(200 if duplicate else 202,{"accepted":True,"duplicate":duplicate,"event_id":d["event_id"]})
   if not duplicate and d.get("event") in ("BUY","SELL"):
-   # Respond to TradingView before the potentially slow Telegram API call.
-   import threading
-   def deliver():
-    status=telegram_notify(d)
-    try:
-     with history_connection() as c:_destinations.receipt(c,d["event_id"],"telegram",status,postgres_enabled())
-    except Exception:print("delivery_receipt storage_unavailable",flush=True)
-    print("telegram_delivery="+status,flush=True)
-    whatsapp_status=whatsapp_notify(d)
-    if whatsapp_status!="disabled":
-     try:
-      with history_connection() as c:_destinations.receipt(c,d["event_id"],"whatsapp",whatsapp_status,postgres_enabled())
-     except Exception:print("whatsapp_receipt storage_unavailable",flush=True)
-     print("whatsapp_delivery="+whatsapp_status,flush=True)
-    if os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1":run_signal_analysis(d["symbol"])
-   threading.Thread(target=deliver,daemon=True).start()
+   queued=SIGNAL_PIPELINE.enqueue(d["symbol"],d)
+   if not queued:print("signal_pipeline state=backpressure symbol="+d["symbol"],flush=True)
 if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
  import threading

@@ -104,7 +104,7 @@ class HistoryTests(unittest.TestCase):
             self.assertEqual(second["stored_candles"],2)
             view=history.coverage(c,NOW)
             self.assertTrue(view["symbols"][0]["recent_closed_candle"])
-            self.assertFalse(view["symbols"][3]["provider_tested"])
+            self.assertFalse(view["symbols"][len(history.FOREX)]["provider_tested"])
             stale=history.coverage(c,datetime(2026,11,14,18,tzinfo=timezone.utc))
             self.assertFalse(stale["symbols"][0]["recent_closed_candle"])
 

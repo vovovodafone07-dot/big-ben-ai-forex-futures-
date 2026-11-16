@@ -19,7 +19,7 @@ jobs:
         id: check
         continue-on-error: true
         env:
-          BIGBEN_BASE_URL: https://bigben-ai-pro-api.onrender.com
+          BIGBEN_BASE_URL: https://bigben-ai-pro-rebound.onrender.com
           BIGBEN_DASHBOARD_PASSWORD: ${{ secrets.BIGBEN_DASHBOARD_PASSWORD }}
         run: |
           set -o pipefail

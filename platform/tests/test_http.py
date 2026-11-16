@@ -274,7 +274,7 @@ class WebhookHTTPTests(unittest.TestCase):
             status=app.integration_status()
         self.assertTrue(status["agents"]["signal_analysis_enabled"])
         self.assertEqual(status["agents"]["deterministic_roles"],9)
-        self.assertEqual(status["agents"]["mode"],"read_only")
+        self.assertEqual(status["agents"]["mode"],"alerts_only")
         self.assertTrue(status["telegram"]["delivery_verified_now"])
         self.assertEqual(status["telegram"]["last_delivery"]["event_id"],"event-1")
 

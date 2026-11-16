@@ -7,7 +7,9 @@ import urllib.request
 from datetime import datetime, timezone
 
 def probe_twelve_data(key):
-    result={"provider":"Twelve Data","symbol_tested":"EUR/USD","state":"UNKNOWN",
+    result={"provider":"Twelve Data","symbol_tested":"EUR/USD","diagnostic_only":True,
+            "analysis_scope":"TradingView events accept all exchange-qualified supported symbols; this probe does not restrict live analysis",
+            "state":"UNKNOWN",
             "checked_at":datetime.now(timezone.utc).isoformat(),
             "credentials_configured":bool(key),"request_budget":1,
             "realtime_verified":False,"futures_coverage_verified":False,
@@ -32,7 +34,7 @@ def probe_twelve_data(key):
             raise ValueError()
         # Successful /price response proves access for this symbol, not real-time entitlement.
         return {**result,"state":"CONNECTED","reason":"valid_price_response",
-                "scope":"single EUR/USD price request; not a continuous feed"}
+                "scope":"single EUR/USD diagnostic price request; not a continuous feed and not a live-analysis symbol restriction"}
     except urllib.error.HTTPError as error:
         reason={401:"authentication_failed",403:"entitlement_denied",429:"rate_limited"}.get(error.code,"provider_http_error")
         return {**result,"state":"DEGRADED","reason":reason}

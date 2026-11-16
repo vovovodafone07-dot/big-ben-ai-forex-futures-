@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 import importlib.util
 
-FOREX = ("EUR/USD", "GBP/USD", "USD/JPY")
 try:
     from . import instruments as _instruments
 except ImportError:
@@ -19,10 +18,14 @@ except ImportError:
         _instruments = importlib.util.module_from_spec(_ispec)
         _ispec.loader.exec_module(_instruments)
 
+FOREX = tuple(pair[:3]+"/"+pair[3:] for pair in _instruments.FOREX)
 # Inventory only: catalog presence is not live access or entitlement.
 FUTURES = tuple(_instruments.FUTURES)
 MAX_BYTES = 2_000_000
 ADAPTER_VERSION = 2
+# Keep provider calls bounded while exposing the full supported Forex catalog.
+# TradingView live analysis is event-driven and is not restricted to this probe set.
+REFRESH_FOREX = ("EUR/USD", "GBP/USD", "USD/JPY")
 
 
 class HistoryError(ValueError):

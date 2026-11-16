@@ -114,7 +114,7 @@ def history_connection():
 
 def refresh_market_history():
  """Three requests max per six-hour cycle; no retries or guessed contracts."""
- for symbol in _history.FOREX:
+ for symbol in _history.REFRESH_FOREX:
   now=datetime.now(timezone.utc)
   with history_connection() as c:
    checks=_history.coverage(c,now,postgres=postgres_enabled())["symbols"]
@@ -137,7 +137,7 @@ def run_daily_research():
  now=datetime.now(timezone.utc)
  marker="%s" if postgres_enabled() else "?"
  strategy=current_strategy_source()
- for symbol in _history.FOREX:
+ for symbol in _history.REFRESH_FOREX:
   with history_connection() as c:
    prior=c.execute("SELECT id FROM research_runs WHERE symbol="+marker+" AND created_at >= "+marker+" LIMIT 1",(symbol,now.date().isoformat())).fetchone()
    if prior:continue
@@ -155,7 +155,7 @@ def run_pine_research():
  strategy=current_strategy_source()
  events=list_events(2000,"all")
  marker="%s" if postgres_enabled() else "?"
- for label in _history.FOREX:
+ for label in _history.REFRESH_FOREX:
   market=_desk.normalize(label)
   tick=None
   for symbol,kind,stamp,payload in events:
@@ -197,7 +197,7 @@ def market_pulse_worker():
     coverage=_history.coverage(c,now,postgres=postgres_enabled())
     for item in coverage.get("symbols",[]):
      symbol=item.get("symbol")
-     if symbol not in _history.FOREX:continue
+     if symbol not in _history.REFRESH_FOREX:continue
      marker="%s" if postgres_enabled() else "?"
      rows=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time ASC LIMIT 1000",(symbol,)).fetchall()
      result=_market_pulses.analyze(symbol,rows,now)

@@ -278,6 +278,15 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertTrue(status["telegram"]["delivery_verified_now"])
         self.assertEqual(status["telegram"]["last_delivery"]["event_id"],"event-1")
 
+    def test_event_freshness_distinguishes_heartbeat_from_continuous_feed(self):
+        self.request("POST", "/v1/tradingview/events", self.payload("HEARTBEAT"))
+        status=app.integration_status()
+        self.assertTrue(status["tradingview"]["heartbeat_recent"])
+        self.assertTrue(status["tradingview"]["recent_event_verified"])
+        self.assertFalse(status["tradingview"]["live_feed_verified"])
+        self.assertEqual(status["tradingview"]["last_heartbeat"]["event"],"HEARTBEAT")
+        self.assertIsNone(status["tradingview"]["last_trade"])
+
     def test_analysis_api_is_private_and_uses_stored_heartbeat(self):
         self.assertEqual(self.request("GET", "/api/analysis")[0], 401)
         self.request("POST", "/v1/tradingview/events", self.payload())

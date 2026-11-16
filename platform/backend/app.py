@@ -267,7 +267,8 @@ def integration_status():
    telegram_recent=last_telegram["status"]=="sent" and 0<=delivery_age<86400
   except (ValueError,TypeError,AttributeError):
    telegram_recent=False
- return {"checked_at":now.isoformat(),"mode":"live_analysis_alerts_only","broker_execution":"disabled","tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
+ freshness=event_freshness(rows,now)
+ return {"checked_at":now.isoformat(),"mode":"live_analysis_alerts_only","broker_execution":"disabled","tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked),**freshness},
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
   "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"alerts_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram},
@@ -305,6 +306,22 @@ def list_events(limit=500, kind="all"):
    return c.execute("SELECT symbol,event,time,payload FROM events WHERE (%s = 'all' OR (%s = 'trades' AND event IN ('BUY','SELL')) OR (%s = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT %s",(kind,kind,kind,limit)).fetchall()
  with sqlite_connection() as c:
   return c.execute("SELECT symbol,event,time,payload FROM events WHERE (? = 'all' OR (? = 'trades' AND event IN ('BUY','SELL')) OR (? = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT ?",(kind,kind,kind,limit)).fetchall()
+
+def event_freshness(rows=None, now=None):
+ now=now or datetime.now(timezone.utc)
+ parsed=[]
+ for symbol,kind,stamp,payload in rows if rows is not None else list_events(2000,"all"):
+  try:
+   data=json.loads(payload);dt=datetime.fromisoformat(str(stamp).replace("Z","+00:00"))
+   age=(now-dt).total_seconds()
+   parsed.append((dt,{"symbol":symbol,"event":kind,"source_time":stamp,"received_at":data.get("received_at"),"event_id":data.get("event_id"),"age_seconds":max(0,int(age)),"fresh":0<=age<720}))
+  except (ValueError,TypeError,AttributeError):continue
+ parsed.sort(key=lambda item:item[0],reverse=True)
+ def pick(events):return next((item[1] for item in parsed if item[1]["event"] in events),None)
+ latest=parsed[0][1] if parsed else None
+ heartbeat=pick({"HEARTBEAT"});trade=pick({"BUY","SELL"})
+ return {"recent_event_verified":bool(latest and latest["fresh"]),"heartbeat_recent":bool(heartbeat and heartbeat["fresh"]),"last_event":latest,"last_heartbeat":heartbeat,"last_trade":trade,"live_feed_verified":False,"note":"TradingView event freshness is verified separately from continuous market-feed availability"}
+
 def save_event(d):
  received_at=datetime.now(timezone.utc).isoformat()
  stored={**d,"received_at":received_at}
@@ -531,7 +548,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=telegram_destination()
-   return self.reply(200,{"status":"ok","mode":"live-analysis-alerts-only","broker_execution":"disabled","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"events_are_required_for_live_signal_state":True},"whatsapp":_whatsapp.status(),"ai":_ai_provider.status(),"agents":{"enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","roles":9,"mode":"alerts_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
+   return self.reply(200,{"status":"ok","mode":"live-analysis-alerts-only","broker_execution":"disabled","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"events_are_required_for_live_signal_state":True,**event_freshness()},"whatsapp":_whatsapp.status(),"ai":_ai_provider.status(),"agents":{"enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","roles":9,"mode":"alerts_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
   if path=="/healthz/market-sessions":
    return self.reply(200,_market_sessions.status())
   if path=="/healthz/storage":

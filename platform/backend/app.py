@@ -234,10 +234,11 @@ def integration_status():
    telegram_recent=last_telegram["status"]=="sent" and 0<=delivery_age<86400
   except (ValueError,TypeError,AttributeError):
    telegram_recent=False
- return {"checked_at":now.isoformat(),"tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
+ return {"checked_at":now.isoformat(),"mode":"live_analysis_read_only","broker_execution":"disabled","tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
   "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"read_only"},
-  "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram}}
+  "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram},
+  "whatsapp":_whatsapp.status()}
 
 def run_history_cycle():
  with history_connection() as c:token=_operations.claim(c,"history_research",postgres=postgres_enabled())
@@ -493,11 +494,11 @@ class Handler(BaseHTTPRequestHandler):
   self.end_headers();self.wfile.write(body)
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"read-only"})
+  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","broker_execution":"disabled","agents":"enabled"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=telegram_destination()
-   return self.reply(200,{"status":"ok","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
+   return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","broker_execution":"disabled","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"events_are_required_for_live_signal_state":True},"whatsapp":_whatsapp.status(),"agents":{"enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","roles":9,"mode":"read_only"},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
   if path=="/healthz/storage":
    try:
     init()
@@ -570,7 +571,9 @@ class Handler(BaseHTTPRequestHandler):
    try:
     with history_connection() as c:preferences=_destinations.read(c)
     observed={r[0] for r in list_events(5000,"all")}
-    return self.reply(200,{"instruments":_instruments.catalog(observed,preferences["watchlist"]),"arbitrary_qualified_symbols":True,"alert_coverage_not_implied":True})
+    catalog=_instruments.catalog(observed,preferences["watchlist"])
+    selected=[item for item in catalog if item["symbol"] in set(preferences["watchlist"])]
+    return self.reply(200,{"instruments":catalog,"selected_instruments":selected,"watchlist":preferences["watchlist"],"arbitrary_qualified_symbols":True,"alert_coverage_not_implied":True})
    except Exception:return self.reply(503,{"error":"catalog_unavailable"})
   if path=="/api/destinations":
    try:
@@ -748,7 +751,7 @@ class Handler(BaseHTTPRequestHandler):
    except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_destinations_or_symbols"})
    try:
     with history_connection() as c:_destinations.save(c,preferences,postgres_enabled())
-    return self.reply(200,{"saved":True,**preferences,"whatsapp_automatic_connected":False})
+    return self.reply(200,{"saved":True,**preferences,"whatsapp_automatic_connected":_whatsapp.status()["provider_connection_verified"],"whatsapp":_whatsapp.status()})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
   if urlsplit(self.path).path=="/api/analyze":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})

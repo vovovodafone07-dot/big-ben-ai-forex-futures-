@@ -601,7 +601,7 @@ class Handler(BaseHTTPRequestHandler):
   self.end_headers();self.wfile.write(body)
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"live-analysis-alerts-only","runtime_mode":"live_analysis","broker_execution":"disabled","agents":"enabled","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"})
+  if path=="/healthz":return self.reply(200,{"status":"ok","release":"symbol-sync-demo-readonly-v2","mode":"live-analysis-alerts-only","runtime_mode":"live_analysis","broker_execution":"disabled","agents":"enabled","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=telegram_destination()

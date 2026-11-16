@@ -47,3 +47,15 @@ python3 platform/backend/tradovate_demo.py --verify
 ## References
 
 [1]: https://api.tradovate.com/ "Tradovate official API reference: access, authentication, account lists and simulation environment"
+
+## إصلاح الواجهة بعد اعتراض المستخدم على حصر اليورو
+
+وُجد خطأ واجهة فعلي مستقل عن مصدر البيانات: الرسم المضمّن في HTML كان مثبتاً على `OANDA:EURUSD` ولا يتلقى رمز خانة Analyze؛ كما أن التحليل لم يكن يبدأ عند تبديل الرمز. أُزيل التثبيت، وصار الرسم يستخدم الرمز المطبع الذي يرجعه API للزوج أو العقد المختار. اختيار المستخدم محفوظ محلياً؛ عند عدم وجود اختيار سابق تبدأ الواجهة بأحدث رمز فعلي حديث في سجل المنصة، لا باليورو افتراضياً. يبقى رابط TradingView مطابقاً للرمز إذا كانت قيود المزود تمنع تضمين عقد معين. تم اتباع صيغة embedding الرسمية؛ الرسم ليس قناة بيانات إلى محرك التحليل. [2]
+
+يبدأ فحص أدلة الرمز تلقائياً عند تغييره ويتجدد دورياً من سجلات الخادم دون طلب Gemini. مراجعة AI لا تُطلب من هذا التحديث التلقائي؛ تبقى متاحة بفعل صريح عند الضغط على التحليل مع الخيار المحدد. يحمي رقم تسلسلي للاستجابة من عرض مستويات/قرار لرمز سابق بعد اختيار رمز جديد. تُمسح مستويات الخطة السابقة أثناء التحميل.
+
+اختبار Node محلي باستخدام DOM وطلبات fixtures تحقق من الذهب وEURUSD وNQ وMNQ وGBPUSD، حفظ الاختيار، رفض رمز/URL غير صالح، ومنع استجابة ES متأخرة من الكتابة فوق GBPUSD الحالي. يعمل الاختبار ضمن `scripts/check_frontend.py`؛ فُحصت 17 كتلة JavaScript. لا يُعد اختبار DOM دليلاً على ترخيص الرسم أو وجود BUY/SELL إنتاجية.
+
+التحقق البصري الأخير من لوحة الإنتاج تعذر: امتداد My Browser أعاد HTTP504 مرتين. لم تُعدَّل بيئة المتصفح أو تُتجاوز قيود الوصول، ولم يُدّعَ نجاح فحص بصري. فحص HTTP العام ظل يثبت Heartbeat الذهب عند `17:40:00Z`، مع `broker_execution=disabled` وGemini غير متحقق. أُضيفت هوية إصدار عامة `symbol-sync-demo-readonly-v2` إلى healthz للتحقق من وصول الكود إلى Render دون الحاجة إلى أسرار أو أحداث اختبار.
+
+[2]: https://www.tradingview.com/widget-docs/tutorials/build-page/widget-integration/ "TradingView official widget integration tutorial and symbol configuration"

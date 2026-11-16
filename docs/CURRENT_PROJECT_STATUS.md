@@ -58,3 +58,7 @@ The current live deployment under audit is Render commit `c180051`; the local wo
 أُضيف `tradovate_demo.py` للتحقق والقراءة فقط، بقاعدة Demo ثابتة ومنع Live/redirects ومسارات أوامر. أُنشئت بطاقة أسرار آمنة، لكن القيم الأربعة غير متاحة في آخر فحص: credentials_missing دون طلب وسيط. لا يُنقل إعداد Manus إلى Render تلقائياً، ولا يوجد Order Router. `broker_execution=disabled` وقائمة السماح فارغة وKill Switch للتنفيذ مفروض. مخطط Render أيضاً يبقي WhatsApp=0.
 
 فحص إنتاج مصادق في هذه الجولة: رمز حديث واحد من 11 مرصوداً، نبض الذهب 17:10Z، وآخر SELL قديمة على USDJPY بتاريخ 13 نوفمبر. Gemini connection_verified=false/timeout. الأدوار التسعة deterministic evidence checks وليست مولداً مستقلاً لصفقات. حفظ ونشر هذا التحديث لم يُتحقق منه عند كتابة هذا القسم؛ التقرير المفصل: `WAIT_AND_TRADOVATE_DEMO_2026-11-16.md`.
+
+### استكمال الواجهة: حصر اليورو كان خطأ رسم حقيقياً
+
+التحديث `78e303f` مرفوع إلى main وجميع CI الخاصة به ناجحة. وجُد أن embed الرسم مثبت على OANDA:EURUSD بصرف النظر عن خانة Analyze. عولج محلياً بإعادة بناء widget لرمز API المطبع، وحفظ الاختيار، والبدء بأحدث رمز فعلي حديث عند غياب اختيار سابق. يتجدد تحليل الرمز المحدد دون Gemini تلقائياً، مع حماية من الاستجابات المتأخرة وتفريغ مستويات الرمز السابق. لا يتغير Pine/Alert/الاستراتيجية. فُحصت17JS واختبار DOM سلوكي و209+47subtests؛ ينتظر رفع/نشر إصدار الواجهة الثاني والتحقق من هوية healthz `symbol-sync-demo-readonly-v2`. My Browser HTTP504 منع الفحص البصري الإنتاجي، ولا يُدعى نجاحه.

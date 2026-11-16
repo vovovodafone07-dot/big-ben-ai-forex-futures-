@@ -865,4 +865,6 @@ if __name__=="__main__":
  threading.Thread(target=history_worker,daemon=True).start()
  threading.Thread(target=news_worker,daemon=True).start()
  threading.Thread(target=market_pulse_worker,daemon=True).start()
- ThreadingHTTPServer(("0.0.0.0",int(os.getenv("PORT","8080"))),Handler).serve_forever()
+ port=int(os.getenv("PORT","10000"))
+ print("http_server bind=0.0.0.0 port="+str(port),flush=True)
+ ThreadingHTTPServer(("0.0.0.0",port),Handler).serve_forever()

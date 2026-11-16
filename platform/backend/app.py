@@ -862,6 +862,8 @@ if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
  import threading
  threading.Thread(target=check_market_connection,daemon=True).start()
+ if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
+  threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()
  threading.Thread(target=news_worker,daemon=True).start()
  threading.Thread(target=market_pulse_worker,daemon=True).start()

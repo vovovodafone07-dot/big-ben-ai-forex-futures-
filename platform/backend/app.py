@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -186,6 +186,18 @@ def news_worker():
   except Exception:print("news_refresh state=failed",flush=True)
   time.sleep(3600)
 
+def agent_watchdog():
+ """Resident operational monitor; records symptoms in logs, never edits Pine or executes orders."""
+ while True:
+  try:
+   state=integration_status()
+   fresh=state.get("tradingview",{}).get("fresh_symbols",0)
+   news=sum(1 for item in state.get("news",[]) if item.get("state")=="CONNECTED" and item.get("fresh"))
+   print("agent_watchdog state=running fresh_symbols="+str(fresh)+" fresh_news_sources="+str(news)+" learning=evidence_only",flush=True)
+  except Exception:
+   print("agent_watchdog state=degraded reason=internal_check_failed",flush=True)
+  time.sleep(300)
+
 SIGNAL_ANALYSIS_SLOTS=threading.BoundedSemaphore(2)
 BACKUP_SLOT=threading.BoundedSemaphore(1)
 
@@ -236,7 +248,7 @@ def integration_status():
    telegram_recent=False
  return {"checked_at":now.isoformat(),"mode":"live_analysis_read_only","broker_execution":"disabled","tradingview":{"symbols":list(tracked.values()),"fresh_symbols":sum(s["fresh"] for s in tracked.values()),"expected_symbols":len(set(_desk.SYMBOLS.values()) | set(tracked)),"observed_symbols":len(tracked)},
   "market_data":coverage,"news":feeds["sources"],"ai":_ai_provider.status(),"storage":storage_kind(),
-  "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"read_only"},
+  "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"read_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram},
   "whatsapp":_whatsapp.status()}
 
@@ -419,7 +431,7 @@ def trade_notification_text(d):
  confirmed=[c["label"] for c in checks if c["state"]=="PASSED"]
  lines.extend(["", "أدلة المؤشر: "+("؛ ".join(confirmed[:5]) if confirmed else "تفاصيل الشروط غير مستلمة؛ لا تُفترض متحققة"),
   "النسخة: "+str(d.get("strategy_version","غير متاحة")), "المخطط: "+instrument["chart_url"],
-  "", "اختر أحد الخيارين؛ ليس السكالب إشارة مستقلة.","التكاليف وحجم التيك غير مؤكدين. تحليل فقط — لا يوجد تنفيذ أوامر."])
+  "", "اختر أحد الخيارين؛ ليس السكالب إشارة مستقلة.","التكاليف وحجم التيك غير مؤكدين. تحليل فقط — لا يوجد تنفيذ أوامر.","⚠️ تنبيه: التحليل قد يفشل أو يتأخر. دخولك ومسؤوليتك وحدك؛ لا تعتبر الرسالة توصية مالية."])
  return "\n".join(lines)
 
 def whatsapp_notify(d):
@@ -494,11 +506,13 @@ class Handler(BaseHTTPRequestHandler):
   self.end_headers();self.wfile.write(body)
  def do_GET(self):
   path=urlsplit(self.path).path
-  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","broker_execution":"disabled","agents":"enabled"})
+  if path=="/healthz":return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","runtime_mode":"live_analysis","broker_execution":"disabled","agents":"enabled","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
    chat=telegram_destination()
-   return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","broker_execution":"disabled","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"events_are_required_for_live_signal_state":True},"whatsapp":_whatsapp.status(),"agents":{"enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","roles":9,"mode":"read_only"},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
+   return self.reply(200,{"status":"ok","mode":"live-analysis-read-only","broker_execution":"disabled","telegram":{"bot_token_configured":bool(token),"chat_id_configured":bool(re.fullmatch(r"-?[0-9]{5,20}",chat))},"tradingview":{"webhook_token_configured":len(os.getenv("BIGBEN_WEBHOOK_TOKEN",""))>=32,"events_are_required_for_live_signal_state":True},"whatsapp":_whatsapp.status(),"agents":{"enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","roles":9,"mode":"read_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},"database":{"storage":storage_kind()},"market_data":{"twelve_data_key_configured":bool(twelve_data_key()),"credentials_only":True,"probe":MARKET_DATA_DIAGNOSTIC.copy()}})
+  if path=="/healthz/market-sessions":
+   return self.reply(200,_market_sessions.status())
   if path=="/healthz/storage":
    try:
     init()
@@ -514,6 +528,8 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:
     return self.reply(503,{"status":"unavailable","storage":storage_kind()})
    return self.reply(200,{"status":"ok","storage":storage_kind()})
+  if path=="/api/market/sessions":
+   return self.reply(200,_market_sessions.status())
   if path not in ("/","/dashboard","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
@@ -565,7 +581,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=="/api/analysis/runs":
    try:
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
-    return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"read_only","ai_daily_request_limit":10})
+    return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning_policy":"evidence_only_no_automatic_code_or_strategy_edits","ai_daily_request_limit":10})
    except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
   if path=="/api/instruments":
    try:
@@ -739,6 +755,14 @@ class Handler(BaseHTTPRequestHandler):
     return self.reply(201,result)
    except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_workspace_input"})
    except Exception:return self.reply(503,{"error":"workspace_unavailable"})
+  if urlsplit(self.path).path=="/api/news/test":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    _news.refresh(history_connection,postgres_enabled())
+    with history_connection() as c:result=_news.snapshot(c)
+    result["test_only"]=True;result["message"]="تم اختبار مصادر الأخبار الرسمية؛ لا يتم إنشاء إشارة أو تعديل الاستراتيجية."
+    return self.reply(200,result)
+   except Exception:return self.reply(503,{"error":"news_test_failed"})
   if urlsplit(self.path).path=="/api/destinations":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})

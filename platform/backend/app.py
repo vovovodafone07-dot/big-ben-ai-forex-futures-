@@ -37,6 +37,10 @@ _replay=importlib.util.module_from_spec(_rpspec)
 _rpspec.loader.exec_module(_replay)
 MARKET_DATA_DIAGNOSTIC={"state":"UNKNOWN","reason":"probe_not_completed","realtime_verified":False,"futures_coverage_verified":False}
 
+_demo_spec=importlib.util.spec_from_file_location("bigben_tradovate_demo",Path(__file__).with_name("tradovate_demo.py"))
+_demo=importlib.util.module_from_spec(_demo_spec)
+_demo_spec.loader.exec_module(_demo)
+
 def check_market_connection():
  global MARKET_DATA_DIAGNOSTIC
  MARKET_DATA_DIAGNOSTIC=_probe.probe_twelve_data(twelve_data_key())
@@ -199,7 +203,8 @@ def market_pulse_worker():
      symbol=item.get("symbol")
      if symbol not in _history.REFRESH_FOREX:continue
      marker="%s" if postgres_enabled() else "?"
-     rows=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time ASC LIMIT 1000",(symbol,)).fetchall()
+     # Select the newest bounded window, then restore chronological EMA order.
+     rows=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(symbol,)).fetchall()[::-1]
      result=_market_pulses.analyze(symbol,rows,now)
      _market_pulses.save(c,result,postgres_enabled())
      print("market_pulse symbol="+symbol+" state="+result["state"]+" decision="+result["decision"],flush=True)
@@ -237,12 +242,15 @@ def analyze_instrument(symbol,include_ai=False):
  return result
 
 def run_signal_analysis(symbol):
- if not SIGNAL_ANALYSIS_SLOTS.acquire(blocking=False):
-  print("signal_analysis skipped=capacity",flush=True);return
+ # This runs in a per-symbol worker, never in the webhook HTTP request.
+ if not SIGNAL_ANALYSIS_SLOTS.acquire(timeout=10):
+  print("signal_analysis deferred=capacity",flush=True);return False
  try:
   result=analyze_instrument(symbol,True)
   print("signal_analysis state=completed decision="+result["decision"]+" ai_state="+result["ai"]["state"],flush=True)
- except Exception:print("signal_analysis state=failed",flush=True)
+  return True
+ except Exception:
+  print("signal_analysis state=failed",flush=True);return False
  finally:SIGNAL_ANALYSIS_SLOTS.release()
 
 def process_signal_event(symbol,d):
@@ -266,9 +274,13 @@ def process_signal_event(symbol,d):
   except Exception:print("whatsapp_receipt storage_unavailable",flush=True)
  if os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1":
   for attempt in range(3):
-   try:run_signal_analysis(symbol);break
+   try:
+    if not run_signal_analysis(symbol):raise RuntimeError("analysis_not_completed")
+    break
    except Exception:
-    if attempt==2:print("signal_analysis state=failed retries=3 symbol="+symbol,flush=True)
+    if attempt==2:
+     print("signal_analysis state=failed retries=3 symbol="+symbol,flush=True)
+     raise RuntimeError("analysis_retries_exhausted") from None
     else:time.sleep(0.5*(2**attempt))
 
 SIGNAL_PIPELINE=_event_pipeline.SymbolPipeline(process_signal_event,max_queue_per_symbol=int(os.getenv("BIGBEN_SYMBOL_QUEUE_SIZE","100")))
@@ -301,6 +313,7 @@ def integration_status():
   "agents":{"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"max_concurrent":2,"mode":"alerts_only","runtime_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"},
   "telegram":{"configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),"delivery_verified_now":telegram_recent,"last_delivery":last_telegram},
   "pipeline":SIGNAL_PIPELINE.snapshot(),
+  "broker_demo":_demo.configuration_status(),
   "whatsapp":_whatsapp.status()}
 
 def run_history_cycle():

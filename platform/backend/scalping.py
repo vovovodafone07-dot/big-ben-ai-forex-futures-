@@ -1,10 +1,26 @@
 """Optional arithmetic scalp scenarios attached to original TradingView signals.
 No new entry signals, strategy edits, execution, or profitability estimates.
 """
+import importlib.util
 import json
 import math
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR, ROUND_CEILING
+from pathlib import Path
+
+try:
+    from . import instruments as _instruments
+except (ImportError, ValueError):
+    try:
+        import instruments as _instruments
+    except ImportError:
+        _ispec = importlib.util.spec_from_file_location("scalping_instruments", Path(__file__).with_name("instruments.py"))
+        _instruments = importlib.util.module_from_spec(_ispec)
+        _ispec.loader.exec_module(_instruments)
+
+
+def _normalize_symbol(value):
+    return _instruments.normalize(value)
 
 def levels(data, scalp_rr=1):
     try:
@@ -66,6 +82,7 @@ def scenarios(rows, scalp_rr=1, now=None):
     events = []
     for symbol, event, source_time, payload in rows:
         try:
+            symbol = _normalize_symbol(symbol)
             stamp = datetime.fromisoformat(source_time.replace("Z", "+00:00"))
             if stamp.tzinfo is None:
                 continue

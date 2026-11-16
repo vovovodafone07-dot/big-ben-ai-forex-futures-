@@ -64,4 +64,10 @@ class ScalpTests(unittest.TestCase):
         self.assertFalse(row["timeframe_verified"])
         self.assertFalse(row["scalp"]["tick_size_verified"])
 
+    def test_unqualified_event_symbol_is_normalized_for_display(self):
+        row=self.row()
+        row=("EURUSD",row[1],row[2],row[3])
+        result=scalp.scenarios([row],now=self.now)["signals"]
+        self.assertEqual(result[0]["symbol"],"OANDA:EURUSD")
+
 if __name__=="__main__":unittest.main()

@@ -50,3 +50,11 @@ PR24 now live. All7 CI checks passed:136 backend +42 research tests and14JS bloc
 ## Readiness audit — 16 November 2026
 
 The current live deployment under audit is Render commit `c180051`; the local working tree used for code inspection is `1d3874a` and should not be treated as the live SHA without synchronization. Live health and PostgreSQL storage are healthy. The focused audit confirmed private API/CSV authentication and the read-only boundary. It also confirmed that Twelve Data currently proves only a single EUR/USD request: realtime, futures coverage, and quote timestamps remain unverified. Physical phone/Safari validation, new full TradingView/Pine delivery parity, repeated free-Render worker cycles, real-signal Telegram delivery, larger licensed futures history, realistic costs/fills, and same-feed Pine parity remain open. See `docs/READINESS_AUDIT_2026-11-16.md` for the prioritized decision record.
+
+## 16 نوفمبر 2026 — إصلاح WAIT وTradovate Demo للتحقق فقط
+
+تحديث محلي مختبر فوق `2af5f24`: تطبيع صفوف EURUSD الخام في desk/scalping قبل المطابقة، أسباب انتظار صريحة في API/الواجهة، أحدث 1000 شمعة للتحليل الدوري بدلاً من الأقدم، ونتيجة نجاح/فشل حقيقية لإعادة محاولة التحليل دون تكرار Telegram. الاختبارات: 167 خلفية و42 بحثاً؛ pytest إجمالي 209 و47 subtests؛ 16 كتلة JS. Pine وAlerts لم تتغير.
+
+أُضيف `tradovate_demo.py` للتحقق والقراءة فقط، بقاعدة Demo ثابتة ومنع Live/redirects ومسارات أوامر. أُنشئت بطاقة أسرار آمنة، لكن القيم الأربعة غير متاحة في آخر فحص: credentials_missing دون طلب وسيط. لا يُنقل إعداد Manus إلى Render تلقائياً، ولا يوجد Order Router. `broker_execution=disabled` وقائمة السماح فارغة وKill Switch للتنفيذ مفروض. مخطط Render أيضاً يبقي WhatsApp=0.
+
+فحص إنتاج مصادق في هذه الجولة: رمز حديث واحد من 11 مرصوداً، نبض الذهب 17:10Z، وآخر SELL قديمة على USDJPY بتاريخ 13 نوفمبر. Gemini connection_verified=false/timeout. الأدوار التسعة deterministic evidence checks وليست مولداً مستقلاً لصفقات. حفظ ونشر هذا التحديث لم يُتحقق منه عند كتابة هذا القسم؛ التقرير المفصل: `WAIT_AND_TRADOVATE_DEMO_2026-11-16.md`.

@@ -210,6 +210,16 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(result["signals"][0]["scalp"]["tp"], 102)
         self.assertEqual(self.request("GET", "/api/scalping?rr=nan", auth=self.auth)[0], 400)
 
+    def test_unqualified_webhook_symbol_reaches_normalized_desk_analysis(self):
+        event = self.payload("BUY")
+        event["symbol"] = "EURUSD"
+        event["event_id"] = "synthetic-http-unqualified-BUY"
+        self.assertEqual(self.request("POST", "/v1/tradingview/events", event)[0], 202)
+        status, result = self.request("POST", "/api/analyze", {"symbol": "EUR/USD", "ai": False}, auth=self.auth)
+        self.assertEqual(status, 200)
+        self.assertEqual(result["decision"], "BUY")
+        self.assertEqual(result["symbol"], "OANDA:EURUSD")
+
     def test_notification_contains_full_and_scalp_without_pine_edits(self):
         message=app.trade_notification_text(self.payload("BUY"))
         self.assertIn("106.0",message)

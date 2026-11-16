@@ -46,14 +46,20 @@ class DeskTests(unittest.TestCase):
  def test_empty_and_heartbeat_never_manufacture_trade(self):
   for rows in ([],[self.row('HEARTBEAT')]):
    d=desk.analyze('EUR/USD',rows,{},NOW);self.assertEqual(d['decision'],'WAIT');self.assertIsNone(d['full_trade']);self.assertTrue(all(c['state']=='UNKNOWN' for c in d['checks']))
+   if rows:
+    self.assertEqual(d['decision_reason_code'],'NO_VALID_SIGNAL');self.assertEqual(d['data_state'],'FRESH_EVENT');self.assertEqual(d['signal_state'],'NO_VALID_SIGNAL')
+   else:
+    self.assertEqual(d['decision_reason_code'],'NO_DATA');self.assertEqual(d['data_state'],'NO_DATA');self.assertEqual(d['signal_state'],'NO_VALID_SIGNAL')
  def test_fresh_signal_has_both_targets_and_own_checks(self):
   d=desk.analyze('EURUSD',[self.row('HEARTBEAT',checks={'ready':False}),self.row(age=60,checks={'ready':True})],{},NOW)
   self.assertEqual(d['decision'],'BUY');self.assertEqual(d['full_trade']['tp'],105);self.assertEqual(d['scalp']['tp'],102);self.assertEqual(next(c for c in d['checks'] if c['key']=='ready')['state'],'PASSED')
+  self.assertEqual(d['decision_reason_code'],'VALID_SIGNAL');self.assertEqual(d['data_state'],'FRESH_EVENT');self.assertEqual(d['signal_state'],'VALID_SIGNAL')
  def test_failed_live_checks_explain_wait(self):
   d=desk.analyze('EURUSD',[self.row('HEARTBEAT',checks={'ready':False,'trigger_buy':False})],{},NOW)
-  self.assertEqual(d['decision'],'WAIT');self.assertTrue(any('الكولداون' in r for r in d['reasons']))
+  self.assertEqual(d['decision'],'WAIT');self.assertTrue(any('الكولداون' in r for r in d['reasons']));self.assertEqual(d['decision_reason_code'],'NO_VALID_SIGNAL');self.assertEqual(d['data_state'],'FRESH_EVENT');self.assertEqual(d['signal_state'],'NO_VALID_SIGNAL')
  def test_stale_signal_waits(self):
-  self.assertEqual(desk.analyze('EURUSD',[self.row(age=720)],{},NOW)['decision'],'WAIT')
+  result=desk.analyze('EURUSD',[self.row(age=720)],{},NOW)
+  self.assertEqual(result['decision'],'WAIT');self.assertEqual(result['decision_reason_code'],'STALE_DATA');self.assertEqual(result['data_state'],'STALE_DATA');self.assertEqual(result['signal_state'],'NO_VALID_SIGNAL')
  def test_disabled_filters_are_not_claimed_as_evidence(self):
   d=desk.condition_checks({'checks':{'ha_long':True,'volatility_ok':True},'filters':{'use_ha':False,'use_atr_floor':False}})
   self.assertEqual(next(c for c in d if c['key']=='ha_long')['state'],'DISABLED')
@@ -66,6 +72,11 @@ class DeskTests(unittest.TestCase):
   other=list(self.row(age=0));other[0]='CME_MINI:NQ1!'
   data=json.loads(other[3]);data['symbol']=other[0];data['event_id']='synthetic-other';other[3]=json.dumps(data)
   result=desk.analyze('EURUSD',[tuple(other),forex],{},NOW)
+  self.assertEqual(result['decision'],'BUY');self.assertEqual(result['symbol'],'OANDA:EURUSD')
+ def test_unqualified_event_symbol_is_normalized_before_desk_matching(self):
+  row=list(self.row(age=60,checks={'ready':True}));row[0]='EURUSD'
+  data=json.loads(row[3]);data['symbol']='EURUSD';row[3]=json.dumps(data)
+  result=desk.analyze('EUR/USD',[tuple(row)],{},NOW)
   self.assertEqual(result['decision'],'BUY');self.assertEqual(result['symbol'],'OANDA:EURUSD')
  def test_multiasset_identifiers_and_comparison_are_not_data_access_claims(self):
   for source in ('OANDA:GBPJPY','FXCM:EURUSD','NYMEX:CL1!','EUREX:FDAX1!'):

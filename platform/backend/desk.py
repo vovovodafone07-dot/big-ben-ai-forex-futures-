@@ -37,8 +37,15 @@ def condition_checks(telemetry):
 def analyze(symbol,rows,news,now=None):
     symbol=normalize(symbol);now=now or datetime.now(timezone.utc)
     parsed=[]
-    for market,kind,stamp,payload in rows:
+    scoped_rows=[]
+    for row in rows:
+        try:
+            market,kind,stamp,payload=row
+            market=normalize(market)
+        except (ValueError,TypeError):
+            continue
         if market!=symbol or kind not in ("BUY","SELL","HEARTBEAT"):continue
+        scoped_rows.append((market,kind,stamp,payload))
         try:
             dt=datetime.fromisoformat(stamp.replace("Z","+00:00"));data=json.loads(payload)
             if dt.tzinfo is None or not isinstance(data,dict):continue
@@ -52,7 +59,7 @@ def analyze(symbol,rows,news,now=None):
     raw_checks=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
     checks=condition_checks(telemetry)
     # Reuse the same freshness/outcome/geometry policy as the paired scalp endpoint.
-    paired=scalping.scenarios([row for row in rows if row[0]==symbol],1,now=now)
+    paired=scalping.scenarios(scoped_rows,1,now=now)
     signals=[s for s in paired["signals"] if s["symbol"]==symbol]
     signal=signals[0] if fresh and signals else None
     if signal:
@@ -61,12 +68,12 @@ def analyze(symbol,rows,news,now=None):
         raw_checks=telemetry.get("checks") if isinstance(telemetry.get("checks"),dict) else {}
         checks=condition_checks(telemetry)
     reasons=[]
-    if not latest:reasons.append("لم تصل بيانات TradingView لهذا الرمز بعد")
-    elif not fresh:reasons.append("آخر بيانات الرمز قديمة؛ لا تصدر صفقة حديثة منها")
-    if not signal:reasons.append("لا توجد إشارة BUY/SELL حديثة وصالحة من الاستراتيجية؛ القرار انتظار")
+    if not latest:reasons.append("NO_DATA: لم تصل بيانات TradingView لهذا الرمز بعد")
+    elif not fresh:reasons.append("STALE_DATA: آخر بيانات الرمز قديمة؛ لا تصدر صفقة حديثة منها")
+    if not signal:reasons.append("NO_VALID_SIGNAL: لا توجد إشارة BUY/SELL حديثة وصالحة من الاستراتيجية؛ القرار انتظار")
     if not raw_checks:reasons.append("النسخة الحالية لم ترسل تفاصيل شروط الدخول بعد؛ لا تُفترض تحققها")
     if signal:
-        reasons.extend(["إشارة فعلية مستلمة من TradingView","مستويات الدخول والوقف والهدف متسقة مع اتجاه الصفقة وRR","لم يُرصد إغلاق M5 يتجاوز الهدف أو الوقف في نافذة الفحص"])
+        reasons.extend(["VALID_SIGNAL: إشارة فعلية مستلمة من TradingView","مستويات الدخول والوقف والهدف متسقة مع اتجاه الصفقة وRR","لم يُرصد إغلاق M5 يتجاوز الهدف أو الوقف في نافذة الفحص"])
     relevant=[n for n in news.get("news",[]) if n.get("feed_fresh") and n.get("feed_state")=="CONNECTED"][:6]
     calendar=[e for e in news.get("calendar",[]) if e.get("feed_fresh") and e.get("feed_state")=="CONNECTED"]
     upcoming=[e for e in calendar if 0<=(datetime.fromisoformat(e["time"])-now).total_seconds()<=3600]
@@ -75,6 +82,9 @@ def analyze(symbol,rows,news,now=None):
         {"condition":"خبر أضعف من إجماع موثق","scenario":"تُنتظر إعادة اختبار ومستويات صحيحة من المؤشر قبل الدخول"},
         {"condition":"بيانات متعارضة أو غياب إجماع موثق","scenario":"لا يوجد توقع رقمي معتمد؛ السيناريو بحثي والانتظار متاح"}]
     decision=signal["event"] if signal else "WAIT"
+    data_state="NO_DATA" if not latest else "FRESH_EVENT" if fresh else "STALE_DATA"
+    signal_state="VALID_SIGNAL" if signal else "NO_VALID_SIGNAL"
+    decision_reason_code=("VALID_SIGNAL" if signal else "NO_VALID_SIGNAL") if fresh else data_state
     failed=[c["label"] for c in checks if c["state"]=="FAILED"]
     if fresh and raw_checks and not signal:
         reasons.extend("لم يتحقق: "+label for label in failed[:6])
@@ -87,7 +97,8 @@ def analyze(symbol,rows,news,now=None):
         {"role":"validation","state":"COMPLETED","output":"تُرفض الصفقة عند غياب إشارة حديثة ومستويات سليمة"},
         {"role":"updates","state":"COMPLETED","output":"الكود الحي مرتبط بسجل المصدر؛ تحديث TradingView يحتاج مسار الحساب المدعوم واختبارات الإصدار"},
         {"role":"coordinator","state":"COMPLETED","output":decision}]
-    return {"instrument":instruments.describe(symbol),"symbol":symbol,"generated_at":now.isoformat(),"decision":decision,"fresh":fresh,
+    return {"instrument":instruments.describe(symbol),"symbol":symbol,"generated_at":now.isoformat(),"decision":decision,
+        "decision_reason_code":decision_reason_code,"data_state":data_state,"signal_state":signal_state,"fresh":fresh,
         "source_time":latest[0].isoformat() if latest else None,"received_at":data.get("received_at"),
         "strategy_version":data.get("strategy_version") if isinstance(data.get("strategy_version"),str) else None,
         "smt_source_symbol":telemetry.get("smt_symbol") if isinstance(telemetry.get("smt_symbol"),str) else None,

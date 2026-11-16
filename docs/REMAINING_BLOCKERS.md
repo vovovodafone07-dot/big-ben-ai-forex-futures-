@@ -32,3 +32,9 @@ Production application snapshot download and new-local-database restore are veri
 ## Focused audit — 16 November 2026
 
 The live service is healthy in `live-analysis-alerts-only`; broker execution remains disabled. A separate endpoint audit confirmed that the private APIs and `/api/events.csv` require Basic Auth, while the TradingView webhook requires its independent token. The remaining blockers are evidence and operations, not an observed private-route exposure: continuous realtime data, licensed Futures coverage and rolls, same-feed Pine parity, larger cost-aware out-of-sample research, repeated production worker/notification proof, physical mobile/Safari validation, and recurring offsite backup. The Futures coverage inventory now includes every contract in `backend/instruments.py`, but each remains `UNKNOWN` until a licensed provider test proves access. The prioritized record is `docs/READINESS_AUDIT_2026-11-16.md`.
+
+## 16 نوفمبر 2026 — حدّ Tradovate وWAIT بعد الإصلاح
+
+إنشاء إعداد Tradovate Demo لا يثبت حساب API: الحقول الأربعة ما زالت غير متاحة وقت الفحص. يلزم إكمال بطاقة الأسرار ببيانات API فعلية والتحقق عبر auth ثم account/list على Demo فقط. لا يوجد Order Router ولا تنفيذ Demo أو Live؛ نجاح الحساب لا يثبت ترخيص بيانات السوق ولا تفويض أوامر. ترحيل أسرار Manus إلى Render لم يحدث.
+
+إصلاح التطبيع واختيار الشموع وإعادة المحاولة لا يعوض بيانات الرموز القديمة: الإنتاج أظهر رمزاً حديثاً واحداً من 11 مرصوداً، وآخر BUY/SELL قديمة. تبقى المنصة فاحصة لإشارات TradingView وليست مولداً مستقلاً لصفقات. بناء مولد خادمي يحتاج OHLC حديثاً مرخصاً وتطابق قواعد Pine ومستويات واختبارات مستقلة؛ لا تُختلق صفقات لإزالة WAIT. Gemini غير متحقق حالياً بسبب timeout، والطابور ليس دائماً عبر إعادة التشغيل. WhatsApp معطل وPine/Alerts محفوظان.

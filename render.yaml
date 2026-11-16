@@ -27,7 +27,7 @@ services:
       - key: BIGBEN_AGENT_WATCHDOG_ENABLED
         value: "1"
       - key: BIGBEN_WHATSAPP_ENABLED
-        value: "1"
+        value: "0"
       - key: WHATSAPP_ACCESS_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID

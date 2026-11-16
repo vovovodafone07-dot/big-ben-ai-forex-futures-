@@ -1,46 +1,47 @@
-# Big Ben AI — Forex & Futures (read-only)
+# Big Ben AI Pro — تحليل الفوركس والفيوتشرز
 
-واجهة عربية لعرض سيناريوهات قائمة مراقبة فوركس وفيوتشرز، دون تنفيذ صفقات أو إرسال تنبيهات أو اتصال بحساب وساطة.
+المنصة الحالية هي `platform/index.html` مع خادم `platform/backend/app.py`. تعرض الأدلة والتحليلات وتستقبل أحداث TradingView وتدعم Telegram، دون تنفيذ أوامر وساطة أو تغيير الاستراتيجية تلقائياً. التصميم الحالي Midnight/Neon عربي RTL؛ لا تستخدم أرقام أداء أو مستويات صفقات غير مستمدة من بيانات فعلية.
 
-## التشغيل
+## الخدمة البديلة — 16 نوفمبر 2026
 
-يتطلب Python 3.10+ ومفتاح API من مزود Twelve Data، مع اشتراك يدعم الرموز والأطر الزمنية المطلوبة (خصوصاً العقود المستقبلية). لا تضع المفتاح في `index.html`.
+الرابط: https://bigben-ai-pro-rebound.onrender.com/dashboard
 
-Linux/macOS:
+خدمة Render: `bigben-ai-pro-rebound`، المعرف `srv-dbt68qe1egvs73fhqbg0`، الفرع `main`، المنطقة Frankfurt، الخطة Free. نُسخت متغيرات الخدمة السابقة التسعة بالقيم الأصلية عبر مجموعة Render الآمنة `bigben-ai-pro-production`، بما فيها كلمة مرور المنصة ومفتاح Webhook واتصال قاعدة البيانات. لا توجد قيم سرية في هذا المستودع.
+
+نشر الإعدادات `dep-dbt6dkt6e07s73biikf0` نجح على commit `0c25909e58cf39fc57ac1621802f2db6ca3b07e0`. فحص `/healthz` و`/healthz/storage` أعاد 200 مع PostgreSQL. `/dashboard` والمسارات الخاصة تعيد 401 بدون المصادقة، بدلاً من خطأ عدم تهيئة المنصة 503. هذا لا يعادل اختبار دخول مصادق أو تسليم تنبيه فعلي جديد.
+
+الخدمة السابقة `bigben-ai-pro-api` محفوظة مؤقتاً حتى اكتمال قطع التحويل والتحقق وتأكيد الحذف النهائي. عنوانها الصحيح `bigben-ai-pro-api.onrender.com` يستجيب 200؛ العنوان المختلف `big-ben-ai-pro-api.onrender.com` يعيد 404 ولا يخص هذه الخدمة. لا تحذف قاعدة PostgreSQL المشتركة أو مجموعة البيئة عند حذف خدمة الويب.
+
+## تشغيل التطبيق الحالي محلياً
+
+يتطلب Python 3.10+ وNode لفحص JavaScript. أدخل الأسرار عبر بيئة خاصة، لا في أوامر محفوظة أو HTML أو Git.
+
 ```bash
-export TWELVEDATA_API_KEY='YOUR_KEY'
-python server.py
+python -m pip install -r platform/backend/requirements.txt
+python platform/backend/app.py
 ```
-Windows PowerShell:
-```powershell
-$env:TWELVEDATA_API_KEY='YOUR_KEY'
-python server.py
+
+الخادم يستمع إلى `0.0.0.0` والمنفذ `PORT`، افتراضياً 10000. نقطة الفحص `/healthz`، والواجهة `/dashboard`، واستقبال TradingView `POST /v1/tradingview/events`.
+
+تحتاج الواجهة كلمة مرور `BIGBEN_DASHBOARD_PASSWORD` بطول 20 حرفاً على الأقل؛ اسم المستخدم الافتراضي `bigben`. يستخدم الإنتاج `DATABASE_URL`، بينما SQLite المحلي/المؤقت ليس بديلاً عن قاعدة دائمة. إعدادات التكاملات ومجموعة البيئة ومسار التحويل موثقة في [دليل Render](docs/RENDER_DEPLOYMENT.md).
+
+## الحالة والقيود
+
+الوكلاء التسعة والمراقب يعملون في وضع `live_analysis`، مع بقاء تنفيذ الوساطة معطلاً. نجاح فحص Twelve Data لطلب EUR/USD واحد لا يثبت بيانات لحظية متصلة أو ترخيص جميع عقود Futures. الرسائل والإعدادات المنقولة لا تثبت تسليم Telegram جديد. إعدادات WhatsApp الخمسة غير موجودة في الخدمة السابقة وتبقى غير مهيأة.
+
+تغيير عنوان المستودع أو مجموعة البيئة لا يغير تلقائياً وجهة Webhook داخل تنبيهات TradingView. يجب نقل وجهة التنبيهات القائمة والتحقق من حدث حديث قبل حذف مستقبلها السابق؛ لا تنشئ تنبيهات مكررة ولا تعدل Pine لهذا الغرض. خطة Render المجانية قد تدخل الخمول، ولا تضمن تشغيل 24/7. تاريخ انتهاء PostgreSQL السابق الموثق 11 ديسمبر 2026 يحتاج إعادة تحقق، ولم يتغير بنقل خدمة الويب.
+
+## الاختبارات
+
+```bash
+python -m unittest discover -s platform/tests -v
+python -m unittest discover -s research/tests -v
+python scripts/check_frontend.py
+python -m compileall -q platform/backend platform/agent research
 ```
-افتح http://localhost:8000 ثم اضغط «تحديث التحليل من المصدر». إن لم يتوفر المفتاح، تبقى الواجهة في وضع عدم الاتصال ولا تولّد إشارات.
 
-## قائمة TradingView
+[الحالة الحالية](docs/CURRENT_PROJECT_STATUS.md) · [العوائق](docs/REMAINING_BLOCKERS.md) · [التقدم التاريخي](docs/IMPLEMENTATION_PROGRESS.md) · [حفظ البيانات](docs/DATA_PRESERVATION.md) · [TradingView](docs/TRADINGVIEW_INTEGRATION.md).
 
-استخدم زر استيراد قائمة TXT/CSV. يدعم قائمة رموز نصية مفصولة بفواصل أو أسطر، وبعض صيغ `OANDA:EURUSD` و `CME_MINI:NQ1!`؛ لا توجد صلاحية تلقائية للوصول إلى حساب TradingView. **راجع تصنيف الرموز يدوياً**؛ الاستيراد استدلالي، ولا يدعم كل صيغ CSV الخاصة بالمنصة.
+## النموذج الأولي التاريخي
 
-## منطق التحليل
-
-يُجلب 60 شمعة من Twelve Data لكل من إطار الدخول وM15/H1/H4/D1. الاتجاه مبني على مقارنة SMA10 وSMA20 والسعر، والاختراق على إغلاق آخر شمعة متجاوزاً نطاق آخر 20 شمعة. قد تكون الشمعة الأخيرة غير مكتملة؛ يجب مراجعة إغلاقها قبل اعتبار الاختراق متحققاً. الوقف يستند إلى آخر 8 شموع وATR تقريبي؛ الأهداف مقسمة إلى RR/3 و2RR/3 وRR. درجة 70 عند تحقق الشروط **إرشادية غير معايرة وليست احتمال نجاح**. المخاطرة 1% إعداد عرض فقط؛ لا يحسب حجم المركز أو قيمة النقطة.
-
-**قيود:** اشتراكات البيانات، أسماء عقود الفيوتشرز، توقيت الجلسات، انتهاء العقود، تأخير الأسعار، وحدود API قد تؤثر على النتائج. خادم التطوير ليس إعداداً إنتاجياً آمناً للنشر العام. الملاحظات محفوظة في localStorage، لا تُزامن بين الأجهزة. لا يوجد تنفيذ أو أوامر أو تنبيهات تلقائية.
-
-## النشر على Render (الخطوة الثانية)
-
-1. ارفع هذا المجلد إلى مستودع GitHub **خاص** (لا ترفع مفتاح API ولا ملف `.env`).
-2. في Render اختر New → Blueprint ثم المستودع الذي يحوي `render.yaml`، أو أنشئ Web Service واختر Python، وStart Command: `python server.py`.
-3. أضف المتغير السري `TWELVEDATA_API_KEY` من Render → Environment؛ الصق المفتاح هناك فقط، ثم Save, Deploy. لا ترسله بالمحادثة.
-4. افتح رابط Render الناتج وتحقق من `/health` ثم `/api/status` (تعني connected=true أن المفتاح مضبوط، **لا** أنه صالح أو أن الاشتراك يغطي الرموز).
-5. اختبر EURUSD من واجهة الموقع بزر «تحديث التحليل من المصدر»؛ افحص رسالة الخطأ وحدود الاشتراك. لا تفترض دعم ES/NQ أو رموز عقود TradingView تلقائياً.
-
-**أمان وحدود:** المفتاح يبقى على الخادم ولا يظهر للمتصفح. نقطة التحليل للقراءة فقط مع تحديد بسيط لعدد الطلبات لكل IP (12/دقيقة)، لكنها ليست نظام حماية إنتاجياً متكاملاً؛ عند النشر العام أضف مصادقة وقيود استخدام على مستوى الاستضافة لتجنب استنزاف الرصيد. Render Free قد يتوقف عند الخمول. `server.py` يستخدم خادم Python بسيطاً؛ مناسب للنموذج الأولي، وليس خدمة عامة عالية الحمل. إعداد `render.yaml` لا ينشر تلقائياً دون ربط حساب Render ومستودع GitHub. تجنب إدخال المفاتيح في URL أو السجلات أو ملفات HTML.
-
-## متابعة Big Ben AI Pro
-المنصة الحالية في platform/. [أهداف السكالب والصفقة الكاملة](docs/SCALPING.md) · [الحالة الفعلية](docs/CURRENT_PROJECT_STATUS.md) · [الاختبارات](docs/TEST_RESULTS.md) · [العوائق](docs/REMAINING_BLOCKERS.md).
-
-
-## Verified deployment — 2026-11-13
-Private dashboard: https://bigben-ai-pro-api.onrender.com/#analysis. Nine M5/v6.4.1 symbol alerts delivered to the backend; fresh cards show actual higher-timeframe observations, source version and Muscat timestamps. Full-trade and optional arithmetic scalp levels share the original entry/stop. Three forex histories contain2997 closed M5 candles, with three auditable nine-role proxy reports. Live code 336f2ad29159e8f7b7ae983bd798886fe2ee1bc9;99 tests passed. See docs/CURRENT_PROJECT_STATUS.md and docs/REMAINING_BLOCKERS.md for exact scope. This is read-only analysis, with no broker execution, automatic strategy promotion, or proven profitability.
+الزوج الجذري `server.py` و`index.html` ليس مسار التشغيل الحالي، ولا يطابق عقد API الخاص بالمنصة. ليسا نسختين متطابقتين. حُفظا لتجنب كسر أي نشر قديم غير مفحوص؛ لا تستخدم تعليمات النموذج الأولي لنشر الخدمة البديلة. ملفات Pine والأدلة وتقارير الاختبارات المؤرخة ليست ملفات مكررة، وتبقى محفوظة لتتبع المصدر والرجوع.

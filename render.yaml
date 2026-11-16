@@ -24,6 +24,8 @@ services:
         value: "1"
       - key: BIGBEN_SIGNAL_ANALYSIS_ENABLED
         value: "1"
+      - key: BIGBEN_AGENT_WATCHDOG_ENABLED
+        value: "1"
       - key: BIGBEN_WHATSAPP_ENABLED
         value: "1"
       - key: WHATSAPP_ACCESS_TOKEN

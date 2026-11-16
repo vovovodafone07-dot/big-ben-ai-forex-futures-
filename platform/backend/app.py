@@ -1,7 +1,7 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
 import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading
 from contextlib import contextmanager
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit,parse_qs
@@ -335,7 +335,22 @@ def list_events(limit=500, kind="all"):
    return c.execute("SELECT symbol,event,time,payload FROM events WHERE (%s = 'all' OR (%s = 'trades' AND event IN ('BUY','SELL')) OR (%s = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT %s",(kind,kind,kind,limit)).fetchall()
  with sqlite_connection() as c:
   return c.execute("SELECT symbol,event,time,payload FROM events WHERE (? = 'all' OR (? = 'trades' AND event IN ('BUY','SELL')) OR (? = 'heartbeat' AND event = 'HEARTBEAT')) ORDER BY time DESC LIMIT ?",(kind,kind,kind,limit)).fetchall()
-
+def signal_ttl_seconds(data):
+ timeframe=str(data.get("timeframe") or "5").strip().upper()
+ configured=os.getenv("BIGBEN_SIGNAL_TTL_SECONDS","").strip()
+ if configured.isdigit() and int(configured)>0:return int(configured)
+ return {"1":300,"3":600,"5":900,"15":3600,"30":7200,"60":14400,"1H":14400,"4H":86400,"D":172800}.get(timeframe,3600)
+def signal_lifecycle(data, stamp, now=None):
+ now=now or datetime.now(timezone.utc)
+ try:
+  dt=datetime.fromisoformat(str(stamp).replace("Z","+00:00"))
+  if dt.tzinfo is None:dt=dt.replace(tzinfo=timezone.utc)
+  age=max(0,int((now-dt).total_seconds()));ttl=signal_ttl_seconds(data)
+ except (TypeError,ValueError,AttributeError):
+  return {"status":"UNKNOWN","fresh":False,"age_seconds":None,"ttl_seconds":None,"expires_at":None}
+ expires=(dt+timedelta(seconds=ttl)).isoformat()
+ active=0<=age<=ttl
+ return {"status":"ACTIVE" if active else "EXPIRED","fresh":active,"age_seconds":age,"ttl_seconds":ttl,"expires_at":expires}
 def event_freshness(rows=None, now=None):
  now=now or datetime.now(timezone.utc)
  parsed=[]
@@ -584,12 +599,9 @@ class Handler(BaseHTTPRequestHandler):
    try:
     init()
     if postgres_enabled():
-     # Exercise INSERT and SELECT inside a transaction, then roll back:
-     # confirms DB write permissions without leaving fake trading signals.
+     # Read-only connectivity check: health checks must never create market events.
      with pg_connect() as c:
-      c.execute("INSERT INTO events (id,symbol,event,time,payload) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING", ("__bigben_health_probe__","HEALTH","HEARTBEAT","probe","{}"))
-      c.execute("SELECT id FROM events WHERE id=%s", ("__bigben_health_probe__",)).fetchone()
-      c.rollback()
+      c.execute("SELECT 1").fetchone()
     else:
      with sqlite_connection() as c:c.execute("SELECT 1").fetchone()
    except Exception:
@@ -804,7 +816,8 @@ class Handler(BaseHTTPRequestHandler):
    events=[]
    for symbol,event,t,payload in rows:
     d=json.loads(payload)
-    events.append({"event_id":d.get("event_id"),"instrument":_instruments.describe(symbol),"notification_text":trade_notification_text(d) if event in ("BUY","SELL") else None,"symbol":symbol,"event":event,"time":t,"received_at":d.get("received_at"),"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias")})
+    lifecycle=signal_lifecycle(d,t) if event in ("BUY","SELL") else {"status":"HEARTBEAT","fresh":None,"age_seconds":None,"ttl_seconds":None,"expires_at":None}
+    events.append({"event_id":d.get("event_id"),"instrument":_instruments.describe(symbol),"notification_text":trade_notification_text(d) if event in ("BUY","SELL") else None,"symbol":symbol,"event":event,"time":t,"received_at":d.get("received_at"),"entry":d.get("entry"),"sl":d.get("sl"),"tp":d.get("tp"),"rr":d.get("rr"),"evidence":d.get("evidence"),"confidence":d.get("confidence"),"entry_zone_low":d.get("entry_zone_low"),"entry_zone_high":d.get("entry_zone_high"),"htf_bias":d.get("htf_bias"),**lifecycle})
    return self.reply(200,{"events":events,"count":len(events),"storage":storage_kind(),"source":"TradingView webhooks"})
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})

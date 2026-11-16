@@ -375,6 +375,19 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual((status, result["count"]), (200, 0))
         self.assertEqual(app.evaluate_signals()["count"], 0)
 
+    def test_stale_trade_is_explicitly_expired_by_ttl(self):
+        payload = self.payload("BUY")
+        stamp = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        lifecycle = app.signal_lifecycle(payload, stamp)
+        self.assertEqual(lifecycle["status"], "EXPIRED")
+        self.assertFalse(lifecycle["fresh"])
+        self.assertEqual(lifecycle["ttl_seconds"], 900)
+
+    def test_storage_health_check_does_not_insert_probe_event(self):
+        status, result = self.request("GET", "/healthz/storage")
+        self.assertEqual((status, result["status"]), (200, "ok"))
+        self.assertEqual(app.list_events(), [])
+
     def test_invalid_levels_return_422(self):
         payload = self.payload("BUY")
         payload["sl"] = 101

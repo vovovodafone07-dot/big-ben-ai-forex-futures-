@@ -1,7 +1,7 @@
 """Read-only Big Ben reliability agent. Never trades or modifies production."""
 import json, os, sys, urllib.request, urllib.error
 from datetime import datetime, timezone
-BASE=os.getenv("BIGBEN_BASE_URL","https://bigben-ai-pro-api.onrender.com").rstrip("/")
+BASE=os.getenv("BIGBEN_BASE_URL","https://bigben-ai-pro-rebound.onrender.com").rstrip("/")
 def fetch(path,auth=None):
  req=urllib.request.Request(BASE+path,headers={"Accept":"application/json","User-Agent":"BigBenReliabilityAgent/1.0",**({"Authorization":auth} if auth else {})})
  with urllib.request.urlopen(req,timeout=25) as r:return r.status,json.load(r)

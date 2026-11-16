@@ -83,6 +83,18 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)
 
+    def test_market_sessions_are_public_and_news_test_is_authenticated(self):
+        status, session = self.request("GET", "/api/market/sessions")
+        self.assertEqual(status, 200)
+        self.assertIn(session["state"], ("OPEN", "CLOSED"))
+        self.assertGreaterEqual(session["seconds_remaining"], 0)
+        self.assertEqual(self.request("POST", "/api/news/test", {}, auth=None)[0], 401)
+        with patch.object(app._news, "refresh") as refresh:
+            status, result = self.request("POST", "/api/news/test", {}, auth=self.auth)
+        self.assertEqual(status, 200)
+        self.assertTrue(result["test_only"])
+        refresh.assert_called_once()
+
     def test_tradingview_csv_export_is_private_and_uses_utf8_bom(self):
         self.assertEqual(self.request("GET", "/api/events.csv")[0], 401)
         self.assertEqual(self.request("POST", "/v1/tradingview/events", self.payload("HEARTBEAT"))[0], 202)
@@ -204,6 +216,8 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertIn("102.0",message)
         self.assertIn("الصفقة الكاملة",message)
         self.assertIn("خيار السكالب",message)
+        self.assertIn("التحليل قد يفشل",message)
+        self.assertIn("مسؤوليتك",message)
 
     def test_recipients_are_private_validated_and_persisted(self):
         values={'telegram_chat_id':'123456789','whatsapp_number':'+96891234567','watchlist':['GBPJPY','NYMEX:CL1!']}

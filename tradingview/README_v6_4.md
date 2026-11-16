@@ -9,7 +9,7 @@
 3. Resolve any Pine compilation errors before configuring alerts; this version has **not been compiled on TradingView**.
 4. Default settings: RR 3, Both directions, Breakout + Retest, Balanced M15/H1/H4, two evidence votes. SMT and Heikin Ashi confirmation are optional.
 5. If using the bridge, enter the secret webhook token **only in TradingView indicator settings**; never commit it or share it in chat.
-6. Create a **new** alert with **Any alert() function call** and webhook `https://bigben-ai-pro-api.onrender.com/v1/tradingview/events`. Enable mobile app notifications if wanted.
+6. For a manually authorized alert migration, use **Any alert() function call** with webhook `https://bigben-ai-pro-rebound.onrender.com/v1/tradingview/events`. Do not create duplicates automatically; verify one fresh event on the new endpoint before retiring the old receiver. Enable mobile app notifications if wanted.
 7. Check `/healthz/integrations` and `/healthz/storage` on the Render service, then verify actual HEARTBEAT and BUY/SELL delivery.
 
 ## Limitations

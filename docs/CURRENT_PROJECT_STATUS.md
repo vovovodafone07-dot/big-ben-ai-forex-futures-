@@ -1,8 +1,8 @@
 # Big Ben AI Pro — current status, 14 November 2026
 
-Platform: https://bigben-ai-pro-api.onrender.com/#analyze
-Live code:1d95a1e826c8d2f120c353b3705effee8a25672d (PR24).
-Render deploy:dep-dbsb8jqfngtc73c8gdk0, live23:20Muscat.
+Platform: https://bigben-ai-pro-rebound.onrender.com/dashboard
+Live code:0c25909e58cf39fc57ac1621802f2db6ca3b07e0.
+Render deploy:dep-dbt6dkt6e07s73biikf0, live16نوفمبر2026. هذه الخدمة البديلة مرتبطة بقاعدة PostgreSQL ومجموعة البيئة الآمنة `bigben-ai-pro-production`.
 The owner chose to keep the service free and subsequently selected design A.
 
 ## Current release

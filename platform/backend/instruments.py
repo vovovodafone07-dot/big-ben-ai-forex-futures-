@@ -62,9 +62,32 @@ def comparison(value):
             "requires": "synchronized source candles, matching session, and measured correlation; override when unsuitable"}
 
 
+# Contract metadata only; these specs NEVER imply active market-data entitlement.
+TICK_SPECS={"NQ":(.25,5.0),"MNQ":(.25,.5),"ES":(.25,12.5),
+            "MES":(.25,1.25),"GC":(.1,10.0),"MGC":(.1,1.0),
+            "CL":(.01,10.0),"MCL":(.01,1.0)}
+MONTH_CODES="FGHJKMNQUVXZ"
+def futures_contract(value):
+    """Resolve explicit short root+month+two-digit-year; never guess expiries."""
+    raw=str(value).upper().strip()
+    match=re.fullmatch(r"(MNQ|MES|MGC|MCL|NQ|ES|GC|CL)(["+MONTH_CODES+r"])([0-9]{2})",raw)
+    if not match:return None
+    root,month,year=match.groups()
+    exchange=FUTURES[root][0]
+    return exchange+":"+root+month+year
+
+def futures_tick(value):
+    value=normalize(value)
+    ticker=value.split(":",1)[1]
+    root=next((x for x in sorted(TICK_SPECS,key=len,reverse=True) if ticker==x+"1!" or re.fullmatch(re.escape(x)+"["+MONTH_CODES+r"][0-9]{2}",ticker)),None)
+    return {"price_tick":TICK_SPECS[root][0],"tick_value_usd":TICK_SPECS[root][1],
+            "entitlement_verified":False,"provider_ohlc_verified":False} if root else None
+
 def normalize(value):
     if not isinstance(value, str): raise ValueError("symbol")
     value = value.strip().upper().replace("/", "")
+    contract=futures_contract(value)
+    if contract:return contract
     if value in SYMBOLS: return SYMBOLS[value]
     if value.removesuffix("1!") in FUTURES: return SYMBOLS[value.removesuffix("1!")]
     # Accept additional valid TradingView exchange-qualified identifiers without
@@ -93,7 +116,7 @@ def describe(value):
         kind, name = "crypto", EXTRA_NAMES.get(symbol,ticker)
     else:
         kind, name = "other", ticker
-    return {"symbol": symbol, "ticker": ticker, "name": name, "asset_class": kind, "smt_comparison": comparison(symbol),
+    return {"symbol": symbol, "ticker": ticker, "name": name, "asset_class": kind, "contract_specs": futures_tick(symbol) if kind=="futures" else None, "smt_comparison": comparison(symbol),
             "chart_url": "https://www.tradingview.com/chart/?"+urlencode({"symbol": symbol, "interval": "5"})}
 
 

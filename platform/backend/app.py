@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -100,6 +100,8 @@ def init():
    _market_pulses.migrate(c)
    _instant_telegram.migrate(c)
    _arabic_event_engine.migrate(c)
+   _native_trade_journal.migrate(c)
+   _connected_market.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -117,6 +119,8 @@ def init():
    _market_pulses.migrate(c)
    _instant_telegram.migrate(c)
    _arabic_event_engine.migrate(c)
+   _native_trade_journal.migrate(c)
+   _connected_market.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -229,7 +233,7 @@ def send_arabic_market_event(event):
  try:
   content=(_arabic_event_engine.technical_message(event) if event["kind"]=="technical"
            else _arabic_event_engine.news_message(event))
-  delivery=send_telegram_message(content)
+  delivery=send_telegram_message(content,category="news" if event["kind"]=="news" else "analysis")
  except Exception:delivery="failed"
  try:
   with history_connection() as db:_arabic_event_engine.finish(db,key,delivery,postgres_enabled())
@@ -247,6 +251,12 @@ def scan_arabic_market_once(now=None):
   try:
    analysis=analyze_instant_native(symbol,"scalp")
    results["symbols"][symbol]=analysis["status"]
+   live=_connected_market.gate(analysis,now)
+   with history_connection() as db:
+    newly_opened=_connected_market.record_open_state(db,symbol,live["open"],postgres_enabled(),now)
+   if newly_opened=="opened":
+    notification="🟢 افتتاح السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nتم استئناف وصول شموع مغلقة حديثة من المصدر المطابق.\nالتحليل والتنبيهات تعمل وفق شروطها، وليس إعلاناً عن صفقة."
+    send_telegram_message(notification,category="market")
    if analysis["status"]=="DATA_UNAVAILABLE":continue
    if symbol.startswith("BITSTAMP:"):
     rows,_=bitstamp_native_candles(symbol,now)
@@ -256,6 +266,11 @@ def scan_arabic_market_once(now=None):
     mark="%s" if postgres_enabled() else "?"
     with history_connection() as db:
      rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+   with history_connection() as db:
+    movements=_native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now)
+   for movement in movements:
+    delivery=send_telegram_message(_native_trade_journal.management_message(movement,now),category="management")
+    print("إدارة_صفقة الرمز="+symbol+" الحالة="+movement["state"]+" تسليم="+delivery,flush=True)
    for event in _arabic_event_engine.technical_events(symbol,rows,now):
     status=send_arabic_market_event(event)
     if status=="sent":results["events"]+=1
@@ -415,10 +430,13 @@ def trigger_instant_telegram(plan):
  """
  if not _instant_telegram.eligible(plan):
   return {"status":"not_eligible"}
+ market=_connected_market.gate(plan)
+ if not market["open"]:
+  return {"status":"market_closed","reason":market["reason"]}
  if os.getenv("BIGBEN_NATIVE_TELEGRAM_ENABLED","1")!="1":
   return {"status":"disabled"}
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
+ chat=telegram_destination("trade" if plan.get("status")=="READY" else "analysis")
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return {"status":"not_configured"}
  try:
@@ -428,11 +446,13 @@ def trigger_instant_telegram(plan):
   return {"status":"storage_unavailable"}
  if not key:return {"status":"duplicate"}
  def deliver():
-  try:result=_instant_telegram.send(plan,token,chat)
+  try:result=_instant_telegram.send(plan,token,chat,topic_id=telegram_topic_id("trade" if plan.get("status")=="READY" else "analysis"))
   except Exception:result="failed"
   try:
    with history_connection() as c:
     _instant_telegram.finish(c,key,result,postgres_enabled())
+    if result=="sent" and plan.get("status")=="READY":
+     _native_trade_journal.store(c,plan,postgres_enabled())
    print("native_telegram symbol="+plan["symbol"]+" status="+result,flush=True)
   except Exception:print("native_telegram status=receipt_storage_unavailable",flush=True)
  try:
@@ -866,11 +886,17 @@ def whatsapp_notify(d):
  except (ValueError,KeyError,TypeError):return "invalid_signal"
  except Exception:return "storage_unavailable"
 
-def telegram_destination():
+def telegram_destination(kind=None):
+ override=os.getenv("BIGBEN_TELEGRAM_"+str(kind or "").upper()+"_CHAT_ID","").strip()
+ if override and re.fullmatch(r"-?[0-9]{5,20}",override):return override
  try:
   with history_connection() as c:chat=_destinations.read(c)["telegram_chat_id"]
  except Exception:return ""
  return chat or os.getenv("TELEGRAM_CHAT_ID","").strip()
+
+def telegram_topic_id(kind):
+ raw=os.getenv("BIGBEN_TELEGRAM_"+str(kind).upper()+"_THREAD_ID","").strip()
+ return int(raw) if raw.isdigit() and int(raw)>0 else None
 
 def telegram_notify(d):
  # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
@@ -910,12 +936,15 @@ def audit_telegram_connection():
   except (OSError,ValueError,TimeoutError):
    print("telegram_audit check="+method+" state=CONNECTION_ERROR",flush=True)
 
-def send_telegram_message(message):
+def send_telegram_message(message,category="analysis"):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
+ chat=telegram_destination(category)
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
- payload=json.dumps({"chat_id":chat,"text":message}).encode()
+ data={"chat_id":chat,"text":message}
+ topic=telegram_topic_id(category)
+ if topic:data["message_thread_id"]=topic
+ payload=json.dumps(data,ensure_ascii=False).encode()
  req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
  try:
   with urllib.request.urlopen(req,timeout=8) as response:
@@ -979,7 +1008,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1044,6 +1073,20 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
     return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning_policy":"evidence_only_no_automatic_code_or_strategy_edits","ai_daily_request_limit":10})
    except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
+  if path=="/api/trade-journal":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    with history_connection() as db:records=_native_trade_journal.recent(db)
+    return self.reply(200,{"records":records,"count":len(records),"execution":"متابعة بحثية افتراضية دون تنفيذ أوامر"})
+   except Exception:return self.reply(503,{"error":"journal_unavailable"})
+  if path=="/api/connected-symbols":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    with history_connection() as db:symbols=_connected_market.connected(db,postgres=postgres_enabled())
+    return self.reply(200,{"symbols":symbols,"count":len(symbols),
+       "futures_note":"لا تُعرض العقود الآجلة حتى يكتمل اتصال مصدر شموع مرخص مطابق للعقد",
+       "source_policy":"رموز بيانات مؤكدة فقط، وليس مجرد قائمة مراقبة"})
+   except Exception:return self.reply(503,{"error":"connected_symbols_unavailable"})
   if path=="/api/instruments":
    try:
     with history_connection() as c:preferences=_destinations.read(c)

@@ -272,3 +272,11 @@ body[data-design="pro"] .reference-chart-header{gap:10px!important}
 body[data-design="pro"] .ref-telegram-delivery{margin:6px 0;font-size:11px;color:#aad5d7;border:1px solid #31545a;border-radius:6px;background:#09242d;padding:6px 8px;text-align:right;direction:rtl}
 body[data-design="pro"] .ref-telegram-delivery[data-state="sent"]{color:#40eabc;border-color:#238b70}
 body[data-design="pro"] .ref-telegram-delivery[data-state="failed"],body[data-design="pro"] .ref-telegram-delivery[data-state="not_configured"]{color:#ffbf82;border-color:#8a5f3f}
+
+/* True connected-only native select. Text entry cannot bypass verified OHLC catalog. */
+body[data-design="pro"] .ref-symbol-content #desk-symbol{width:100%!important;min-width:0!important;max-width:100%!important;background:#062a36!important;border:0!important;color:#f0fffe!important;font-size:16px!important;font-weight:800!important;cursor:pointer!important;text-align:left!important;direction:ltr!important;padding:4px 18px 4px 3px!important;appearance:auto!important}
+body[data-design="pro"] .ref-symbol-content #desk-symbol:disabled{color:#a4bab9!important;cursor:not-allowed!important}
+body[data-design="pro"] .ref-symbol-content .symbol-input{min-width:0;max-width:100%;width:100%;display:flex;align-items:center}
+body[data-design="pro"] .ref-symbol-content .symbol-input #ref-symbol-short{display:none!important}
+
+body[data-design="pro"] .ref-journal-status{padding:6px 8px;margin:4px 0;border:1px solid #235864;border-radius:6px;background:#08242d;color:#b0dce4;font-size:11px;text-align:right;direction:rtl}

@@ -94,6 +94,25 @@ class TelegramNativeTests(unittest.TestCase):
   self.assertEqual(telegram.send(plan(),"fake_token","12345678",
                    opener=lambda req,timeout:LongReply()),"sent")
 
+ def test_ready_trade_only_telegram_template_excludes_news_and_bias(self):
+  p=plan(status="READY")
+  p["confirmation"]["confirmed"]=True
+  result=telegram.trade_only_message(p)
+  self.assertIn("🔵 شراء",result)
+  self.assertIn("الدخول:",result)
+  self.assertIn("وقف الخسارة:",result)
+  self.assertIn("الهدف 1",result)
+  self.assertIn("الهدف 3",result)
+  self.assertNotIn("الأخبار",result)
+  self.assertNotIn("الباياس",result)
+  self.assertNotIn("سيناريو مشروط",result)
+ def test_ready_structural_fingerprint_ignores_target_only_drift(self):
+  p=plan(status="READY");p["confirmation"]["confirmed"]=True
+  x=telegram.fingerprint(p,"12345678")
+  p["targets"][2]["price"]=60400
+  self.assertEqual(x,telegram.fingerprint(p,"12345678"))
+  p["entry"]=60001
+  self.assertNotEqual(x,telegram.fingerprint(p,"12345678"))
  def test_telegram_http_failure_is_safely_categorized(self):
   import urllib.error
   import io

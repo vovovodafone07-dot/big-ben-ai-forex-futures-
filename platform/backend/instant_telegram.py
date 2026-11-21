@@ -64,6 +64,13 @@ def fingerprint(plan, chat):
         raise ValueError("not_a_verified_research_plan")
     if not re.fullmatch(r"-?[0-9]{5,20}",str(chat)):
         raise ValueError("chat_not_configured")
+    if plan.get("status")=="READY":
+        # Once confirmed, key is determined by actual structural entry and stop,
+        # not by drifting target projections or the age of a candle.
+        setup={k:plan.get(k) for k in ("symbol","mode","technical_direction","entry","sl")}
+        setup["structural_level"]=(plan.get("confirmation") or {}).get("level")
+        setup["chat_hash"]=hashlib.sha256(str(chat).encode()).hexdigest()
+        return hashlib.sha256(json.dumps(setup,sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()).hexdigest()
     # Candle timestamp is intentionally excluded: stable levels are not NEW trades
     # merely because the provider has delivered one more closed M5 candle.
     subset={k:plan.get(k) for k in ("symbol","mode","status","technical_direction","entry","sl")}
@@ -77,6 +84,27 @@ def _f(x):
 
 def _esc(s):
     return html.escape(str(s),quote=True)
+
+def trade_only_message(plan, now=None):
+    """Only the trade and confirmation/SL/TP levels; no macro analysis mixed in."""
+    if not eligible(plan) or plan.get("status")!="READY":
+        raise ValueError("trade_needs_verified_ready_status")
+    now=now or datetime.now(timezone.utc)
+    side="🔵 شراء" if plan["technical_direction"]=="BUY" else "🔴 بيع"
+    symbol=_esc(plan["symbol"].split(":",1)[1])
+    c=plan.get("confirmation") or {}
+    body=[side+" | "+symbol+" ("+_esc({"crypto":"سوق فوري","forex":"فوركس","futures":"عقود آجلة","cfd":"عقود فروقات"}.get((plan.get("instrument") or {}).get("asset_class"),"سوق موثق"))+")",
+          "━━━━━━━━━━━━━━━━━━",
+          "🎯 الدخول: "+_f(plan["entry"]),
+          "🛑 وقف الخسارة: "+_f(plan["sl"]),
+          "✅ الأهداف:"]
+    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+": "+_f(t["price"]))
+    body+=["📋 شروط الدخول:",
+            "• تأكيد إغلاق "+("ساعة" if plan["mode"]=="swing" else "خمس دقائق")+" عند "+_f(c.get("level",plan["entry"])),
+            "• إبطال الفكرة عند تجاوز وقف الخسارة",
+            "⏱️ الوقت: "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" مسقط",
+            "⚠️ خطة بحثية، ليست تنفيذاً حقيقياً."]
+    return "\n".join(body)
 
 def message(plan, now=None):
     if not eligible(plan):
@@ -146,14 +174,16 @@ def finish(connection,key,result,postgres=False):
                        " WHERE fingerprint="+mark+" AND delivery='sending'",
                        (result,datetime.now(timezone.utc).isoformat(),key))
 
-def send(plan,token,chat,opener=None,timeout=5):
+def send(plan,token,chat,opener=None,timeout=5,topic_id=None):
     if not eligible(plan):
         return "not_eligible"
     if not token or not re.fullmatch(r"-?[0-9]{5,20}",str(chat)):
         return "not_configured"
     opener=opener or urllib.request.urlopen
-    payload=json.dumps({"chat_id":chat,"text":message(plan),"parse_mode":"HTML",
-                        "disable_web_page_preview":True},ensure_ascii=False).encode("utf-8")
+    body={"chat_id":chat,"text":(trade_only_message(plan) if plan["status"]=="READY" else message(plan)),"parse_mode":"HTML",
+                        "disable_web_page_preview":True}
+    if isinstance(topic_id,int) and topic_id>0:body["message_thread_id"]=topic_id
+    payload=json.dumps(body,ensure_ascii=False).encode("utf-8")
     request=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,
                                    method="POST",headers={"Content-Type":"application/json"})
     try:

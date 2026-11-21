@@ -288,8 +288,170 @@ body[data-design="pro"] .section-hidden{display:none!important}
  body[data-design="pro"] .a-workspace-title strong{font-size:16px!important}
 }
 @media(prefers-reduced-motion:reduce){body[data-design="pro"] .a-sidebar .sidebar button,body[data-design="pro"] .panel{transition:none!important}}
+</style><style id="design-one-layout-reference-fix">
+/* Structural design #1 correction: RTL right rail, chart-first, minimal market chrome. */
+body[data-design="pro"]{background:#06171d!important}
+body[data-design="pro"] .a-sidebar{
+ inset:0 0 0 auto!important;right:0!important;left:auto!important;
+ width:206px!important;background:linear-gradient(#05272a,#061a22)!important;
+ border-left:1px solid #1c5a58!important;border-right:0!important;
+ box-shadow:-8px 0 28px #02111477!important;
+}
+body[data-design="pro"] .a-sidebar .brand{direction:ltr!important;justify-content:center!important}
+body[data-design="pro"] .a-sidebar .sidebar{padding-top:14px!important}
+body[data-design="pro"] .a-sidebar .sidebar button,body[data-design="pro"] .a-sidebar .sidebar summary{
+ text-align:right!important;padding:12px 14px!important;
+}
+body[data-design="pro"] .a-sidebar .sidebar button:hover,body[data-design="pro"] .a-sidebar .sidebar button.active{
+ background:linear-gradient(90deg,#082a32,#087b6d)!important;
+ border-color:#2e9d8d!important;box-shadow:inset -3px 0 #3ef0ce!important;
+}
+body[data-design="pro"] .a-delivery-details:not([open]){opacity:.9}
+body[data-design="pro"] .a-delivery-details{margin-top:12px!important}
+body[data-design="pro"] .a-delivery-details>summary{font-size:12px}
+body[data-design="pro"] .pearl-header{
+ margin:0 206px 0 0!important;
+ padding:14px 23px 11px!important;
+ background:linear-gradient(90deg,#071921,#082e30)!important;
+ box-shadow:0 6px 24px #010c12a0!important;position:relative!important;
+}
+body[data-design="pro"] .header-logo-dot{color:#24d7ae;font-size:9px;vertical-align:middle;margin:0 5px}
+body[data-design="pro"] .header-row{align-items:center!important;min-height:32px!important}
+body[data-design="pro"] .a-workspace-title strong{font-family:"Segoe UI",Tahoma,Arial,sans-serif;letter-spacing:1.1px!important}
+body[data-design="pro"] .reference-health-panel{margin:10px 0 0;border-top:1px solid #265b59!important;padding-top:8px;color:#b3d0cc}
+body[data-design="pro"] .reference-health-panel>summary{cursor:pointer;font-size:12px;color:#a4ded2;list-style:none;display:flex;align-items:center;gap:8px}
+body[data-design="pro"] .reference-health-panel>summary::before{content:"◉";font-size:11px;color:#2de2be}
+body[data-design="pro"] .reference-health-panel>summary:focus-visible{outline:2px solid #20e7cc}
+body[data-design="pro"] .reference-health-hint{color:#84a8a9;font-size:11px}
+body[data-design="pro"] .reference-health-panel[open]>summary{margin-bottom:10px}
+body[data-design="pro"] .market-session-bar{margin:9px 0 0!important;gap:7px!important}
+body[data-design="pro"] .market-session-bar>span{font-size:11px!important;padding:5px 9px!important}
+body[data-design="pro"] #news-test{font-size:11px;padding:6px 10px!important}
+body[data-design="pro"] .workspace{
+ margin:0 206px 0 0!important;width:calc(100% - 206px)!important;
+ padding:18px 24px!important;
+}
+body[data-design="pro"] .page-heading{margin:0 0 12px!important}
+body[data-design="pro"] .page-heading h1{font-size:22px!important}
+body[data-design="pro"] .desk-toolbar{
+ display:grid!important;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)!important;
+ gap:18px!important;padding:13px 16px!important;margin:0 0 10px!important;
+ background:#0a2930!important;border:1px solid #25605e!important;
+}
+body[data-design="pro"] .toolbar-symbol{min-width:0!important}
+body[data-design="pro"] .symbol-input{display:flex!important;align-items:center!important}
+body[data-design="pro"] .symbol-input input{width:min(240px,60vw)!important;max-width:100%!important}
+body[data-design="pro"] .desk-parameters{display:flex!important;align-items:center!important;justify-content:flex-start!important}
+body[data-design="pro"] .toolbar-caption{font-size:11px;color:#88b9af;font-weight:700}
+body[data-design="pro"] .ai-option{font-size:11px!important}
+body[data-design="pro"] .compact-identity{margin:3px 2px 5px!important;font-size:11px!important}
+body[data-design="pro"] #desk-smt-research{display:none!important}
+body[data-design="pro"] .desk-main{
+ display:grid!important;direction:ltr!important;
+ grid-template-columns:minmax(0,1fr) minmax(275px,302px)!important;
+ gap:13px!important;align-items:stretch!important;
+}
+body[data-design="pro"] .a-chart-column,body[data-design="pro"] .analysis-dossier{direction:rtl!important}
+body[data-design="pro"] .a-chart-column{display:flex!important;min-width:0}
+body[data-design="pro"] #desk-market-chart{display:flex!important;flex-direction:column!important;width:100%!important;min-width:0!important}
+body[data-design="pro"] .reference-chart-header{
+ display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;
+ padding:0 0 11px;border-bottom:1px solid #265a58!important;
+}
+body[data-design="pro"] .reference-chart-header h2{margin:2px 0 0!important;padding:0!important;border:0!important}
+body[data-design="pro"] .reference-label{font-size:10px;letter-spacing:1.4px;color:#36ddc1;font-weight:700}
+body[data-design="pro"] .reference-supported-pairs{display:flex;flex-wrap:wrap;gap:5px;direction:ltr}
+body[data-design="pro"] .reference-supported-pairs button{
+ background:#0b393e;color:#b9e9e0;border:1px solid #2e7371;border-radius:7px;
+ padding:7px 8px;font-size:11px;font-weight:700;min-height:32px;
+}
+body[data-design="pro"] .reference-supported-pairs button:hover,
+body[data-design="pro"] .reference-supported-pairs button:focus-visible{
+ background:#0d716a;color:#fff;border-color:#31e4c9;
+}
+body[data-design="pro"] #desk-market-chart>div[style*="height:420px"]{
+ flex:1 1 auto;min-height:390px;height:clamp(410px,43vw,560px)!important;
+ margin-top:10px!important;border:1px solid #27615e!important;
+}
+body[data-design="pro"] #desk-market-chart .notice{margin-top:10px!important;padding:8px 10px!important}
+body[data-design="pro"] .market-chart-links{margin-top:9px!important;gap:5px!important}
+body[data-design="pro"] .market-chart-links .chip{padding:5px 7px!important;font-size:10px!important}
+body[data-design="pro"] .analysis-dossier{
+ padding:14px!important;display:flex!important;flex-direction:column;gap:9px!important;
+ background:linear-gradient(#0a3032,#09232c)!important;
+ border:1px solid #26766a!important;
+}
+body[data-design="pro"] .dossier-heading{margin:0!important}
+body[data-design="pro"] .dossier-heading h2{font-size:17px!important}
+body[data-design="pro"] #desk-analysis-status{font-size:12px;color:#9cc6c0;line-height:1.5;margin:1px 0!important}
+body[data-design="pro"] .decision-pill{
+ border-radius:8px!important;padding:10px 14px!important;
+ background:#104039!important;border:1px solid #2b8672!important;font-weight:800;
+}
+body[data-design="pro"] .analyze-mode-result{margin:1px 0!important;padding:12px!important}
+body[data-design="pro"] #desk-mode-name{font-size:14px!important}
+body[data-design="pro"] #desk-mode-note{font-size:11px!important;line-height:1.5}
+body[data-design="pro"] .analyze-selected-levels{
+ background:#061f27;padding:10px;border:1px solid #28625d;border-radius:8px;
+ line-height:1.8;font-size:12px!important;
+}
+body[data-design="pro"] .independent-opportunity{margin:6px 0 0!important;padding:9px!important}
+body[data-design="pro"] .source-details{margin:5px 0!important;font-size:11px}
+body[data-design="pro"] .analysis-dossier h3{margin:8px 0 4px!important;font-size:12px!important}
+body[data-design="pro"] .reason-list{max-height:94px;overflow-y:auto;margin:4px 0!important;font-size:11px}
+body[data-design="pro"] .a-evidence-highlights{display:flex;gap:5px;flex-wrap:wrap}
+body[data-design="pro"] .a-evidence-highlights>span{background:#0a3033!important;border-color:#2c605e!important;font-size:10px}
+body[data-design="pro"] .desk-pair{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin:0!important}
+body[data-design="pro"] .desk-pair .trade-plan{padding:10px!important}
+body[data-design="pro"] .desk-pair .trade-plan h2{margin-bottom:5px!important;font-size:13px!important}
+body[data-design="pro"] .desk-pair .plan-values{padding:3px 0!important;gap:3px!important}
+body[data-design="pro"] .desk-pair .plan-row{padding:6px!important;font-size:12px!important}
+body[data-design="pro"] .small-copy{margin:0!important;font-size:10px!important}
+body[data-design="pro"] .pro-timeframes{
+ margin:12px 0 14px!important;display:flex!important;flex-wrap:wrap;
+ align-items:center;gap:11px;padding:12px 14px!important;background:#0b2d33!important;
+}
+body[data-design="pro"] .pro-timeframes-heading{margin:0!important;min-width:155px;flex:1 1 175px}
+body[data-design="pro"] .pro-timeframes-heading strong{font-size:13px!important}
+body[data-design="pro"] .pro-timeframes-heading span{font-size:10px!important}
+body[data-design="pro"] .pro-timeframes-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;flex:3 1 420px}
+body[data-design="pro"] .pro-tf{padding:9px 10px!important}
+body[data-design="pro"] .pro-tf small{font-size:10px!important;margin-bottom:3px!important}
+body[data-design="pro"] .pro-tf strong{font-size:13px!important}
+body[data-design="pro"] .pro-tf-note{width:100%;margin:0!important;font-size:10px!important}
+body[data-design="pro"] .a-review-panel{margin-top:6px}
+body[data-design="pro"] .desk-lower{gap:13px!important}
+@media(max-width:1150px){
+ body[data-design="pro"] .desk-main{grid-template-columns:minmax(0,1fr) 276px!important}
+ body[data-design="pro"] .desk-toolbar{grid-template-columns:1fr!important}
+}
+@media(max-width:1000px){
+ body[data-design="pro"] .desk-main{grid-template-columns:1fr!important}
+ body[data-design="pro"] .analysis-dossier{max-width:none!important}
+ body[data-design="pro"] .desk-pair{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body[data-design="pro"] .pro-timeframes-grid{flex-basis:100%}
+}
+@media(max-width:780px){
+ body[data-design="pro"] .a-sidebar{position:relative!important;inset:auto!important;right:auto!important;left:auto!important;width:100%!important;border-left:0!important;border-bottom:1px solid #215956!important}
+ body[data-design="pro"] .pearl-header{margin:0!important;padding:12px!important}
+ body[data-design="pro"] .workspace{margin:0!important;width:100%!important;padding:12px!important}
+ body[data-design="pro"] .desk-main{grid-template-columns:1fr!important}
+ body[data-design="pro"] .a-sidebar .sidebar{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ body[data-design="pro"] .reference-health-hint{display:none}
+ body[data-design="pro"] .desk-pair{grid-template-columns:1fr!important}
+ body[data-design="pro"] .pro-timeframes-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body[data-design="pro"] #desk-market-chart>div[style*="height:420px"]{height:340px!important;min-height:300px}
+}
+@media(max-width:480px){
+ body[data-design="pro"] .reference-supported-pairs button{font-size:10px;padding:5px 6px}
+ body[data-design="pro"] .reference-chart-header{display:block}
+ body[data-design="pro"] .reference-supported-pairs{margin-top:8px}
+ body[data-design="pro"] .market-session-bar{gap:4px!important}
+ body[data-design="pro"] .desk-toolbar .symbol-input{flex-direction:column}
+ body[data-design="pro"] .desk-toolbar .symbol-input .btn{width:100%}
+}
 </style></head><body data-design="pro">
-<aside class="a-sidebar" aria-label="القائمة وإعدادات الإرسال"><div class="brand"><span class="brand-mark">BB</span><div><b>BIG BEN AI PRO</b><small>Native Market Intelligence</small></div></div><nav class="sidebar" aria-label="التنقل"><button type="button" data-target="overview">الرئيسية</button><button type="button" data-target="analyze">Analyze</button><button type="button" data-target="analysis">الأسواق</button><button type="button" data-target="signals">الإشارات</button><button type="button" data-target="agents">الأيجنت</button><button type="button" data-target="backtest">الباك تيست</button><button type="button" data-target="news">الأخبار والتقويم</button><button type="button" data-target="lab">المختبر</button><button type="button" data-target="settings">الإعدادات</button><details><summary>المزيد</summary><div><button data-target="scalping">أهداف السكالب</button><button data-target="trade-setup">تفاصيل الصفقة</button><button data-target="performance">الأداء والمخاطر</button><button data-target="watch">قائمة المتابعة</button><button data-target="alerts">التنبيهات</button></div></details></nav><details class="a-delivery-details" open><summary>وجهات التنبيهات والمشاركة</summary><section class="a-recipient-panel" id="notification-destinations"><div class="channel-inputs"><div><label for="recipient-telegram">Telegram — معرّف المحادثة Chat ID</label><input id="recipient-telegram" autocomplete="off" placeholder="مثال: 123456789 أو -100…"><p class="workspace-note">Chat ID وليس الهاتف؛ الفراغ يستخدم الوجهة الحالية.</p></div><div><label for="recipient-whatsapp">WhatsApp — الرقم الدولي</label><input id="recipient-whatsapp" type="tel" autocomplete="off" placeholder="+968XXXXXXXX"><p class="workspace-note">رقم دولي يبدأ بـ +. إرسال تلقائي عند تفعيل Meta Cloud API، أو مشاركة يدوية إذا لم تكتمل بيانات المزود.</p></div></div><div class="channel-actions"><button class="btn" id="save-destinations" type="button">حفظ الوجهات</button><button class="text-button" data-go="signals">عرض الصفقات والمشاركة</button></div><p id="destination-status" role="status">جارٍ قراءة إعدادات الوجهات…</p><p class="workspace-note">حفظ الرقم يحدد الوجهة فقط؛ الإرسال التلقائي يتطلب إعدادات Meta Cloud API في Render، ولا يُرسل أي شيء قبل تحقق المزود.</p></section></details></aside><header class="pearl-header"><div class="header-row"><div class="a-workspace-title"><strong>مركز تحليل الأسواق</strong><small>Native Chart Analysis · Scalp / Swing · بدون تنفيذ أوامر</small></div><div class="design-picker" role="group" aria-label="اختيار مظهر الواجهة"><span class="muted">المظهر:</span><button type="button" data-design-choice="pro" aria-pressed="true">احترافي</button><button type="button" data-design-choice="terminal" aria-pressed="false">Terminal</button><button type="button" data-design-choice="light" aria-pressed="false">تحريري</button></div><span id="clock" class="muted"></span></div><div class="integration-strip" aria-live="polite"><span id="desk-tv-state">TradingView · جارٍ الفحص</span><span id="desk-data-state">البيانات · جارٍ الفحص</span><span id="desk-news-state">الأخبار · جارٍ الفحص</span><span id="desk-ai-state">الذكاء الاصطناعي · جارٍ الفحص</span><span id="desk-storage-state">التخزين · جارٍ الفحص</span></div><p id="connection" class="connection-caption">لا يوجد بث سوق لحظي مثبت بعد؛ الإشارات لا تصبح حية إلا بعد وصول Heartbeat حديث.</p><div class="live-readiness" aria-live="polite" role="status"><div class="readiness-indicator" id="readiness-indicator" data-state="checking"><span class="readiness-dot" aria-hidden="true"></span><strong id="readiness-title">جارٍ التحقق من اتصال TradingView M5</strong></div><span id="readiness-last" class="readiness-meta">ننتظر دليلاً حديثاً من المصدر؛ لا نعرض إشارات قديمة باعتبارها Live.</span><button id="readiness-refresh" type="button" class="btn">تحديث الاتصال</button></div><div class="market-session-bar"><span id="market-session-state">جلسة السوق: جارٍ الحساب</span><span id="market-session-countdown">العداد: —</span><span id="market-session-rollover">الإغلاق اليومي: —</span><button type="button" class="btn" id="news-test">اختبار تحليل الأخبار</button><span id="news-test-status" class="muted">اختبار آمن لا ينشئ إشارة</span></div></header><div class="workspace"><main class="main"><div class="page-heading"><h1 id="page-title">لوحة التداول والتحليل</h1><span class="muted">Big Ben AI Pro · تحليل عند وصول البيانات — تنفيذ الوساطة مغلق</span></div><div class="grid"><section class="desk-workspace" data-page="overview analyze"><div class="desk-toolbar"><div><label for="desk-symbol">اختر زوج الفوركس أو العقد للتحليل المستقل</label><div class="symbol-input"><input id="desk-symbol" list="desk-symbol-options" value="" autocomplete="off" aria-label="الزوج أو العقد"><datalist id="desk-symbol-options"><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist><button class="btn" type="button" id="desk-analyze">تحليل سريع</button></div></div><div class="desk-parameters"><label class="analyze-mode-label" for="desk-mode">نوع التحليل <select id="desk-mode" aria-label="نوع التحليل"><option value="scalp">Scalp · سكالب M5</option><option value="swing">Swing · سوينج H1/H4</option></select></label><span class="pill" id="desk-mode-timeframe">M5 للدخول</span><span class="pill">محرك المنصة · RR 2.5 · بلا Pine</span><label class="ai-option"><input type="checkbox" id="desk-use-ai" disabled> مراجعة AI الإضافية غير مفعلة في هذا الإصدار</label></div></div><p id="desk-instrument-identity" class="compact-identity workspace-note">اختر زوج فوركس لتحليله مباشرة من شموع السوق. عقود الفيوتشرز تحتاج موصل OHLC مرخصاً؛ لا نعرض CFD على أنه عقد حقيقي.</p><p id="desk-smt-research" class="workspace-note">قياس ارتباط SMT التاريخي يظهر عند توفر تاريخ متزامن للزوجين.</p><section class="pro-timeframes" aria-label="تأكيد اتجاه الفريمات"><div class="pro-timeframes-heading"><strong>توافق الفريمات</strong><span id="pro-timeframes-state">بانتظار تحليل المنصة من شموع السوق</span></div><div class="pro-timeframes-grid"><div class="pro-tf"><small>M5 · الدخول</small><strong id="pro-tf-m5">—</strong></div><div class="pro-tf"><small>M15 · الزخم</small><strong id="pro-tf-m15">—</strong></div><div class="pro-tf"><small>H1 · الاتجاه</small><strong id="pro-tf-h1">—</strong></div><div class="pro-tf"><small>H4 · السياق</small><strong id="pro-tf-h4">—</strong></div></div><p class="pro-tf-note" id="pro-tf-note">تحليل المنصة يعتمد على شموع OHLC المستلمة من المزود وليس مؤشر Pine. لم تُثبت صلاحية بيانات جميع الأسواق بعد.</p></section><div class="desk-main"><div class="a-chart-column"><section class="panel chartpanel" id="desk-market-chart"><h2><span class="chart-title-mark" aria-hidden="true">▥</span> الشارت والتحليل المباشر <span class="pill">OHLC · M5</span></h2><div class="chart-source-note" role="note">الشارت المضمّن للعرض البصري فقط. قرار Analyze يُحسب داخل المنصة من بيانات OHLC المستقلة، دون قراءة إشارات Pine.</div><div style="height:420px;border:1px solid #344c81;border-radius:10px;overflow:hidden;margin-top:12px"><div id="desk-live-chart" style="height:100%;width:100%"><p class="muted">اختر الزوج أو العقد؛ الرسم يتبع الرمز المحدد في التحليل.</p></div></div><div class="notice"><span id="desk-chart-status" role="status">شموع M5 يتم رسمها داخل المنصة من مزود OHLC عند تحليل الرمز؛ لا حاجة لمؤشر TradingView.</span> <a id="desk-chart-link" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">فتح الرسم على TradingView</a>. الرابط الخارجي اختياري؛ تحليل المنصة لا يعتمد على TradingView.</div><div class="market-chart-links" aria-label="مخططات الأسواق على TradingView"><a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AEURUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">EURUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AGBPUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">GBPUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AUSDJPY&amp;interval=5" target="_blank" rel="noopener noreferrer">USDJPY</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3ANQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">NQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMNQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MNQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">ES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CBOT_MINI%3AYM1!&amp;interval=5" target="_blank" rel="noopener noreferrer">YM</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME%3A6E1!&amp;interval=5" target="_blank" rel="noopener noreferrer">6E</a></div></section></div><aside class="panel analysis-dossier"><div class="dossier-heading"><h2>تحليل الصفقة</h2><span class="decision-pill" id="desk-decision">انتظار</span></div><p id="desk-analysis-status" role="status">اختر الزوج أو العقد ثم اضغط «تحليل سريع».</p><div class="analyze-mode-result" role="status" aria-live="polite"><strong id="desk-mode-name">Scalp · سكالب M5</strong><span id="desk-mode-note">يعرض سكالب فقط عند وجود إشارة حديثة معتمدة؛ لا يتم إنشاء صفقة من بيانات ناقصة.</span><div id="desk-mode-selected" class="analyze-selected-levels">Entry — · SL — · TP — · RR —</div><div id="desk-independent-setup" class="independent-opportunity" aria-live="polite"><strong>محرك الفرص المستقل</strong><span id="desk-independent-state">بانتظار فحص شموع M5 الفعلية</span><div id="desk-independent-levels">لا توجد فرصة بحثية مؤكدة حالياً.</div><small>الفرصة البحثية ليست إشارة BUY/SELL من TradingView ولا أمراً للتداول.</small></div></div><dl class="source-details"><dt>مصدر التحليل</dt><dd id="desk-source">TradingView</dd><dt>وقت المصدر — مسقط</dt><dd id="desk-source-time">—</dd><dt>نسخة الاستراتيجية</dt><dd id="desk-version">—</dd></dl><h3>أسباب الدخول أو الانتظار</h3><ul id="desk-reasons" class="reason-list"></ul><div class="a-evidence-highlights"><span id="a-cisd-state">CISD · غير معلوم</span><span id="a-smt-state">SMT · غير معلوم</span></div><div class="desk-pair"><article class="panel trade-plan"><h2>الصفقة الكاملة <span class="muted">الهدف الأصلي</span></h2><div id="desk-full-trade" class="plan-values"></div></article><article class="panel trade-plan"><h2>أهداف السكالب <span class="muted">بديل من نفس الإشارة</span></h2><div id="desk-scalp-trade" class="plan-values"></div></article></div><p class="muted small-copy">خياران لنفس الدخول والوقف؛ اختر أحدهما. لا تنفذ المنصة أوامر تداول.</p><details class="a-check-details"><summary>كل الشروط والأدلة</summary><div id="desk-checks"></div></details></aside></div><section class="panel a-review-panel"><h2>المحللون المتخصصون <span class="pill">مراجعة AI وفق الأدلة</span></h2><div id="desk-ai-review" class="a-review-grid"><p>التحليل الأساسي الحتمي يعمل دون Gemini؛ المراجعة النموذجية اختيارية عند تفعيل مزود معتمد.</p></div></section><div class="desk-lower"><article class="panel"><h2>الأخبار الاقتصادية <button class="text-button" data-go="news">عرض الكل</button></h2><div id="desk-news-mini">جارٍ قراءة الأخبار…</div></article><article class="panel"><h2>الأيجنت <button class="text-button" data-go="agents">عرض المهام</button></h2><div id="desk-agent-mini">اختر رمزًا لبدء التحليل.</div></article></div></section>
+<aside class="a-sidebar" aria-label="القائمة وإعدادات الإرسال"><div class="brand"><span class="brand-mark">BB</span><div><b>BIG BEN AI PRO</b><small>Native Market Intelligence</small></div></div><nav class="sidebar" aria-label="التنقل"><button type="button" data-target="overview">الرئيسية</button><button type="button" data-target="analyze">Analyze</button><button type="button" data-target="analysis">الأسواق</button><button type="button" data-target="signals">الإشارات</button><button type="button" data-target="agents">الأيجنت</button><button type="button" data-target="backtest">الباك تيست</button><button type="button" data-target="news">الأخبار والتقويم</button><button type="button" data-target="lab">المختبر</button><button type="button" data-target="settings">الإعدادات</button><details><summary>المزيد</summary><div><button data-target="scalping">أهداف السكالب</button><button data-target="trade-setup">تفاصيل الصفقة</button><button data-target="performance">الأداء والمخاطر</button><button data-target="watch">قائمة المتابعة</button><button data-target="alerts">التنبيهات</button></div></details></nav><details class="a-delivery-details" open><summary>وجهات التنبيهات والمشاركة</summary><section class="a-recipient-panel" id="notification-destinations"><div class="channel-inputs"><div><label for="recipient-telegram">Telegram — معرّف المحادثة Chat ID</label><input id="recipient-telegram" autocomplete="off" placeholder="مثال: 123456789 أو -100…"><p class="workspace-note">Chat ID وليس الهاتف؛ الفراغ يستخدم الوجهة الحالية.</p></div><div><label for="recipient-whatsapp">WhatsApp — الرقم الدولي</label><input id="recipient-whatsapp" type="tel" autocomplete="off" placeholder="+968XXXXXXXX"><p class="workspace-note">رقم دولي يبدأ بـ +. إرسال تلقائي عند تفعيل Meta Cloud API، أو مشاركة يدوية إذا لم تكتمل بيانات المزود.</p></div></div><div class="channel-actions"><button class="btn" id="save-destinations" type="button">حفظ الوجهات</button><button class="text-button" data-go="signals">عرض الصفقات والمشاركة</button></div><p id="destination-status" role="status">جارٍ قراءة إعدادات الوجهات…</p><p class="workspace-note">حفظ الرقم يحدد الوجهة فقط؛ الإرسال التلقائي يتطلب إعدادات Meta Cloud API في Render، ولا يُرسل أي شيء قبل تحقق المزود.</p></section></details></aside><header class="pearl-header"><div class="header-row"><div class="a-workspace-title"><strong>BIG BEN AI PRO <span class="header-logo-dot">●</span></strong><small>تحليل الشارت المستقل · Scalp / Swing</small></div><div class="design-picker" role="group" aria-label="اختيار مظهر الواجهة"><span class="muted">المظهر:</span><button type="button" data-design-choice="pro" aria-pressed="true">احترافي</button><button type="button" data-design-choice="terminal" aria-pressed="false">Terminal</button><button type="button" data-design-choice="light" aria-pressed="false">تحريري</button></div><span id="clock" class="muted"></span></div><details class="reference-health-panel"><summary>حالة البيانات والاتصالات <span class="reference-health-hint">تفاصيل المصدر، الأخبار والتخزين</span></summary><div class="integration-strip" aria-live="polite"><span id="desk-tv-state">TradingView · جارٍ الفحص</span><span id="desk-data-state">البيانات · جارٍ الفحص</span><span id="desk-news-state">الأخبار · جارٍ الفحص</span><span id="desk-ai-state">الذكاء الاصطناعي · جارٍ الفحص</span><span id="desk-storage-state">التخزين · جارٍ الفحص</span></div><p id="connection" class="connection-caption">لا يوجد بث سوق لحظي مثبت بعد؛ الإشارات لا تصبح حية إلا بعد وصول Heartbeat حديث.</p><div class="live-readiness" aria-live="polite" role="status"><div class="readiness-indicator" id="readiness-indicator" data-state="checking"><span class="readiness-dot" aria-hidden="true"></span><strong id="readiness-title">جارٍ التحقق من اتصال TradingView M5</strong></div><span id="readiness-last" class="readiness-meta">ننتظر دليلاً حديثاً من المصدر؛ لا نعرض إشارات قديمة باعتبارها Live.</span><button id="readiness-refresh" type="button" class="btn">تحديث الاتصال</button></div></details><div class="market-session-bar"><span id="market-session-state">جلسة السوق: جارٍ الحساب</span><span id="market-session-countdown">العداد: —</span><span id="market-session-rollover">الإغلاق اليومي: —</span><button type="button" class="btn" id="news-test">اختبار تحليل الأخبار</button><span id="news-test-status" class="muted">اختبار آمن لا ينشئ إشارة</span></div></header><div class="workspace"><main class="main"><div class="page-heading"><h1 id="page-title">لوحة التداول والتحليل</h1><span class="muted">Big Ben AI Pro · تحليل عند وصول البيانات — تنفيذ الوساطة مغلق</span></div><div class="grid"><section class="desk-workspace" data-page="overview analyze"><div class="desk-toolbar"><div class="toolbar-symbol"><label for="desk-symbol">اختر زوج الفوركس أو العقد للتحليل المستقل</label><div class="symbol-input"><input id="desk-symbol" list="desk-symbol-options" value="" autocomplete="off" aria-label="الزوج أو العقد"><datalist id="desk-symbol-options"><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist><button class="btn" type="button" id="desk-analyze">تحليل سريع</button></div></div><div class="desk-parameters"><span class="toolbar-caption">استراتيجية</span><label class="analyze-mode-label" for="desk-mode">نوع التحليل <select id="desk-mode" aria-label="نوع التحليل"><option value="scalp">Scalp · سكالب M5</option><option value="swing">Swing · سوينج H1/H4</option></select></label><span class="pill" id="desk-mode-timeframe">M5 للدخول</span><span class="pill">محرك المنصة · RR 2.5 · بلا Pine</span><label class="ai-option"><input type="checkbox" id="desk-use-ai" disabled> مراجعة AI الإضافية غير مفعلة في هذا الإصدار</label></div></div><p id="desk-instrument-identity" class="compact-identity workspace-note">اختر زوج فوركس لتحليله مباشرة من شموع السوق. عقود الفيوتشرز تحتاج موصل OHLC مرخصاً؛ لا نعرض CFD على أنه عقد حقيقي.</p><p id="desk-smt-research" class="workspace-note">قياس ارتباط SMT التاريخي يظهر عند توفر تاريخ متزامن للزوجين.</p><div class="desk-main"><div class="a-chart-column"><section class="panel chartpanel" id="desk-market-chart"><div class="reference-chart-header"><div><span class="reference-label">CHART ANALYSIS</span><h2><span class="chart-title-mark" aria-hidden="true">▥</span> الشارت وتحليل الشموع <span class="pill">M5 · OHLC</span></h2></div><div class="reference-supported-pairs" aria-label="أزواج الفوركس المدعومة"><button type="button" data-quick-symbol="OANDA:EURUSD">EURUSD</button><button type="button" data-quick-symbol="OANDA:GBPUSD">GBPUSD</button><button type="button" data-quick-symbol="OANDA:USDJPY">USDJPY</button></div></div><div class="chart-source-note" role="note">الشارت الأصلي يعتمد على شموع OHLC المخزنة في المنصة، دون إشارات Pine.</div><div style="height:420px;border:1px solid #344c81;border-radius:10px;overflow:hidden;margin-top:12px"><div id="desk-live-chart" style="height:100%;width:100%"><p class="muted">اختر الزوج أو العقد؛ الرسم يتبع الرمز المحدد في التحليل.</p></div></div><div class="notice"><span id="desk-chart-status" role="status">شموع M5 يتم رسمها داخل المنصة من مزود OHLC عند تحليل الرمز؛ لا حاجة لمؤشر TradingView.</span> <a id="desk-chart-link" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">فتح الرسم على TradingView</a>. الرابط الخارجي اختياري؛ تحليل المنصة لا يعتمد على TradingView.</div><div class="market-chart-links" aria-label="مخططات الأسواق على TradingView"><a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AEURUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">EURUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AGBPUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">GBPUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AUSDJPY&amp;interval=5" target="_blank" rel="noopener noreferrer">USDJPY</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3ANQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">NQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMNQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MNQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">ES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CBOT_MINI%3AYM1!&amp;interval=5" target="_blank" rel="noopener noreferrer">YM</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME%3A6E1!&amp;interval=5" target="_blank" rel="noopener noreferrer">6E</a></div></section></div><aside class="panel analysis-dossier"><div class="dossier-heading"><h2>نتيجة التحليل</h2><span class="decision-pill" id="desk-decision">انتظار</span></div><p id="desk-analysis-status" role="status">اختر الزوج أو العقد ثم اضغط «تحليل سريع».</p><div class="analyze-mode-result" role="status" aria-live="polite"><strong id="desk-mode-name">Scalp · سكالب M5</strong><span id="desk-mode-note">يفحص الشموع مباشرة من المنصة؛ لا يتم اختلاق فرص عند نقص البيانات.</span><div id="desk-mode-selected" class="analyze-selected-levels">Entry — · SL — · TP — · RR —</div><div id="desk-independent-setup" class="independent-opportunity" aria-live="polite"><strong>محرك الفرص المستقل</strong><span id="desk-independent-state">بانتظار فحص شموع M5 الفعلية</span><div id="desk-independent-levels">لا توجد فرصة بحثية مؤكدة حالياً.</div><small>الفرصة البحثية ليست إشارة BUY/SELL من TradingView ولا أمراً للتداول.</small></div></div><dl class="source-details"><dt>مصدر التحليل</dt><dd id="desk-source">مزود شموع OHLC</dd><dt>وقت المصدر — مسقط</dt><dd id="desk-source-time">—</dd><dt>نسخة الاستراتيجية</dt><dd id="desk-version">—</dd></dl><h3>أسباب الدخول أو الانتظار</h3><ul id="desk-reasons" class="reason-list"></ul><div class="a-evidence-highlights"><span id="a-cisd-state">CISD · غير معلوم</span><span id="a-smt-state">SMT · غير معلوم</span></div><div class="desk-pair"><article class="panel trade-plan"><h2>خطة الصفقة <span class="muted">المحرك المستقل</span></h2><div id="desk-full-trade" class="plan-values"></div></article><article class="panel trade-plan"><h2>تفاصيل الوضع <span class="muted">Scalp / Swing</span></h2><div id="desk-scalp-trade" class="plan-values"></div></article></div><p class="muted small-copy">المستويات البحثية لا تمثل أوامر تنفيذ، وWAIT يعني غياب شروط صالحة.</p><details class="a-check-details"><summary>كل الشروط والأدلة</summary><div id="desk-checks"></div></details></aside></div><section class="pro-timeframes" aria-label="تأكيد اتجاه الفريمات"><div class="pro-timeframes-heading"><strong>توافق الفريمات</strong><span id="pro-timeframes-state">بانتظار تحليل المنصة من شموع السوق</span></div><div class="pro-timeframes-grid"><div class="pro-tf"><small>M5 · الدخول</small><strong id="pro-tf-m5">—</strong></div><div class="pro-tf"><small>M15 · الزخم</small><strong id="pro-tf-m15">—</strong></div><div class="pro-tf"><small>H1 · الاتجاه</small><strong id="pro-tf-h1">—</strong></div><div class="pro-tf"><small>H4 · السياق</small><strong id="pro-tf-h4">—</strong></div></div><p class="pro-tf-note" id="pro-tf-note">تحليل المنصة يعتمد على شموع OHLC المستلمة من المزود وليس مؤشر Pine. لم تُثبت صلاحية بيانات جميع الأسواق بعد.</p></section><section class="panel a-review-panel"><h2>المحللون المتخصصون <span class="pill">مراجعة AI وفق الأدلة</span></h2><div id="desk-ai-review" class="a-review-grid"><p>التحليل الأساسي الحتمي يعمل دون Gemini؛ المراجعة النموذجية اختيارية عند تفعيل مزود معتمد.</p></div></section><div class="desk-lower"><article class="panel"><h2>الأخبار الاقتصادية <button class="text-button" data-go="news">عرض الكل</button></h2><div id="desk-news-mini">جارٍ قراءة الأخبار…</div></article><article class="panel"><h2>الأيجنت <button class="text-button" data-go="agents">عرض المهام</button></h2><div id="desk-agent-mini">اختر رمزًا لبدء التحليل.</div></article></div></section>
 <section class="panel kpi" id="overview" data-page="signals"><small>الصفقات المستلمة</small><strong id="total">—</strong><small>من سجل TradingView</small></section>
 <section class="panel kpi" data-page="signals"><small>إشارات BUY</small><strong class="buy" id="buys">—</strong><small>غير مؤكدة الربحية</small></section>
 <section class="panel kpi" data-page="signals"><small>إشارات SELL</small><strong class="sell" id="sells">—</strong><small>غير مؤكدة الربحية</small></section>
@@ -357,7 +519,7 @@ const canvas=document.createElement('canvas');
 canvas.id='bigben-native-candles';
 canvas.setAttribute('role','img');
 canvas.setAttribute('aria-label','شموع OHLC المخزنة من مزود البيانات. لا يتم رسم أسعار وهمية');
-canvas.style.cssText='display:block;width:100%;height:100%;background:#0b1529';
+canvas.style.cssText='display:block;width:100%;height:100%;background:#06191f';
 host.replaceChildren(canvas);
 if(link){link.textContent='مخطط خارجي اختياري';link.setAttribute('title','لا يحتاج تحليل المنصة إلى TradingView')}
 const ctx=canvas.getContext('2d');
@@ -370,7 +532,7 @@ function draw(){
  const dpr=Math.min(2,window.devicePixelRatio||1);
  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- ctx.fillStyle='#0b1529';ctx.fillRect(0,0,w,h);
+ ctx.fillStyle='#06191f';ctx.fillRect(0,0,w,h);
  const bars=last.candles.slice(-96);
  if(!bars.length){ctx.fillStyle='#b5c6df';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('لا توجد شموع موثقة لهذا الرمز',w/2,h/2);return}
  const barMin=Math.min(...bars.map(x=>+x.low)),barMax=Math.max(...bars.map(x=>+x.high));
@@ -385,26 +547,26 @@ function draw(){
  ctx.lineWidth=1;ctx.font='11px sans-serif';ctx.textAlign='left';
  for(let j=0;j<5;j++){
   const tick=min+(max-min)*j/4,Y=y(tick);
-  ctx.strokeStyle='#263a58';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
-  ctx.fillStyle='#9caec6';ctx.fillText(price(tick),w-right+7,Y+4);
+  ctx.strokeStyle='#21464a';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
+  ctx.fillStyle='#9ec8c4';ctx.fillText(price(tick),w-right+7,Y+4);
  }
  for(let i=0;i<bars.length;i++){
   const b=bars[i],x=left+(i+.5)*bw;
   const up=+b.close>=+b.open;
-  ctx.strokeStyle=up?'#33d7a6':'#fc7187';ctx.fillStyle=ctx.strokeStyle;
+  ctx.strokeStyle=up?'#25dbaa':'#fa667a';ctx.fillStyle=ctx.strokeStyle;
   ctx.beginPath();ctx.moveTo(x,y(+b.high));ctx.lineTo(x,y(+b.low));ctx.stroke();
   const y1=y(Math.max(+b.open,+b.close)),y2=y(Math.min(+b.open,+b.close));
   ctx.fillRect(x-Math.max(1,bw*.32),y1,Math.max(2,bw*.64),Math.max(1,y2-y1));
  }
  const trade=last.trade;
  if(trade&&last.fresh&&levels.length===3){
-  for(const [label,value,color] of [['Entry',trade.entry,'#fbd56f'],['SL',trade.sl,'#ff7a91'],['TP',trade.tp,'#53dfac']]){
+  for(const [label,value,color] of [['Entry',trade.entry,'#5baffe'],['SL',trade.sl,'#ff6c81'],['TP',trade.tp,'#24dba1']]){
    ctx.setLineDash([6,4]);ctx.strokeStyle=color;ctx.lineWidth=1.25;
    ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(w-right,y(value));ctx.stroke();
    ctx.setLineDash([]);ctx.fillStyle=color;ctx.textAlign='left';ctx.fillText(label,w-right+8,y(value)-6);
   }
  }
- ctx.fillStyle='#a3b8d3';ctx.textAlign='left';ctx.font='11px sans-serif';
+ ctx.fillStyle='#96bab6';ctx.textAlign='left';ctx.font='11px sans-serif';
  ctx.fillText((last.symbol||'')+' · M5 · '+(last.fresh?'شموع حديثة':'بيانات تاريخية'),left+4,h-8);
  // Actual UTC candle timestamps, not evenly spaced synthetic time labels.
  ctx.fillStyle='#8ba1bb';ctx.font='10px sans-serif';ctx.textAlign='center';
@@ -522,4 +684,17 @@ update();setInterval(update,30000);
   if(target){target.textContent=direction;target.parentElement.dataset.trend=direction==='صاعد'?'up':direction==='هابط'?'down':'flat'}
   const h4=document.getElementById('pro-tf-h4');if(d.requested_mode==='swing'&&h4&&timeframes.H4_ema10){h4.textContent='EMA10 '+timeframes.H4_ema10}
  });
+})();</script><script id="reference-quick-pairs">(()=>{
+'use strict';
+const input=document.getElementById('desk-symbol');
+if(!input)return;
+document.querySelectorAll('[data-quick-symbol]').forEach(button=>{
+ button.addEventListener('click',()=>{
+  const symbol=button.getAttribute('data-quick-symbol');
+  if(!symbol||input.value===symbol)return;
+  input.value=symbol;
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+  input.focus();
+ });
+});
 })();</script></body></html>

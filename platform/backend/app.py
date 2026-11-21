@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -99,6 +99,7 @@ def init():
    _operations.migrate(c)
    _market_pulses.migrate(c)
    _instant_telegram.migrate(c)
+   _arabic_event_engine.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -115,6 +116,7 @@ def init():
    _operations.migrate(c)
    _market_pulses.migrate(c)
    _instant_telegram.migrate(c)
+   _arabic_event_engine.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -213,6 +215,74 @@ def market_pulse_worker():
   except Exception:
    print("market_pulse state=failed reason=storage_or_internal_failure",flush=True)
   time.sleep(int(os.getenv("BIGBEN_MARKET_PULSE_SECONDS","300")))
+
+def send_arabic_market_event(event):
+ """Durably claim one verified technical/news event and send at once."""
+ if not os.getenv("TELEGRAM_BOT_TOKEN","").strip():
+  return "not_configured"
+ chat=telegram_destination()
+ if not re.fullmatch(r"-?[0-9]{5,20}",chat):
+  return "not_configured"
+ with history_connection() as db:
+  key=_arabic_event_engine.reserve(db,event,postgres_enabled())
+ if not key:return "duplicate"
+ try:
+  content=(_arabic_event_engine.technical_message(event) if event["kind"]=="technical"
+           else _arabic_event_engine.news_message(event))
+  delivery=send_telegram_message(content)
+ except Exception:delivery="failed"
+ try:
+  with history_connection() as db:_arabic_event_engine.finish(db,key,delivery,postgres_enabled())
+ except Exception:print("arabic_event status=delivery_receipt_failed",flush=True)
+ return delivery
+
+def scan_arabic_market_once(now=None):
+ """Check bounded tracked, matched market sources and real official calendar.
+ No price feed means no price event; licensed futures source never substituted.
+ """
+ now=now or datetime.now(timezone.utc)
+ from_market=("BITSTAMP:BTCUSD","OANDA:EURUSD","OANDA:GBPUSD","OANDA:USDJPY")
+ results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
+ for symbol in from_market:
+  try:
+   analysis=analyze_instant_native(symbol,"scalp")
+   results["symbols"][symbol]=analysis["status"]
+   if analysis["status"]=="DATA_UNAVAILABLE":continue
+   if symbol.startswith("BITSTAMP:"):
+    rows,_=bitstamp_native_candles(symbol,now)
+   else:
+    base=symbol.split(":",1)[1]
+    pair=base[:3]+"/"+base[3:]
+    mark="%s" if postgres_enabled() else "?"
+    with history_connection() as db:
+     rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+   for event in _arabic_event_engine.technical_events(symbol,rows,now):
+    status=send_arabic_market_event(event)
+    if status=="sent":results["events"]+=1
+   # Previously eligible plans follow same dedup as interactive Analyze.
+   alert=trigger_instant_telegram(analysis)
+   results["symbols"][symbol]=analysis["status"]+" / "+alert.get("status","none")
+  except Exception:
+   print("arabic_scanner symbol="+symbol+" status=failed",flush=True)
+ try:
+  with history_connection() as db:
+   news=_news.snapshot(db,now)
+  for event in _arabic_event_engine.news_scenarios(news,now):
+   delivery=send_arabic_market_event(event)
+   if delivery=="sent":results["news"]+=1
+ except Exception:print("arabic_scanner news=failed",flush=True)
+ return results
+
+def arabic_market_scanner_worker():
+ """Best effort bounded timer: no real-time guarantees on sleeping free hosts."""
+ try:period=max(30,min(300,int(os.getenv("BIGBEN_ARABIC_SCANNER_SECONDS","60"))))
+ except (TypeError,ValueError):period=60
+ while True:
+  try:
+   result=scan_arabic_market_once()
+   print("arabic_scanner status=checked market_alerts="+str(result["events"])+" news_alerts="+str(result["news"]),flush=True)
+  except Exception:print("arabic_scanner status=failed",flush=True)
+  time.sleep(period)
 
 def agent_watchdog():
  """Resident operational monitor; records symptoms in logs, never edits Pine or executes orders."""
@@ -1249,6 +1319,7 @@ if __name__=="__main__":
  if os.getenv("BIGBEN_FAST_M5_HISTORY_ENABLED","1")=="1":threading.Thread(target=fast_history_worker,daemon=True).start()
  threading.Thread(target=news_worker,daemon=True).start()
  threading.Thread(target=market_pulse_worker,daemon=True).start()
+ if os.getenv("BIGBEN_ARABIC_SCANNER_ENABLED","1")=="1":threading.Thread(target=arabic_market_scanner_worker,daemon=True).start()
  port=int(os.getenv("PORT","10000"))
  print("http_server bind=0.0.0.0 port="+str(port),flush=True)
  ThreadingHTTPServer(("0.0.0.0",port),Handler).serve_forever()

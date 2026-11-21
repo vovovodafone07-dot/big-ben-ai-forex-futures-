@@ -85,6 +85,19 @@ class TelegramNativeTests(unittest.TestCase):
   self.assertEqual(captured["payload"]["parse_mode"],"HTML")
   self.assertIn("sendMessage",captured["url"])
   self.assertEqual(captured["timeout"],5)
+ def test_telegram_http_failure_is_safely_categorized(self):
+  import urllib.error
+  import io
+  from unittest.mock import patch
+  def fake_open(req,timeout):
+   raise urllib.error.HTTPError(req.full_url,400,"Bad Request",{},
+        io.BytesIO(b'{"ok":false,"description":"Bad Request: parse entities"}'))
+  with patch("builtins.print") as out:
+   result=telegram.send(plan(),"test_fake_bot_token","12345678",opener=fake_open)
+  self.assertEqual(result,"failed")
+  self.assertTrue(any("HTML_ENTITIES" in str(arg) for call in out.call_args_list for arg in call.args))
+  self.assertFalse(any("test_fake_bot_token" in str(arg) for call in out.call_args_list for arg in call.args))
+
  def test_isolated_from_broker_orders_and_no_fake_barchart_futures(self):
   p=plan("CME_MINI:NQ1!");p["provider"]="Barchart OnDemand"
   self.assertFalse(telegram.eligible(p))

@@ -160,5 +160,20 @@ def send(plan,token,chat,opener=None,timeout=5):
         with opener(request,timeout=timeout) as response:
             data=response.read(2048)
             return "sent" if response.status==200 and json.loads(data).get("ok") is True else "failed"
+    except urllib.error.HTTPError as error:
+        # Telegram may reject malformed markup or a chat without message permissions.
+        # Only whitelist diagnostic categories; do not log the token, URL or chat.
+        try:
+            details=error.read(768).decode("utf-8","replace").lower()
+        except Exception:
+            details=""
+        reason=("HTML_ENTITIES" if "parse entities" in details else
+                "CHAT_NOT_FOUND" if "chat not found" in details else
+                "BOT_BLOCKED" if "blocked by the user" in details else
+                "MESSAGE_FORBIDDEN" if "not enough rights" in details or "forbidden" in details else
+                "UNCLASSIFIED")
+        print("native_telegram_error status="+str(error.code)+" category="+reason,flush=True)
+        return "failed"
     except (ValueError,KeyError,TypeError,TimeoutError,OSError,urllib.error.URLError):
+        print("native_telegram_error status=CONNECTION_OR_RESPONSE",flush=True)
         return "failed"

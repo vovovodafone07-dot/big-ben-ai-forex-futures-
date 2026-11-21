@@ -544,7 +544,7 @@ for(const btn of document.querySelectorAll('[data-nav-mode]'))btn.addEventListen
  const choice=safeMode(btn.dataset.navMode);if(select.value!==choice){select.value=choice;select.dispatchEvent(new Event('change',{bubbles:true}))}updateMode();
 });
 for(const btn of document.querySelectorAll('[data-chart-shortcut]'))btn.addEventListener('click',()=>{chart.scrollIntoView({block:'start',behavior:'smooth'})});
-select.addEventListener('change',updateMode);window.addEventListener('hashchange',updateMode);updateMode();
+select.addEventListener('change',()=>{updateMode();const target=select.value==='swing'?'H1':'M5';document.querySelector('[data-chart-timeframe="'+target+'"]')?.click()});window.addEventListener('hashchange',updateMode);updateMode();
 let timeframe='M5';
 for(const btn of document.querySelectorAll('[data-chart-timeframe]'))btn.addEventListener('click',()=>{
  const tf=btn.dataset.chartTimeframe;if(!['M5','M15','H1','H4'].includes(tf))return;

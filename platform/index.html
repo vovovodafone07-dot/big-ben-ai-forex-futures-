@@ -531,6 +531,17 @@ input.addEventListener('change',()=>{renderSymbol();session()});renderSymbol();
 const picker=byId('ref-symbol-dropdown');
 picker?.addEventListener('click',()=>{input.focus();try{input.showPicker?.()}catch(_){}});
 const format=v=>Number(v).toLocaleString('en-US',{useGrouping:false,minimumFractionDigits:+v>=10?2:4,maximumFractionDigits:6});
+let lastClosedAt=null,lastFeedProvider=null;
+function refreshCandleAge(){
+ const banner=byId('ref-feed-banner');
+ const age=lastClosedAt?Math.floor((Date.now()-lastClosedAt)/1000):null;
+ const fresh=age!==null&&age>=300&&age<=630;
+ const minutes=age===null?'غير معروف':Math.max(0,Math.floor(age/60))+' دقيقة';
+ if(banner)banner.dataset.state=fresh?'fresh':'stale';
+ text('ref-feed-caption',(fresh?'شموع M5 محدثة':'شموع متأخرة / غير متاحة')+' · عمر آخر شمعة: '+minutes+' · '+(lastFeedProvider||'المصدر غير مثبت')+' · ليست بث تيكات');
+ const state=document.querySelector('.ref-price-card');if(state)state.dataset.state=fresh?'fresh':'stale';
+}
+setInterval(refreshCandleAge,15000);
 window.addEventListener('bigben:chart-data',event=>{
  const d=event.detail||{},bars=Array.isArray(d.candles)?d.candles:[];
  if(d.symbol!==input.value.trim().toUpperCase())return;
@@ -549,10 +560,12 @@ window.addEventListener('bigben:chart-data',event=>{
   }else text('ref-price-change','آخر إغلاق M5');
   if(priceCard)priceCard.dataset.state=d.fresh?'fresh':'stale';
  }
- const banner=byId('ref-feed-banner');
- if(banner)banner.dataset.state=d.fresh?'fresh':'stale';
- text('ref-feed-caption',d.fresh?'شموع M5 حديثة من المزود · ليست ضمان بث مباشر':'بيانات قديمة أو غير متاحة · لا تعرض صفقة على أنها حية');
- text('ref-chart-caption',(d.symbol||'—')+' · '+(d.provider||'مصدر غير متاح')+' · '+(d.last_closed_candle||'وقت آخر شمعة غير متاح'));
+ lastClosedAt=d.last_closed_candle?Date.parse(d.last_closed_candle):null;
+ if(!Number.isFinite(lastClosedAt))lastClosedAt=null;
+ lastFeedProvider=d.provider||'مصدر غير متاح';
+ refreshCandleAge();
+ text('ref-chart-caption',(d.symbol||'—')+' · '+lastFeedProvider+' · آخر شمعة مغلقة UTC: '+(d.last_closed_candle||'غير متاح'));
+ const label=byId('ref-chart-name');if(label)label.setAttribute('title','مصدر شموع مغلقة فقط؛ لا يعرض تحديثات داخل الشمعة');
 });
 function renderAnalysis(d){
  const trade=d.selected_trade;

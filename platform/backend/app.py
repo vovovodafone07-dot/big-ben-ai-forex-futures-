@@ -885,7 +885,25 @@ class Handler(BaseHTTPRequestHandler):
     symbol=_desk.normalize(request.get("symbol"))
    except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"symbol_or_json","symbols":list(_desk.SYMBOLS)})
    try:
+    mode=request.get("mode","scalp")
+    if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
     result=analyze_instrument(symbol,request.get("ai") is True)
+    # Scalp is a bounded alternative of an already validated Pine M5 signal.
+    # Swing requires a separately verified HTF entry model; M5 cannot be relabelled as Swing.
+    result["requested_mode"]=mode
+    result["mode_timeframes"]={"scalp":["M5","M15","H1"],"swing":["H1","H4","D1"]}[mode]
+    if mode=="scalp":
+     result["selected_trade"]=result.get("scalp") if result.get("decision") in ("BUY","SELL") else None
+     result["mode_note"]="خطة سكالب حسابية من إشارة M5 مؤكدة مستلمة؛ ليست إشارة مستقلة، والهدف البديل لا يغير Pine."
+    else:
+     result["selected_trade"]=None
+     result["mode_status"]="HTF_SIGNAL_NOT_VERIFIED"
+     result["mode_note"]="تحليل سياقي للفريمات العليا فقط. لا يوجد محرك دخول Swing مؤكد أو إشارة H1/H4 مستقلة؛ لن نعرض مستويات M5 بوصفها صفقة Swing."
+     result["decision"]="WAIT"
+     result["decision_reason_code"]="SWING_NOT_VERIFIED"
+     result["reasons"]=["SWING_NOT_VERIFIED: لا توجد إشارة سوينج مستقلة موثقة من H1/H4، لذلك لا يمكن تقديم Entry/SL/TP للسوينج."]+result.get("reasons",[])
+     result["full_trade"]=None
+     result["scalp"]=None
     return self.reply(200,result)
    except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if urlsplit(self.path).path=="/api/test-telegram":

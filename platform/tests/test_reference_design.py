@@ -59,7 +59,7 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertIn("event:'bts:subscribe'",self.html)
         self.assertIn("bigben:bitstamp-trade",self.html)
         self.assertIn("liveTrade:latestLiveTrade",self.html)
-        self.assertIn("never inserts provisional ticks",self.html)
+        self.assertIn("Never inserts provisional ticks",self.html)
         self.assertIn("Date.now()-tradeTick.receivedAt<16000",self.html)
 
     def test_no_fake_market_values_or_broker_orders(self):

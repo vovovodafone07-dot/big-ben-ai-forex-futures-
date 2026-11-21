@@ -240,13 +240,13 @@ def bitstamp_native_candles(symbol,now=None):
    prev=c.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(symbol,)).fetchone()
   prior=json.loads(prev[0]) if prev else {}
   checked=datetime.fromisoformat(prior["checked_at"].replace("Z","+00:00")) if prior.get("checked_at") else None
-  needs_refresh=checked is None or (now-checked).total_seconds()>=300
+  needs_refresh=checked is None or (now-checked).total_seconds()>=90
   if needs_refresh:
    allowed=False
    with NATIVE_FETCH_LOCK:
     tick=time.monotonic()
     NATIVE_FETCH_TIMES[:]=[v for v in NATIVE_FETCH_TIMES if tick-v<3600]
-    if len(NATIVE_FETCH_TIMES)<35 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=3):
+    if len(NATIVE_FETCH_TIMES)<90 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=3):
      NATIVE_FETCH_TIMES.append(tick);allowed=True
    if allowed:
     try:

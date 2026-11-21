@@ -703,7 +703,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -714,6 +714,14 @@ class Handler(BaseHTTPRequestHandler):
    self.send_header("Cache-Control","no-store")
    self.send_header("Content-Length","0")
    self.end_headers()
+   return
+  if path=="/reference_dashboard.css":
+   try:body=(Path(__file__).resolve().parents[1]/"reference_dashboard.css").read_bytes()
+   except OSError:return self.reply(503,{"error":"dashboard_stylesheet_unavailable"})
+   self.send_response(200)
+   for k,v in {"Content-Type":"text/css; charset=utf-8","Content-Length":str(len(body)),
+    "Cache-Control":"no-cache","X-Content-Type-Options":"nosniff","X-Frame-Options":"DENY"}.items():self.send_header(k,v)
+   self.end_headers();self.wfile.write(body)
    return
   if path=="/api/events.csv":
    rows=[]
@@ -835,7 +843,7 @@ class Handler(BaseHTTPRequestHandler):
     pair=ticker[:3]+"/"+ticker[3:]
     marker="%s" if postgres_enabled() else "?"
     with history_connection() as c:
-     candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 160",(pair,)).fetchall()
+     candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
     out=[{"time":row[0],"open":row[1],"high":row[2],"low":row[3],"close":row[4]} for row in reversed(candles)]
     last=out[-1]["time"] if out else None
     age=(datetime.now(timezone.utc)-datetime.fromisoformat(last.replace("Z","+00:00"))).total_seconds() if last else None

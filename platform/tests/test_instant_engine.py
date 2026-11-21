@@ -35,6 +35,14 @@ class InstantNativeTests(unittest.TestCase):
                       now=NOW+timedelta(minutes=32),source_identity_verified=True)
     self.assertEqual(r["status"],"DATA_UNAVAILABLE")
     self.assertEqual(r["targets"],[])
+ def test_eleven_minute_old_m5_does_not_create_an_actionable_plan(self):
+    r=engine.evaluate("BITSTAMP:BTCUSD",candles(),asset_class="crypto",tick_size=.01,
+                      now=NOW+timedelta(minutes=6),source_identity_verified=True)
+    self.assertEqual(r["status"],"DATA_UNAVAILABLE")
+    self.assertEqual(r["reason_code"],"STALE_OR_UNCLOSED_M5")
+    self.assertIsNone(r["entry"])
+    self.assertEqual(r["targets"],[])
+
  def test_missing_recent_m5_no_targets(self):
     rows=candles();rows.pop(-3)
     r=engine.evaluate("OANDA:EURUSD",rows,now=NOW,source_identity_verified=True)

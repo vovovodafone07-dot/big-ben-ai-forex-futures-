@@ -823,6 +823,28 @@ class Handler(BaseHTTPRequestHandler):
      "twelve_data":{"api_key_configured":twelve_key,"role":"existing_quotes_optional",
                     "futures_coverage":"not_confirmed","probe":MARKET_DATA_DIAGNOSTIC.copy()},
      "data_policy":"Never use unsupported futures quotes, stale candles, or fabricated backtests"})
+  if path=="/api/chart/candles":
+   # Native canvas uses exactly the stored, provider-verified closed OHLC bars.
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    q=parse_qs(urlsplit(self.path).query)
+    symbol=_instruments.normalize(q.get("symbol",[""])[0])
+    instrument=_instruments.describe(symbol)
+    if instrument["asset_class"]!="forex":return self.reply(422,{"error":"ohlc_source_not_verified_for_instrument","symbol":symbol})
+    ticker=symbol.split(":",1)[1]
+    pair=ticker[:3]+"/"+ticker[3:]
+    marker="%s" if postgres_enabled() else "?"
+    with history_connection() as c:
+     candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 160",(pair,)).fetchall()
+    out=[{"time":row[0],"open":row[1],"high":row[2],"low":row[3],"close":row[4]} for row in reversed(candles)]
+    last=out[-1]["time"] if out else None
+    age=(datetime.now(timezone.utc)-datetime.fromisoformat(last.replace("Z","+00:00"))).total_seconds() if last else None
+    return self.reply(200,{"symbol":symbol,"provider":"Twelve Data","interval":"5min",
+      "realtime_verified":False,"candles":out,"last_closed_candle":last,
+      "age_seconds":int(age) if age is not None else None,
+      "fresh":age is not None and 300<=age<=900,"note":"Closed provider candles only. Not TradingView indicator events."})
+   except (TypeError,ValueError,IndexError):return self.reply(400,{"error":"invalid_symbol"})
+   except Exception:return self.reply(503,{"error":"chart_candles_unavailable"})
   if path=="/api/market":
    # Twelve Data is optional. Never label delayed or missing quotes as live.
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})

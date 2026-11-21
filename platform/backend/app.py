@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine,"connected_market"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -415,6 +415,9 @@ def trigger_instant_telegram(plan):
  """
  if not _instant_telegram.eligible(plan):
   return {"status":"not_eligible"}
+ market=_connected_market.gate(plan)
+ if not market["open"]:
+  return {"status":"market_closed","reason":market["reason"]}
  if os.getenv("BIGBEN_NATIVE_TELEGRAM_ENABLED","1")!="1":
   return {"status":"disabled"}
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -979,7 +982,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1044,6 +1047,14 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
     return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning_policy":"evidence_only_no_automatic_code_or_strategy_edits","ai_daily_request_limit":10})
    except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
+  if path=="/api/connected-symbols":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    with history_connection() as db:symbols=_connected_market.connected(db,postgres=postgres_enabled())
+    return self.reply(200,{"symbols":symbols,"count":len(symbols),
+       "futures_note":"لا تُعرض العقود الآجلة حتى يكتمل اتصال مصدر شموع مرخص مطابق للعقد",
+       "source_policy":"رموز بيانات مؤكدة فقط، وليس مجرد قائمة مراقبة"})
+   except Exception:return self.reply(503,{"error":"connected_symbols_unavailable"})
   if path=="/api/instruments":
    try:
     with history_connection() as c:preferences=_destinations.read(c)

@@ -282,6 +282,15 @@ function draw(){
  }
  ctx.fillStyle='#a3b8d3';ctx.textAlign='left';ctx.font='11px sans-serif';
  ctx.fillText((last.symbol||'')+' · M5 · '+(last.fresh?'شموع حديثة':'بيانات تاريخية'),left+4,h-8);
+ // Actual UTC candle timestamps, not evenly spaced synthetic time labels.
+ ctx.fillStyle='#8ba1bb';ctx.font='10px sans-serif';ctx.textAlign='center';
+ for(const ix of [0,Math.floor((bars.length-1)/2),bars.length-1]){
+  const dt=new Date(bars[ix].time);
+  if(!Number.isNaN(dt.getTime())){
+   const x=left+(ix+.5)*bw;
+   ctx.fillText(new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Muscat'}).format(dt),x,h-19);
+  }
+ }
  ctx.textAlign='right';ctx.fillText('Twelve Data · OHLC',w-right,h-8);
 }
 async function load(data){

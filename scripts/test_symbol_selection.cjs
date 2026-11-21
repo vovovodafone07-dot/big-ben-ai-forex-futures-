@@ -49,13 +49,13 @@ const flush = async () => { for (let i = 0; i < 8; i++) await new Promise(resolv
 const chartSymbol = app => decodeURIComponent((app.get('desk-chart-link').href||'').split('symbol=')[1]?.split('&')[0]||'');
 (async () => {
   const app = boot(); await flush();
-  assert.equal(app.get('desk-symbol').value, 'FOREXCOM:XAUUSD', 'start from actually observed fresh symbol, not fixed EURUSD');
+  assert.equal(app.get('desk-symbol').value, 'OANDA:EURUSD', 'native OHLC chart defaults to supported EURUSD rather than an unsupported historical TradingView symbol');
   assert.equal(app.get('desk-live-chart').children[0].tagName,'canvas','chart is platform native canvas, not TradingView embed');
-  assert.equal(chartSymbol(app), 'FOREXCOM:XAUUSD');
+  assert.equal(chartSymbol(app), 'OANDA:EURUSD');
   assert.ok(!script('symbol-chart-controller').includes('embed-widget-advanced-chart.js'),'no TradingView embedding');
   assert.equal(app.calls[0].ai, false, 'automatic analysis must not request the LLM');
   assert.ok(app.get('desk-analysis-status').textContent.includes('لا توجد إشارة دخول صالحة'));
-  assert.ok(app.get('desk-chart-link').href.includes('FOREXCOM%3AXAUUSD'));
+  assert.ok(app.get('desk-chart-link').href.includes('OANDA%3AEURUSD'));
   app.get('desk-symbol').value = 'EURUSD'; await app.get('desk-symbol').emit('change'); await flush();
   assert.equal(chartSymbol(app), 'OANDA:EURUSD');
   assert.equal(app.get('desk-symbol').value, 'OANDA:EURUSD');

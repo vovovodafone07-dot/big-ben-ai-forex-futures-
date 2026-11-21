@@ -28,7 +28,7 @@ class ConnectedMarketJournalTests(unittest.TestCase):
   self.assertEqual(connected.connected(self.db,NOW),[])
   self.assertFalse(connected.gate({"symbol":"CME_MINI:NQ1!","status":"READY","provider":"Barchart OnDemand","source_time":NOW.isoformat()},NOW)["open"])
  def test_verified_data_is_connected_even_when_closed_but_not_live(self):
-  latest=NOW-timedelta(minutes=10)
+  latest=NOW-timedelta(minutes=15)
   source={"symbol":"EUR/USD","interval":"5min","adapter_version":"v1","state":"CONNECTED"}
   self.db.execute("INSERT INTO market_history_checks VALUES (?,?)",("EUR/USD",json.dumps(source)))
   self.db.executemany("INSERT INTO market_candles VALUES (?,?,?)",

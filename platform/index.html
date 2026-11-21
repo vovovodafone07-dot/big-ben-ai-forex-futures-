@@ -284,7 +284,7 @@ function aggregateBars(rows,minutes){
  return complete;
 }
 
-function draw(){if(rafId)return;rafId=requestAnimationFrame(()=>{rafId=0;paint()})}
+function draw(){if(rafId)return;if(typeof requestAnimationFrame!=='function'){paint();return}rafId=requestAnimationFrame(()=>{rafId=0;paint()})}
 function paint(){
  if(!ctx||!last)return;
  const rect=host.getBoundingClientRect();if(!rect.width)return;

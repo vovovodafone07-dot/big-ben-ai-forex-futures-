@@ -130,19 +130,23 @@ def news_scenarios(snapshot,now=None):
         try:when=_stamp(item["time"])
         except (ValueError,TypeError,KeyError):continue
         minutes=(when-now).total_seconds()/60
-        if not 0<=minutes<=30:continue
+        if not -15<=minutes<=30:continue
         title=str(item.get("title",""))[:140]
         lower=title.lower()
         classification=("تضخم" if "cpi" in lower or "consumer price" in lower else
                         "توظيف" if "employment situation" in lower or "nonfarm" in lower or "nfp" in lower else
                         "فائدة" if "fomc" in lower or "interest rate" in lower else "خبر اقتصادي")
-        events.append({"kind":"news","symbol":str(item.get("currency","USD")),"event_type":"UPCOMING",
+        confirmed_numbers=(item.get("actual_verified") is True and item.get("consensus_verified") is True)
+        event_type="RELEASED" if minutes<0 and confirmed_numbers else "UPCOMING" if minutes>=0 else None
+        if event_type is None:continue
+        events.append({"kind":"news","symbol":str(item.get("currency","USD")),"event_type":event_type,
                        "direction":"سيناريوهات مشروطة غير مؤكدة","source_time":when.isoformat(),
                        "level":None,"title":title,"classification":classification,
                        "minutes_until":round(minutes,1),
                        "consensus":item.get("consensus"),
                        "actual":item.get("actual"),"previous":item.get("previous"),
                        "impact_verified":item.get("impact_verified") is True,
+                       "actual_verified":confirmed_numbers,
                        "source":item.get("source","تقويم رسمي")})
     return events[:8]
 
@@ -158,6 +162,16 @@ def news_message(event,now=None):
     else:
         scenarios=("• سيناريو صعود محتمل عند مفاجأة داعمة للأصل وتأكيد حركة الشموع.\n"
                    "• سيناريو هبوط محتمل عند مفاجأة معاكسة وتأكيد حركة الشموع.")
+    if event.get("event_type")=="RELEASED" and event.get("actual_verified") is True:
+        try:
+            actual=float(event["actual"]);forecast=float(event["consensus"])
+            if not math.isfinite(actual) or not math.isfinite(forecast):raise ValueError("nonfinite")
+            effect=("النتيجة أعلى من المتوقع" if actual>forecast else
+                    "النتيجة أقل من المتوقع" if actual<forecast else "مطابقة للتوقع")
+        except (TypeError,ValueError,KeyError):
+            effect="تعذر التحقق من الفرق العددي"
+        scenarios=("📊 الفعلي: "+str(event["actual"])+" | المتوقع: "+str(event["consensus"])+"\\n"
+                   +effect+"\\n⚠️ الاتجاه النهائي للذهب أو الناسداك لا يثبت من المفاجأة وحدها؛ يلزم تأكيد حركة السعر.")
     when=_stamp(event["source_time"]).astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M")
     forecast=str(event["consensus"]) if event.get("consensus") is not None else "غير متوفر من مصدر موثق"
     previous=str(event["previous"]) if event.get("previous") is not None else "غير متوفر"

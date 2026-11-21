@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -888,6 +888,22 @@ class Handler(BaseHTTPRequestHandler):
     mode=request.get("mode","scalp")
     if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
     result=analyze_instrument(symbol,request.get("ai") is True)
+    # Additional independent M5 research candidate; never overwrite a verified Pine signal.
+    try:
+     instrument_class=result.get("instrument",{}).get("asset_class")
+     ticker=symbol.split(":",1)[1] if ":" in symbol else ""
+     provider_pair=ticker[:3]+"/"+ticker[3:] if instrument_class=="forex" and len(ticker)==6 else None
+     if provider_pair in _history.REFRESH_FOREX:
+      marker="%s" if postgres_enabled() else "?"
+      with history_connection() as c:
+       candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 80",(provider_pair,)).fetchall()
+      result["independent_setup"]=_analysis_opportunities.evaluate(candles,mode=mode)
+     else:
+      result["independent_setup"]={"state":"SOURCE_NOT_VERIFIED","candidate":None,"confirmed_signal":False,
+        "note":"لم تتوفر شموع M5 متحققة حديثة لهذا الرمز؛ لا نستخدم رمزاً بديلاً للفيوتشرز."}
+    except Exception:
+     result["independent_setup"]={"state":"DATA_CHECK_FAILED","candidate":None,"confirmed_signal":False,
+       "note":"تعذر التحقق من التاريخ الفعلي؛ لم تُنشأ أي فرصة تخمينية."}
     # Scalp is a bounded alternative of an already validated Pine M5 signal.
     # Swing requires a separately verified HTF entry model; M5 cannot be relabelled as Swing.
     result["requested_mode"]=mode

@@ -677,4 +677,94 @@ session();setInterval(session,15000);
    const now=Date.now();if(now-lastAutomatic<20000)return;
    lastAutomatic=now;button.click();
  });
+})();</script><script id="bitstamp-public-live-price">(()=>{
+'use strict';
+// Separate, read-only live TRADE ticker. Never inserts provisional ticks into the
+// verified 5-minute OHLC array or the native trade-decision engine.
+const input=document.getElementById('desk-symbol');
+const status=document.getElementById('ref-tick-status');
+const priceText=document.getElementById('ref-last-price');
+const change=document.getElementById('ref-price-change');
+if(!input||!status||!priceText)return;
+let socket=null,current='',channel='',retry=null,attempt=0,lastTick=null,lastPaint=0,lastClosePrice=null;
+const validSymbol=value=>/^BITSTAMP:([A-Z0-9]{6,16})$/.exec(String(value||'').toUpperCase());
+function setStatus(message,state){
+ status.textContent=message;status.dataset.state=state;
+}
+function closeSocket(){
+ if(retry!==null){clearTimeout(retry);retry=null;}
+ const old=socket;socket=null;
+ if(old){old.onopen=old.onclose=old.onerror=old.onmessage=null;try{old.close(1000,'symbol switched')}catch(_){}}
+}
+function schedule(symbol){
+ if(current!==symbol||retry!==null||document.visibilityState==='hidden')return;
+ retry=setTimeout(()=>{retry=null;connect(symbol)},Math.min(30000,2000*Math.pow(2,Math.min(attempt++,4))));
+}
+function connect(symbol){
+ if(current!==symbol||document.visibilityState==='hidden')return;
+ if(typeof WebSocket!=='function'){setStatus('WebSocket غير مدعوم في المتصفح','unavailable');return}
+ const market=validSymbol(symbol);if(!market)return;
+ const nextChannel='live_trades_'+market[1].toLowerCase();
+ try{
+  const ws=new WebSocket('wss://ws.bitstamp.net');
+  socket=ws;channel=nextChannel;
+  setStatus('الاتصال بتداولات Bitstamp المباشرة…','connecting');
+  ws.onopen=()=>{
+    if(socket!==ws||current!==symbol)return;
+    attempt=0;
+    ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:nextChannel}}));
+    setStatus('متصل بـ Bitstamp · انتظار آخر تداول','connecting');
+  };
+  ws.onmessage=event=>{
+    if(socket!==ws||current!==symbol||typeof event.data!=='string'||event.data.length>32768)return;
+    let data;try{data=JSON.parse(event.data)}catch(_){return}
+    if(data?.channel!==nextChannel||data?.event!=='trade'||!data.data||typeof data.data!=='object')return;
+    const trade=data.data;
+    const p=Number(trade.price_str??trade.price);
+    const timestamp=Number(trade.timestamp)*1000,now=Date.now();
+    if(!Number.isFinite(p)||p<=0||!Number.isFinite(timestamp)||Math.abs(now-timestamp)>120000)return;
+    lastTick={symbol,price:p,tradeAt:timestamp,receivedAt:now};
+    // Cap canvas and DOM work even if the venue sends hundreds of trades/sec.
+    if(now-lastPaint<250)return;
+    lastPaint=now;
+    priceText.textContent=p.toLocaleString('en-US',{maximumFractionDigits:market[1].startsWith('BTC')?2:6});
+    if(change)change.textContent='تداول مباشر من Bitstamp · السعر الحالي Spot';
+    setStatus('LIVE · آخر تداول '+new Date(timestamp).toLocaleTimeString('en-GB',{timeZone:'Asia/Muscat',hour12:false})+' مسقط','live');
+    window.dispatchEvent(new CustomEvent('bigben:bitstamp-trade',{detail:lastTick}));
+  };
+  ws.onerror=()=>{if(socket===ws)setStatus('اتصال التداولات المباشرة غير متاح','delayed')};
+  ws.onclose=()=>{if(socket!==ws||current!==symbol)return;socket=null;setStatus('انقطع بث التداولات · الشموع المغلقة فقط','delayed');schedule(symbol)};
+ }catch(_){setStatus('تعذر فتح قناة الأسعار المباشرة','delayed');schedule(symbol)}
+}
+function switchSymbol(value){
+ const match=validSymbol(value),symbol=match?String(value).toUpperCase():'';
+ if(symbol===current)return;
+ closeSocket();current=symbol;attempt=0;lastTick=null;
+ if(!symbol){setStatus('بث Bitstamp المباشر متاح لأزواج Spot فقط','unavailable');return}
+ connect(symbol);
+}
+window.addEventListener('bigben:instrument',e=>switchSymbol(e.detail?.symbol));
+input.addEventListener('change',()=>switchSymbol(input.value));
+window.addEventListener('bigben:chart-data',e=>{
+ if(e.detail?.symbol!==current||!Array.isArray(e.detail.candles))return;
+ lastClosePrice=e.detail.candles.at(-1)?.close;
+ if(lastTick&&Date.now()-lastTick.receivedAt<=16000){
+  const match=validSymbol(current);
+  if(match)priceText.textContent=lastTick.price.toLocaleString('en-US',{maximumFractionDigits:match[1].startsWith('BTC')?2:6});
+ }
+});
+document.addEventListener('visibilitychange',()=>{
+ if(document.visibilityState==='hidden'){closeSocket();setStatus('البث متوقف أثناء إخفاء التبويب','delayed')}
+ else if(current)connect(current);
+});
+setInterval(()=>{
+ if(!current)return;
+ if(lastTick&&Date.now()-lastTick.receivedAt>16000){
+  setStatus('آخر تداول متأخر · شموع M5 فقط','delayed');
+  const n=Number(lastClosePrice);
+  if(Number.isFinite(n)&&n>0){priceText.textContent=n.toLocaleString('en-US',{maximumFractionDigits:current.endsWith('BTCUSD')?2:6});if(change)change.textContent='آخر إغلاق M5 · ليس سعراً لحظياً'}
+  lastTick=null;
+ }
+},5000);
+switchSymbol(input.value);
 })();</script></body></html>

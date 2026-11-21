@@ -249,3 +249,21 @@ body[data-design="pro"] #ref-tick-status[data-state="delayed"]{color:#ffbc6d!imp
 body[data-design="pro"] #ref-tick-status[data-state="connecting"]{color:#9dcddd!important}
 body[data-design="pro"] .ref-price-card{gap:1px!important}
 body[data-design="pro"] .ref-price-card strong{font-size:20px!important}
+
+/* Operational chart controls and individually legible research targets. */
+body[data-design="pro"] .ref-zoom-controls{display:flex;gap:5px;align-items:center;direction:ltr}
+body[data-design="pro"] .ref-zoom-controls button{min-width:30px;height:29px;border-radius:6px;border:1px solid #29736e;background:#062a34;color:#d4fbf3;font-size:14px;font-weight:800;cursor:pointer;padding:2px 7px}
+body[data-design="pro"] .ref-zoom-controls button:hover{background:#086358;border-color:#38e7c4}
+body[data-design="pro"] #desk-live-chart{touch-action:pan-y;cursor:grab}
+body[data-design="pro"] #desk-live-chart:active{cursor:grabbing}
+body[data-design="pro"] .ref-targets-extra{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;border:0!important;background:transparent!important;padding:0!important;direction:ltr!important}
+body[data-design="pro"] .ref-targets-extra>div{border:1px solid #237568;border-radius:7px;background:#06342f;padding:7px 4px;display:grid;gap:3px;text-align:center;min-width:0}
+body[data-design="pro"] .ref-targets-extra>div:nth-child(2){background:#082b3c;border-color:#2a748d}
+body[data-design="pro"] .ref-targets-extra>div:nth-child(3){background:#23283b;border-color:#7568a0}
+body[data-design="pro"] .ref-targets-extra span{font-size:10px;color:#a8dee0;font-weight:700}
+body[data-design="pro"] .ref-targets-extra strong{font-size:clamp(10px,.95vw,14px);color:#42f4ba;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+body[data-design="pro"] .ref-targets-extra>div:nth-child(2) strong{color:#70d9ff}
+body[data-design="pro"] .ref-targets-extra>div:nth-child(3) strong{color:#c1aaff}
+body[data-design="pro"] .ref-mode-explanation{display:block;font-size:10px;color:#8dc2c2;text-align:center;line-height:1.3}
+body[data-design="pro"] .reference-chart-header{gap:10px!important}
+@media(max-width:500px){body[data-design="pro"] .ref-targets-extra strong{font-size:12px}body[data-design="pro"] .ref-zoom-controls button{min-width:27px;padding:2px 4px}}

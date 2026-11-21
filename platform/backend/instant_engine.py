@@ -144,28 +144,34 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
     atr=_atr(bars)
     if atr is None or atr<=0:
         return unavailable("ATR_UNAVAILABLE",symbol,mode,provider)
-    lookback=12 if mode=="scalp" else 36
-    recent=bars[-lookback-1:-1]
+    # Scalp is M5 break/sweep; Swing is an independent, H1-structured plan.
+    # Both share only verified source candles, never each other's entry/stop.
+    execution=bars if mode=="scalp" else hourly
+    lookback=12 if mode=="scalp" else 6
+    recent=execution[-lookback-1:-1]
+    curr=execution[-1]
     recent_high=max(b[2] for b in recent);recent_low=min(b[3] for b in recent)
-    curr=bars[-1]
     sweep_high=curr[2]>recent_high and curr[4]<recent_high
     sweep_low=curr[3]<recent_low and curr[4]>recent_low
-    # FVG only when a real 3-bar wick gap exists; return zone not confirmation.
-    fvg_up=bars[-3][2]<bars[-1][3]
-    fvg_down=bars[-3][3]>bars[-1][2]
-    fvg={"type":"BULLISH","zone":[bars[-3][2],bars[-1][3]]} if fvg_up else (
-        {"type":"BEARISH","zone":[bars[-1][2],bars[-3][3]]} if fvg_down else None)
+    # FVG is intentionally calculated on execution timeframe, not relabelled M5.
+    fvg_up=execution[-3][2]<execution[-1][3]
+    fvg_down=execution[-3][3]>execution[-1][2]
+    fvg={"type":"BULLISH","zone":[execution[-3][2],execution[-1][3]]} if fvg_up else (
+        {"type":"BEARISH","zone":[execution[-1][2],execution[-3][3]]} if fvg_down else None)
     side="SELL" if sweep_high else "BUY" if sweep_low else ("BUY" if bias!="BEARISH" else "SELL")
     if bias=="RANGING" and not (sweep_low or sweep_high):
         side="BUY" if curr[4]<(recent_high+recent_low)/2 else "SELL"
     sign=1 if side=="BUY" else -1
     trigger=_tick(recent_high+tick_size,tick_size,"up") if sign==1 else _tick(recent_low-tick_size,tick_size,"down")
-    # Opposite wick side is idea invalidation; ATR buffer >=1 tick.
-    buffer=max(tick_size,atr*.15)
+    execution_atr=atr if mode=="scalp" else _atr(hourly)
+    if execution_atr is None or execution_atr<=0:
+        return unavailable("EXECUTION_ATR_UNAVAILABLE",symbol,mode,provider)
+    # Opposite confirmed swing wick and timeframe-specific volatility buffer.
+    buffer=max(tick_size,execution_atr*(.15 if mode=="scalp" else .25))
     anchor=min(b[3] for b in recent[-8:]+[curr]) if sign==1 else max(b[2] for b in recent[-8:]+[curr])
     stop=_tick(anchor-buffer,tick_size,"down") if sign==1 else _tick(anchor+buffer,tick_size,"up")
     risk=(trigger-stop)*sign
-    if risk<=tick_size*.9 or risk>atr*8:
+    if risk<=tick_size*.9 or risk>execution_atr*8:
         return unavailable("RISK_GEOMETRY_UNSAFE",symbol,mode,provider)
     confirmed=(curr[4]>=trigger if sign==1 else curr[4]<=trigger)
     nr=news_filter(news,symbol,asset_class,now)
@@ -179,16 +185,18 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
               "ORDER_BLOCK":"NOT_MEASURED","CISD":"NOT_MEASURED","SMT":"NOT_MEASURED"}
     return {"version":"instant-native-v2","symbol":symbol,"mode":mode,
             "status":status,"reason_code":"NEWS_RESTRICTION" if status=="NEWS_CAUTION"
-               else "M5_BREAKOUT_CONFIRMED" if confirmed else "AWAIT_M5_CLOSE_ABOVE_OR_BELOW_TRIGGER",
+               else ("M5_BREAKOUT_CONFIRMED" if mode=="scalp" else "H1_BREAKOUT_CONFIRMED") if confirmed
+               else ("AWAIT_M5_CLOSE_ABOVE_OR_BELOW_TRIGGER" if mode=="scalp" else "AWAIT_H1_CLOSE_ABOVE_OR_BELOW_TRIGGER"),
             "bias":bias,"bias_reason":"Last two completed H1 and H4 candle closes; not a calibrated probability",
+            "execution_timeframe":"M5" if mode=="scalp" else "H1",
             "provider":provider,"source_time":stamp.isoformat(),"source_age_seconds":round(age),
             "realtime_verified":bool(realtime_verified),"entry":trigger,"entry_zone":[trigger,trigger],
-            "sl":stop,"targets":targets,"confirmation":{"type":"M5_CLOSE",
+            "sl":stop,"targets":targets,"confirmation":{"type":"M5_CLOSE" if mode=="scalp" else "H1_CLOSE",
                 "direction":side,"level":trigger,"confirmed":confirmed},
             "invalidated_if":"Price breaches stop level before confirmation",
             "indicators":{"ATR_M5":round(atr,8),"PDH_UTC":pdh,"PDL_UTC":pdl,
                           "M15_close":m15[-1][4],"H1_close":h1close,"H4_close":h4close,
-                          "tick_size":tick_size},
+                          "tick_size":tick_size,"ATR_execution":round(execution_atr,8)},
             "evidence":evidence,"news":nr,"technical_direction":side,
             "broker_execution":False,"model_calibrated":False,
-            "disclaimer":"Research plan only. Spread/slippage/fees and liquidity execution not verified."}
+            "disclaimer":"Research plan only. Scalp M5 vs Swing H1 use independent ranges and volatility. Spread/slippage/fees not verified."}

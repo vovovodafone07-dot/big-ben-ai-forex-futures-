@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -98,6 +98,7 @@ def init():
    _workspace.migrate(c)
    _operations.migrate(c)
    _market_pulses.migrate(c)
+   _instant_telegram.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -113,6 +114,7 @@ def init():
    _workspace.migrate(c)
    _operations.migrate(c)
    _market_pulses.migrate(c)
+   _instant_telegram.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -334,6 +336,42 @@ def analyze_instant_native(symbol,mode):
  out["news_integration"]="VERIFIED_EVENT_TIMES_ONLY"
  out["scalp_ready"]=out["status"]=="READY" and mode=="scalp"
  return out
+
+def trigger_instant_telegram(plan):
+ """Start a private, promptly dispatched native research alert if it is NEW.
+
+ Does not block Analyze while Telegram's network responds. DB claim guarantees
+ parallel browser refreshes cannot dispatch the same signal twice.
+ """
+ if not _instant_telegram.eligible(plan):
+  return {"status":"not_eligible"}
+ if os.getenv("BIGBEN_NATIVE_TELEGRAM_ENABLED","1")!="1":
+  return {"status":"disabled"}
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ chat=telegram_destination()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
+  return {"status":"not_configured"}
+ try:
+  with history_connection() as c:
+   key=_instant_telegram.claim(c,plan,chat,postgres_enabled())
+ except Exception:
+  return {"status":"storage_unavailable"}
+ if not key:return {"status":"duplicate"}
+ def deliver():
+  result=_instant_telegram.send(plan,token,chat)
+  try:
+   with history_connection() as c:
+    _instant_telegram.finish(c,key,result,postgres_enabled())
+   print("native_telegram symbol="+plan["symbol"]+" status="+result,flush=True)
+  except Exception:print("native_telegram status=receipt_storage_unavailable",flush=True)
+ try:
+  threading.Thread(target=deliver,name="native-telegram",daemon=True).start()
+ except RuntimeError:
+  try:
+   with history_connection() as c:_instant_telegram.finish(c,key,"failed",postgres_enabled())
+  except Exception:pass
+  return {"status":"failed"}
+ return {"status":"sending","fingerprint":key}
 
 def analyze_native_chart(symbol,mode):
  """Standalone platform decisions from provider candles. Never load TV webhook trades."""
@@ -816,6 +854,17 @@ class Handler(BaseHTTPRequestHandler):
   self.end_headers();self.wfile.write(body)
  def do_GET(self):
   path=urlsplit(self.path).path
+  if urlsplit(self.path).path=="/api/instant/telegram/status":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   key=parse_qs(urlsplit(self.path).query).get("fingerprint",[""])[0]
+   if not re.fullmatch(r"[0-9a-f]{64}",key):return self.reply(400,{"error":"invalid_fingerprint"})
+   try:
+    with history_connection() as c:
+     mark="%s" if postgres_enabled() else "?"
+     record=c.execute("SELECT delivery,updated_at FROM native_telegram_alerts WHERE fingerprint="+mark,(key,)).fetchone()
+    return self.reply(200,{"status":record[0],"updated_at":record[1]} if record else {"status":"not_found"})
+   except Exception:return self.reply(503,{"error":"delivery_status_unavailable"})
+
   if path=="/healthz":return self.reply(200,{"status":"ok","release":"symbol-sync-demo-readonly-v2","mode":"live-analysis-alerts-only","runtime_mode":"live_analysis","broker_execution":"disabled","agents":"enabled","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -1139,7 +1188,10 @@ class Handler(BaseHTTPRequestHandler):
     mode=request.get("mode","scalp")
     if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
    except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_symbol_or_json"})
-   try:return self.reply(200,analyze_instant_native(symbol,mode))
+   try:
+    result=analyze_instant_native(symbol,mode)
+    result["telegram_delivery"]=trigger_instant_telegram(result)
+    return self.reply(200,result)
    except Exception:return self.reply(503,{"error":"instant_analysis_unavailable"})
   if urlsplit(self.path).path=="/api/analyze":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})

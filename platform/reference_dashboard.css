@@ -207,3 +207,11 @@ body[data-design="pro"] .ref-symbol-card .ref-chevron{background:transparent!imp
  body[data-design="pro"] .analysis-dossier{order:1!important}
 }
 @media(max-width:780px){body[data-design="pro"] .header-row{direction:ltr!important}body[data-design="pro"] .a-workspace-title{text-align:left!important}}
+
+/* Narrow screens must use a single full-width chart followed by a full-width result card. */
+@media(max-width:920px){
+ body[data-design="pro"] .desk-main{display:flex!important;flex-direction:column!important;width:100%!important;min-width:0!important}
+ body[data-design="pro"] .a-chart-column{order:0!important;display:block!important;flex:0 0 auto!important;width:100%!important;max-width:100%!important;min-width:0!important}
+ body[data-design="pro"] #desk-market-chart{width:100%!important;max-width:100%!important;min-width:0!important}
+ body[data-design="pro"] .analysis-dossier{order:1!important;flex:0 0 auto!important;width:100%!important;max-width:100%!important;min-width:0!important}
+}

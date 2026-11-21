@@ -79,6 +79,28 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(len(result['agent_tasks']),3);self.assertFalse(result['uses_tradingview_signals']);self.assertEqual(result['analysis_origin'],'platform_native')
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
 
+    def test_native_telegram_only_sends_from_authenticated_v2_plan(self):
+        with patch.object(app,"trigger_instant_telegram",return_value={"status":"not_eligible"}) as dispatch:
+            code,_=self.request("POST","/api/instant/analyze",{"symbol":"BTCUSD","mode":"scalp"})
+            self.assertEqual(code,401)
+            dispatch.assert_not_called()
+            code,result=self.request("POST","/api/instant/analyze",{"symbol":"NQ","mode":"scalp"},auth=self.auth)
+            self.assertEqual(code,200)
+            self.assertEqual(result["telegram_delivery"]["status"],"not_eligible")
+            self.assertEqual(dispatch.call_count,1)
+            self.assertEqual(dispatch.call_args.args[0]["status"],"DATA_UNAVAILABLE")
+
+    def test_native_telegram_delivery_status_is_private(self):
+        key="a"*64
+        with app.history_connection() as c:
+            c.execute("INSERT INTO native_telegram_alerts(fingerprint,symbol,mode,status,delivery,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
+                      (key,"BITSTAMP:BTCUSD","scalp","READY","sent","2026-11-22T00:00:00+00:00","2026-11-22T00:00:01+00:00"))
+        self.assertEqual(self.request("GET","/api/instant/telegram/status?fingerprint="+key)[0],401)
+        code,result=self.request("GET","/api/instant/telegram/status?fingerprint="+key,auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual(result["status"],"sent")
+        self.assertEqual(self.request("GET","/api/instant/telegram/status?fingerprint=bad",auth=self.auth)[0],400)
+
     def test_instant_native_v2_rejects_unverified_nq_futures_without_levels(self):
         self.assertEqual(self.request("POST","/api/instant/analyze",{"symbol":"NQ"})[0],401)
         code,result=self.request("POST","/api/instant/analyze",{"symbol":"NQ","mode":"scalp"},auth=self.auth)

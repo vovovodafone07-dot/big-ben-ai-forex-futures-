@@ -95,7 +95,7 @@ def evaluate(rows, mode="scalp", now=None, rr=2.5):
             v=[float(z) for z in raw[1:5]]
             if dt.tzinfo is None or not all(math.isfinite(z) and z>0 for z in v):
                 raise ValueError()
-            if v[2]<max(v[0],v[3]) or v[3]>min(v[0],v[3]):raise ValueError()
+            if v[1]<max(v[0],v[3]) or v[2]>min(v[0],v[3]):raise ValueError()
             candles.append((dt.astimezone(timezone.utc),*v))
     except (ValueError,TypeError,OverflowError,IndexError):
         return {**result,"state":"INVALID_CANDLE"}

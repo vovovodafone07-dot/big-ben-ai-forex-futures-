@@ -15,7 +15,7 @@ def evaluate(rows, *, now=None, mode="scalp", rr=2.5):
         result["state"]="SWING_ENGINE_NOT_VALIDATED"
         return result
     candles=[]
-    for row in reversed(list(rows)):
+    for row in sorted(rows, key=lambda item: str(item[0])):
         try:
             stamp,op,hi,lo,cl=row
             dt=datetime.fromisoformat(str(stamp).replace("Z","+00:00"))

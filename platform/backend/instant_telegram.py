@@ -158,8 +158,9 @@ def send(plan,token,chat,opener=None,timeout=5):
                                    method="POST",headers={"Content-Type":"application/json"})
     try:
         with opener(request,timeout=timeout) as response:
-            data=response.read(2048)
-            return "sent" if response.status==200 and json.loads(data).get("ok") is True else "failed"
+            # Telegram HTTP 200 is success; response JSON may include full echoed
+            # HTML message and exceed 2048 bytes. Do not truncate+parse it.
+            return "sent" if response.status==200 else "failed"
     except urllib.error.HTTPError as error:
         # Telegram may reject malformed markup or a chat without message permissions.
         # Only whitelist diagnostic categories; do not log the token, URL or chat.

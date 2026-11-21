@@ -104,7 +104,7 @@ def trade_only_message(plan, now=None):
             "• إبطال الفكرة عند تجاوز وقف الخسارة",
             "⏱️ الوقت: "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" مسقط",
             "⚠️ خطة بحثية، ليست تنفيذاً حقيقياً."]
-    return "\\n".join(body)
+    return "\n".join(body)
 
 def message(plan, now=None):
     if not eligible(plan):
@@ -174,14 +174,16 @@ def finish(connection,key,result,postgres=False):
                        " WHERE fingerprint="+mark+" AND delivery='sending'",
                        (result,datetime.now(timezone.utc).isoformat(),key))
 
-def send(plan,token,chat,opener=None,timeout=5):
+def send(plan,token,chat,opener=None,timeout=5,topic_id=None):
     if not eligible(plan):
         return "not_eligible"
     if not token or not re.fullmatch(r"-?[0-9]{5,20}",str(chat)):
         return "not_configured"
     opener=opener or urllib.request.urlopen
-    payload=json.dumps({"chat_id":chat,"text":(trade_only_message(plan) if plan["status"]=="READY" else message(plan)),"parse_mode":"HTML",
-                        "disable_web_page_preview":True},ensure_ascii=False).encode("utf-8")
+    body={"chat_id":chat,"text":(trade_only_message(plan) if plan["status"]=="READY" else message(plan)),"parse_mode":"HTML",
+                        "disable_web_page_preview":True}
+    if isinstance(topic_id,int) and topic_id>0:body["message_thread_id"]=topic_id
+    payload=json.dumps(body,ensure_ascii=False).encode("utf-8")
     request=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,
                                    method="POST",headers={"Content-Type":"application/json"})
     try:

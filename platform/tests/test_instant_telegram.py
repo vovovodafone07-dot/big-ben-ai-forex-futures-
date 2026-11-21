@@ -85,6 +85,15 @@ class TelegramNativeTests(unittest.TestCase):
   self.assertEqual(captured["payload"]["parse_mode"],"HTML")
   self.assertIn("sendMessage",captured["url"])
   self.assertEqual(captured["timeout"],5)
+ def test_successful_telegram_large_response_not_truncated(self):
+  class LongReply:
+   status=200
+   def __enter__(self):return self
+   def __exit__(self,*args):return False
+   def read(self,n):raise AssertionError("Do not read and truncate a successful Telegram body")
+  self.assertEqual(telegram.send(plan(),"fake_token","12345678",
+                   opener=lambda req,timeout:LongReply()),"sent")
+
  def test_telegram_http_failure_is_safely_categorized(self):
   import urllib.error
   import io

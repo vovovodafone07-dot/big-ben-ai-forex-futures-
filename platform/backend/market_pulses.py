@@ -35,7 +35,7 @@ def analyze(symbol, rows, now=None):
         except (ValueError, TypeError, KeyError, IndexError):
             continue
     if not candles:
-        return {"symbol": symbol, "state": "INSUFFICIENT_DATA", "decision": "WAIT", "reason": "no_closed_candles", "candles": 0, "generated_at": now.isoformat(), "source": "Twelve Data stored closed candles"}
+        return {"symbol": symbol, "state": "INSUFFICIENT_DATA", "decision": "DATA_UNAVAILABLE", "reason": "no_closed_candles", "candles": 0, "generated_at": now.isoformat(), "source": "Twelve Data stored closed candles"}
     closes = [x[4] for x in candles]
     last = candles[-1]
     age = max(0, int((now - last[0]).total_seconds()))
@@ -52,15 +52,15 @@ def analyze(symbol, rows, now=None):
             trs.append(max(high - low, abs(high - prev_close), abs(low - prev_close)))
         atr = sum(trs[-14:]) / 14 if len(trs) >= 14 else None
     if not fresh:
-        state, decision = "STALE", "WAIT"
+        state, decision = "STALE", "DATA_STALE"
     elif ema20 is None or ema50 is None or momentum_pct is None:
-        state, decision = "INSUFFICIENT_DATA", "WAIT"
+        state, decision = "INSUFFICIENT_DATA", "INSUFFICIENT_HISTORY"
     elif last[4] > ema20 > ema50 and momentum_pct > 0:
         state, decision = "BULLISH", "MONITOR_LONG_SETUP"
     elif last[4] < ema20 < ema50 and momentum_pct < 0:
         state, decision = "BEARISH", "MONITOR_SHORT_SETUP"
     else:
-        state, decision = "MIXED", "WAIT"
+        state, decision = "MIXED", "NO_CONFIRMED_DIRECTION"
     return {"symbol": symbol, "state": state, "decision": decision, "fresh": fresh, "age_seconds": age,
             "last_closed_candle": last[0].isoformat(), "last_close": last[4],
             "ema20": round(ema20, 8) if ema20 is not None else None,
@@ -68,7 +68,7 @@ def analyze(symbol, rows, now=None):
             "momentum_60m_pct": round(momentum_pct, 5) if momentum_pct is not None else None,
             "atr14": round(atr, 8) if atr is not None else None, "candles": len(candles),
             "entry": None, "sl": None, "tp": None,
-            "reason": "تحليل دوري للاتجاه والزخم؛ لا يُنشئ صفقة ولا يستبدل إشارة TradingView",
+            "reason": ("البيانات متأخرة، لا يمكن اعتماد اتجاه الآن" if state=="STALE" else "لا توجد شموع كافية لحساب الاتجاه" if state=="INSUFFICIENT_DATA" else "اتجاه عرضي أو متضارب، لا توجد صفقة مؤكدة" if state=="MIXED" else "اتجاه قيد المراقبة من شموع مغلقة"),
             "source": "Twelve Data stored closed candles", "adapter_version": ADAPTER_VERSION,
             "generated_at": now.isoformat()}
 

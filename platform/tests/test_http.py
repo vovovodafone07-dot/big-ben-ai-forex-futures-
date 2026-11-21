@@ -381,7 +381,7 @@ class WebhookHTTPTests(unittest.TestCase):
             result = app._market_pulses.analyze("EUR/USD", rows, now)
             app._market_pulses.save(connection, result)
         self.assertIn(result["state"], ("BULLISH", "MIXED", "STALE"))
-        self.assertEqual(result["decision"], "MONITOR_LONG_SETUP" if result["state"] == "BULLISH" else "WAIT")
+        self.assertEqual(result["decision"], "MONITOR_LONG_SETUP" if result["state"] == "BULLISH" else "DATA_STALE" if result["state"] == "STALE" else "NO_CONFIRMED_DIRECTION")
         self.assertIsNone(result["entry"])
         self.assertEqual(self.request("GET", "/api/market/pulses")[0], 401)
         status, payload = self.request("GET", "/api/market/pulses", auth=self.auth)

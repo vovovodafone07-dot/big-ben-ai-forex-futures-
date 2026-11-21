@@ -888,6 +888,28 @@ def telegram_notify(d):
    return "sent" if response.status==200 else "failed"
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
+def audit_telegram_connection():
+ """Read-only Telegram bot/chat checks; no test messages, tokens or chat ids in logs."""
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ chat=telegram_destination()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
+  print("telegram_audit state=NOT_CONFIGURED",flush=True);return
+ # HTTP status only, never log URL or Telegram API body containing private fields.
+ for method,body in (("getMe",None),("getChat",{"chat_id":chat})):
+  uri="https://api.telegram.org/bot"+token+"/"+method
+  request=urllib.request.Request(uri,
+    data=json.dumps(body).encode() if body is not None else None,
+    headers={"Content-Type":"application/json"} if body else {})
+  try:
+   with urllib.request.urlopen(request,timeout=7) as response:
+    raw=response.read(2048)
+    verified=response.status==200 and json.loads(raw).get("ok") is True
+   print("telegram_audit check="+method+" state="+("OK" if verified else "FAILED_RESPONSE"),flush=True)
+  except urllib.error.HTTPError as error:
+   print("telegram_audit check="+method+" state=HTTP_"+str(error.code),flush=True)
+  except (OSError,ValueError,TimeoutError):
+   print("telegram_audit check="+method+" state=CONNECTION_ERROR",flush=True)
+
 def send_telegram_message(message):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
  chat=telegram_destination()
@@ -1313,6 +1335,7 @@ if __name__=="__main__":
  import threading
  threading.Thread(target=check_market_connection,daemon=True).start()
  threading.Thread(target=crypto_startup_probe,daemon=True).start()
+ threading.Thread(target=audit_telegram_connection,daemon=True).start()
  if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
   threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()

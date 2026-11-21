@@ -519,7 +519,7 @@ const canvas=document.createElement('canvas');
 canvas.id='bigben-native-candles';
 canvas.setAttribute('role','img');
 canvas.setAttribute('aria-label','شموع OHLC المخزنة من مزود البيانات. لا يتم رسم أسعار وهمية');
-canvas.style.cssText='display:block;width:100%;height:100%;background:#0b1529';
+canvas.style.cssText='display:block;width:100%;height:100%;background:#06191f';
 host.replaceChildren(canvas);
 if(link){link.textContent='مخطط خارجي اختياري';link.setAttribute('title','لا يحتاج تحليل المنصة إلى TradingView')}
 const ctx=canvas.getContext('2d');
@@ -532,7 +532,7 @@ function draw(){
  const dpr=Math.min(2,window.devicePixelRatio||1);
  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- ctx.fillStyle='#0b1529';ctx.fillRect(0,0,w,h);
+ ctx.fillStyle='#06191f';ctx.fillRect(0,0,w,h);
  const bars=last.candles.slice(-96);
  if(!bars.length){ctx.fillStyle='#b5c6df';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('لا توجد شموع موثقة لهذا الرمز',w/2,h/2);return}
  const barMin=Math.min(...bars.map(x=>+x.low)),barMax=Math.max(...bars.map(x=>+x.high));
@@ -547,26 +547,26 @@ function draw(){
  ctx.lineWidth=1;ctx.font='11px sans-serif';ctx.textAlign='left';
  for(let j=0;j<5;j++){
   const tick=min+(max-min)*j/4,Y=y(tick);
-  ctx.strokeStyle='#263a58';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
-  ctx.fillStyle='#9caec6';ctx.fillText(price(tick),w-right+7,Y+4);
+  ctx.strokeStyle='#21464a';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
+  ctx.fillStyle='#9ec8c4';ctx.fillText(price(tick),w-right+7,Y+4);
  }
  for(let i=0;i<bars.length;i++){
   const b=bars[i],x=left+(i+.5)*bw;
   const up=+b.close>=+b.open;
-  ctx.strokeStyle=up?'#33d7a6':'#fc7187';ctx.fillStyle=ctx.strokeStyle;
+  ctx.strokeStyle=up?'#25dbaa':'#fa667a';ctx.fillStyle=ctx.strokeStyle;
   ctx.beginPath();ctx.moveTo(x,y(+b.high));ctx.lineTo(x,y(+b.low));ctx.stroke();
   const y1=y(Math.max(+b.open,+b.close)),y2=y(Math.min(+b.open,+b.close));
   ctx.fillRect(x-Math.max(1,bw*.32),y1,Math.max(2,bw*.64),Math.max(1,y2-y1));
  }
  const trade=last.trade;
  if(trade&&last.fresh&&levels.length===3){
-  for(const [label,value,color] of [['Entry',trade.entry,'#fbd56f'],['SL',trade.sl,'#ff7a91'],['TP',trade.tp,'#53dfac']]){
+  for(const [label,value,color] of [['Entry',trade.entry,'#5baffe'],['SL',trade.sl,'#ff6c81'],['TP',trade.tp,'#24dba1']]){
    ctx.setLineDash([6,4]);ctx.strokeStyle=color;ctx.lineWidth=1.25;
    ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(w-right,y(value));ctx.stroke();
    ctx.setLineDash([]);ctx.fillStyle=color;ctx.textAlign='left';ctx.fillText(label,w-right+8,y(value)-6);
   }
  }
- ctx.fillStyle='#a3b8d3';ctx.textAlign='left';ctx.font='11px sans-serif';
+ ctx.fillStyle='#96bab6';ctx.textAlign='left';ctx.font='11px sans-serif';
  ctx.fillText((last.symbol||'')+' · M5 · '+(last.fresh?'شموع حديثة':'بيانات تاريخية'),left+4,h-8);
  // Actual UTC candle timestamps, not evenly spaced synthetic time labels.
  ctx.fillStyle='#8ba1bb';ctx.font='10px sans-serif';ctx.textAlign='center';

@@ -348,7 +348,7 @@ async function load(data){
   const list=Array.isArray(payload.candles)?payload.candles:[];
   const valid=list.filter(x=>[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(+v)&&+v>0)&&+x.high>=Math.max(+x.open,+x.close)&&+x.low<=Math.min(+x.open,+x.close)&&Number.isFinite(Date.parse(x.time))).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
   last={candles:valid,trade:latestTrade,symbol:payload.symbol,provider:payload.provider||'unverified',fresh:payload.fresh===true};window.dispatchEvent(new CustomEvent('bigben:chart-data',{detail:{symbol:payload.symbol,provider:last.provider,candles:valid,fresh:last.fresh,last_closed_candle:payload.last_closed_candle}}));
-  status.textContent=payload.symbol+' · '+(payload.provider||'المزود')+' · '+valid.length+' شمعة M5 مغلقة · '+(last.fresh?'بيانات حديثة':'بيانات تاريخية أو سوق مغلق')+' · آخر شمعة: '+(payload.last_closed_candle||'غير متاح')+' UTC · دون Pine.';
+  status.textContent=payload.symbol+' · '+(payload.provider||'المزود')+' · '+valid.length+' شمعة M5 مغلقة · '+(last.fresh?'بيانات حديثة':'بيانات تاريخية أو مصدر غير متصل')+' · آخر شمعة: '+(payload.last_closed_candle||'غير متاح')+' UTC · دون Pine.';
   if(link){link.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(payload.symbol)+'&interval=5'}
   draw();
  }catch(err){if(n!==seq)return;last={candles:[],symbol:data.symbol,fresh:false};status.textContent='تعذر قراءة شموع OHLC الأصلية. لا توجد أسعار اصطناعية.';draw()}
@@ -495,7 +495,7 @@ function renderSymbol(){
  const flags=pair.startsWith('BTC')?'₿':pair.startsWith('ETH')?'Ξ':pair==='EURUSD'?'🇪🇺 🇺🇸':pair==='GBPUSD'?'🇬🇧 🇺🇸':pair==='USDJPY'?'🇺🇸 🇯🇵':'▥';
  const el=document.querySelector('.ref-flags');if(el)el.textContent=flags;
 }
-input.addEventListener('change',renderSymbol);renderSymbol();
+input.addEventListener('change',()=>{renderSymbol();session()});renderSymbol();
 const picker=byId('ref-symbol-dropdown');
 picker?.addEventListener('click',()=>{input.focus();try{input.showPicker?.()}catch(_){}});
 const format=v=>Number(v).toLocaleString('en-US',{useGrouping:false,minimumFractionDigits:+v>=10?2:4,maximumFractionDigits:6});
@@ -512,6 +512,7 @@ window.addEventListener('bigben:chart-data',event=>{
   text('ref-last-price',format(last.close));
   if(previous&&+previous.close>0){
    const delta=+last.close-+previous.close,percent=delta/(+previous.close)*100;
+   if(priceCard)priceCard.dataset.direction=delta>=0?'up':'down';
    text('ref-price-change','تغير M5: '+(delta>=0?'+':'')+format(delta)+' ('+(percent>=0?'+':'')+percent.toFixed(2)+'%)');
   }else text('ref-price-change','آخر إغلاق M5');
   if(priceCard)priceCard.dataset.state=d.fresh?'fresh':'stale';
@@ -562,7 +563,8 @@ function session(){
  const source=byId('market-session-state')?.textContent||'';
  const state=byId('ref-session-label'),card=document.querySelector('.ref-market-card');
  if(!state)return;
- if(source.includes('مغلق')){state.textContent='مغلق';if(card)card.dataset.state='closed'}
+ if(input.value.trim().toUpperCase().startsWith('BITSTAMP:')){state.textContent='تداول 24/7';if(card)card.dataset.state='crypto'}
+ else if(source.includes('مغلق')){state.textContent='مغلق';if(card)card.dataset.state='closed'}
  else if(source.includes('مفتوح')){state.textContent='مفتوح';if(card)card.dataset.state='open'}
  else{state.textContent='غير مؤكد';if(card)card.dataset.state='unknown'}
 }

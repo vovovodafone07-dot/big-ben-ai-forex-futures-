@@ -76,7 +76,7 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'EURUSD'})[0],401)
         status,result=self.request('POST','/api/analyze',{'symbol':'EURUSD','ai':False},auth=self.auth)
         self.assertEqual(status,200);self.assertEqual(result['decision'],'WAIT');self.assertIsNone(result['full_trade'])
-        self.assertEqual(len(result['agent_tasks']),9);self.assertFalse(result['ai']['connection_verified'])
+        self.assertEqual(len(result['agent_tasks']),3);self.assertFalse(result['uses_tradingview_signals']);self.assertEqual(result['analysis_origin'],'platform_native')
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
 
     def test_private_api_requires_authentication(self):
@@ -217,7 +217,8 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/v1/tradingview/events", event)[0], 202)
         status, result = self.request("POST", "/api/analyze", {"symbol": "EUR/USD", "ai": False}, auth=self.auth)
         self.assertEqual(status, 200)
-        self.assertEqual(result["decision"], "BUY")
+        self.assertEqual(result["decision"], "WAIT")  # Historical webhook MUST NOT become a new native platform setup.
+        self.assertFalse(result["uses_tradingview_signals"])
         self.assertEqual(result["symbol"], "OANDA:EURUSD")
 
     def test_notification_contains_full_and_scalp_without_pine_edits(self):

@@ -241,3 +241,11 @@ body[data-design="pro"] .ref-signal-card[data-decision="unavailable"]{background
 body[data-design="pro"] .ref-targets-extra{border:1px solid #255b61!important;border-radius:6px!important;background:#07252f!important;padding:6px 7px!important;text-align:center!important;color:#56eabc!important;font-size:11px!important;direction:ltr!important;font-variant-numeric:tabular-nums}
 body[data-design="pro"] .ref-feed-banner[data-state="stale"]{border-color:#ba633f!important;background:linear-gradient(100deg,#412b28,#3d2229)!important}
 body[data-design="pro"] .ref-price-card[data-state="stale"]{border-color:#9e6547!important}
+
+/* Separate REAL Bitstamp trades from closed M5 historical chart evidence. */
+body[data-design="pro"] #ref-tick-status{display:block;font-size:10px!important;line-height:1.1!important;color:#91b2bd!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-design="pro"] #ref-tick-status[data-state="live"]{color:#22efb5!important}
+body[data-design="pro"] #ref-tick-status[data-state="delayed"]{color:#ffbc6d!important}
+body[data-design="pro"] #ref-tick-status[data-state="connecting"]{color:#9dcddd!important}
+body[data-design="pro"] .ref-price-card{gap:1px!important}
+body[data-design="pro"] .ref-price-card strong{font-size:20px!important}

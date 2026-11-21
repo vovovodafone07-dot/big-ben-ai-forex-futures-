@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -230,6 +230,42 @@ BACKUP_SLOT=threading.BoundedSemaphore(1)
 NATIVE_FETCH_TIMES=[]
 NATIVE_FETCH_LOCK=threading.Lock()
 
+def bitstamp_native_candles(symbol,now=None):
+ """Bounded crypto OHLC ingestion shared by chart and Analyze, never a proxy feed."""
+ _crypto_history.pair_from_symbol(symbol)
+ now=now or datetime.now(timezone.utc)
+ mark="%s" if postgres_enabled() else "?"
+ try:
+  with history_connection() as c:
+   prev=c.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(symbol,)).fetchone()
+  prior=json.loads(prev[0]) if prev else {}
+  checked=datetime.fromisoformat(prior["checked_at"].replace("Z","+00:00")) if prior.get("checked_at") else None
+  needs_refresh=checked is None or (now-checked).total_seconds()>=300
+  if needs_refresh:
+   allowed=False
+   with NATIVE_FETCH_LOCK:
+    tick=time.monotonic()
+    NATIVE_FETCH_TIMES[:]=[v for v in NATIVE_FETCH_TIMES if tick-v<3600]
+    if len(NATIVE_FETCH_TIMES)<35 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=3):
+     NATIVE_FETCH_TIMES.append(tick);allowed=True
+   if allowed:
+    try:
+     rows,meta=_crypto_history.fetch_m5(symbol,now)
+    except _crypto_history.CryptoHistoryError as error:
+     rows=[]
+     meta={"symbol":symbol,"provider":"Bitstamp","checked_at":now.isoformat(),
+           "state":"DEGRADED","reason":str(error),"realtime_verified":False}
+    with history_connection() as c:
+     _crypto_history.store_check(c,symbol,meta,rows,postgres=postgres_enabled())
+    prior=meta
+  with history_connection() as c:
+   rows=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Bitstamp' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(symbol,)).fetchall()
+  return rows,prior
+ except (_crypto_history.CryptoHistoryError,ValueError):
+  raise
+ except Exception:
+  raise _crypto_history.CryptoHistoryError("crypto_source_unavailable") from None
+
 def analyze_native_chart(symbol,mode):
  """Standalone platform decisions from provider candles. Never load TV webhook trades."""
  now=datetime.now(timezone.utc)
@@ -243,6 +279,35 @@ def analyze_native_chart(symbol,mode):
            "full_trade":None,"scalp":None,"selected_trade":None}
  ticker=symbol.split(":",1)[-1]
  provider_pair=ticker[:3]+"/"+ticker[3:] if len(ticker)==6 and instrument["asset_class"]=="forex" else None
+ if instrument["asset_class"]=="crypto" and symbol.startswith("BITSTAMP:"):
+  response["source"]="Bitstamp spot M5 OHLC"
+  try:
+   rows,meta=bitstamp_native_candles(symbol,now)
+   setup=_native_chart_analysis.evaluate(rows,mode=mode,now=now)
+  except _crypto_history.CryptoHistoryError as error:
+   meta={"reason":str(error),"state":"DEGRADED"}
+   setup={"state":"CRYPTO_OHLC_UNAVAILABLE","candidate":None,"reason":str(error)}
+  response["independent_setup"]=setup
+  response["source_time"]=setup.get("source_time")
+  response["fresh"]=setup.get("state") not in ("STALE_OR_UNCLOSED","INSUFFICIENT_DATA","MISSING_RECENT_M5_BARS","INVALID_CANDLE","DATA_CHECK_FAILED","CRYPTO_OHLC_UNAVAILABLE")
+  response["decision_reason_code"]=setup.get("state","WAIT")
+  response["mode_timeframes"]=["M5","M15","H1"] if mode=="scalp" else ["H1","H4"]
+  response["analysis_timeframes"]=setup.get("timeframes",{})
+  response["mode_note"]="السعر من تداول Spot في Bitstamp حصراً، وليس BTC Futures أو CFD؛ تحليل بحثي لا ينفذ أوامر."
+  response["reasons"]=["مصدر شموع البيتكوين: Bitstamp Spot M5 من المنصة وليس TradingView.",
+                       "حالة البيانات: "+str(meta.get("state","UNKNOWN"))+" / "+str(meta.get("reason","not_checked")),
+                       "حالة التحليل: "+str(setup.get("state","UNKNOWN"))]
+  candidate=setup.get("candidate") if response["fresh"] else None
+  if candidate:
+   response["decision"]=candidate["event"]
+   response["selected_trade"]=candidate
+   response["full_trade"]=candidate
+   if mode=="scalp":response["scalp"]=candidate
+   response["reasons"].append("فرصة بحثية غير مؤكدة؛ لا يوجد أمر تداول أو ضمان نتيجة.")
+  response["agent_tasks"]=[{"role":"market_data","output":"Bitstamp Spot OHLC؛ "+str(meta.get("state"))},
+                          {"role":"signal_quality","output":"Native "+response["decision"]},
+                          {"role":"risk","output":"مستويات بحثية دون تنفيذ"}]
+  return response
  if provider_pair not in _history.FOREX:
   response.update(decision_reason_code="SOURCE_NOT_SUPPORTED",mode_note="يتطلب هذا السوق مزود شموع OHLC مرخصاً؛ لن نستخدم CFD بديلاً عن عقود Futures.",
                   independent_setup={"state":"SOURCE_NOT_VERIFIED","candidate":None})
@@ -838,19 +903,25 @@ class Handler(BaseHTTPRequestHandler):
     q=parse_qs(urlsplit(self.path).query)
     symbol=_instruments.normalize(q.get("symbol",[""])[0])
     instrument=_instruments.describe(symbol)
-    if instrument["asset_class"]!="forex":return self.reply(422,{"error":"ohlc_source_not_verified_for_instrument","symbol":symbol})
-    ticker=symbol.split(":",1)[1]
-    pair=ticker[:3]+"/"+ticker[3:]
     marker="%s" if postgres_enabled() else "?"
-    with history_connection() as c:
-     candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+    provider="Twelve Data"
+    if instrument["asset_class"]=="crypto" and symbol.startswith("BITSTAMP:"):
+     provider="Bitstamp"
+     candles,source_meta=bitstamp_native_candles(symbol)
+    elif instrument["asset_class"]=="forex" and symbol.split(":",1)[1][:3]+"/"+symbol.split(":",1)[1][3:] in _history.FOREX:
+     ticker=symbol.split(":",1)[1]
+     pair=ticker[:3]+"/"+ticker[3:]
+     with history_connection() as c:
+      candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+    else:return self.reply(422,{"error":"ohlc_source_not_verified_for_instrument","symbol":symbol,"asset_class":instrument["asset_class"]})
     out=[{"time":row[0],"open":row[1],"high":row[2],"low":row[3],"close":row[4]} for row in reversed(candles)]
     last=out[-1]["time"] if out else None
     age=(datetime.now(timezone.utc)-datetime.fromisoformat(last.replace("Z","+00:00"))).total_seconds() if last else None
-    return self.reply(200,{"symbol":symbol,"provider":"Twelve Data","interval":"5min",
+    return self.reply(200,{"symbol":symbol,"provider":provider,"interval":"5min",
       "realtime_verified":False,"candles":out,"last_closed_candle":last,
       "age_seconds":int(age) if age is not None else None,
       "fresh":age is not None and 300<=age<=900,"note":"Closed provider candles only. Not TradingView indicator events."})
+   except _crypto_history.CryptoHistoryError as error:return self.reply(503,{"error":"crypto_ohlc_unavailable","reason":str(error),"symbol":symbol})
    except (TypeError,ValueError,IndexError):return self.reply(400,{"error":"invalid_symbol"})
    except Exception:return self.reply(503,{"error":"chart_candles_unavailable"})
   if path=="/api/market":

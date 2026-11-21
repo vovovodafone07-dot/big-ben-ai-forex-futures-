@@ -7,6 +7,22 @@ SUPPORTED_CRYPTO=("BITSTAMP:BTCUSD","BITSTAMP:ETHUSD","BITSTAMP:XRPUSD",
                   "BITSTAMP:SOLUSD","BITSTAMP:LTCUSD","BITSTAMP:ADAUSD",
                   "BITSTAMP:DOGEUSD","BITSTAMP:BTCEUR","BITSTAMP:ETHEUR")
 
+def migrate(db):
+    db.execute("""CREATE TABLE IF NOT EXISTS native_market_open_state (
+       symbol TEXT PRIMARY KEY, is_open INTEGER NOT NULL, updated_at TEXT NOT NULL
+    )""")
+
+def record_open_state(db,symbol,is_open,postgres=False,now=None):
+    """Emit 'opened' only after a previous real closed observation."""
+    if not symbol.startswith(("BITSTAMP:","OANDA:")):return None
+    mark="%s" if postgres else "?"
+    previous=db.execute("SELECT is_open FROM native_market_open_state WHERE symbol="+mark,(symbol,)).fetchone()
+    stamp=(now or datetime.now(timezone.utc)).isoformat()
+    db.execute("INSERT INTO native_market_open_state(symbol,is_open,updated_at) VALUES ("+
+        ",".join([mark]*3)+") ON CONFLICT(symbol) DO UPDATE SET is_open=excluded.is_open,updated_at=excluded.updated_at",
+        (symbol,int(bool(is_open)),stamp))
+    return "opened" if previous is not None and previous[0]==0 and is_open else None
+
 def connected(connection,now=None,postgres=False):
     now=now or datetime.now(timezone.utc)
     result=[]

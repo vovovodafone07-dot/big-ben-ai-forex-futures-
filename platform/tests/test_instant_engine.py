@@ -30,6 +30,21 @@ class InstantNativeTests(unittest.TestCase):
     self.assertAlmostEqual(r["entry"]/.25,round(r["entry"]/.25))
     self.assertTrue(r["sl"]!=r["entry"])
     self.assertFalse(r["realtime_verified"])
+ def test_swing_has_independent_h1_levels_and_targets(self):
+    rows=candles()
+    scalp=engine.evaluate("BITSTAMP:BTCUSD",rows,asset_class="crypto",tick_size=.01,
+                          provider="Bitstamp",now=NOW,source_identity_verified=True,mode="scalp")
+    swing=engine.evaluate("BITSTAMP:BTCUSD",rows,asset_class="crypto",tick_size=.01,
+                          provider="Bitstamp",now=NOW,source_identity_verified=True,mode="swing")
+    self.assertEqual(scalp["execution_timeframe"],"M5")
+    self.assertEqual(swing["execution_timeframe"],"H1")
+    self.assertEqual(swing["confirmation"]["type"],"H1_CLOSE")
+    self.assertEqual(len(swing["targets"]),3)
+    self.assertNotEqual((scalp["entry"],scalp["sl"]),(swing["entry"],swing["sl"]))
+    self.assertNotEqual([x["price"] for x in scalp["targets"]],
+                        [x["price"] for x in swing["targets"]])
+    self.assertFalse(swing["broker_execution"])
+
  def test_stale_no_targets(self):
     r=engine.evaluate("BITSTAMP:BTCUSD",candles(),asset_class="crypto",tick_size=.01,
                       now=NOW+timedelta(minutes=32),source_identity_verified=True)

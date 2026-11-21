@@ -101,6 +101,7 @@ def init():
    _instant_telegram.migrate(c)
    _arabic_event_engine.migrate(c)
    _native_trade_journal.migrate(c)
+   _connected_market.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -119,6 +120,7 @@ def init():
    _instant_telegram.migrate(c)
    _arabic_event_engine.migrate(c)
    _native_trade_journal.migrate(c)
+   _connected_market.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -249,6 +251,12 @@ def scan_arabic_market_once(now=None):
   try:
    analysis=analyze_instant_native(symbol,"scalp")
    results["symbols"][symbol]=analysis["status"]
+   live=_connected_market.gate(analysis,now)
+   with history_connection() as db:
+    newly_opened=_connected_market.record_open_state(db,symbol,live["open"],postgres_enabled(),now)
+   if newly_opened=="opened":
+    notification="🟢 افتتاح السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nتم استئناف وصول شموع مغلقة حديثة من المصدر المطابق.\nالتحليل والتنبيهات تعمل وفق شروطها، وليس إعلاناً عن صفقة."
+    send_telegram_message(notification,category="market")
    if analysis["status"]=="DATA_UNAVAILABLE":continue
    if symbol.startswith("BITSTAMP:"):
     rows,_=bitstamp_native_candles(symbol,now)
@@ -258,6 +266,11 @@ def scan_arabic_market_once(now=None):
     mark="%s" if postgres_enabled() else "?"
     with history_connection() as db:
      rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+   with history_connection() as db:
+    movements=_native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now)
+   for movement in movements:
+    delivery=send_telegram_message(_native_trade_journal.management_message(movement,now),category="management")
+    print("إدارة_صفقة الرمز="+symbol+" الحالة="+movement["state"]+" تسليم="+delivery,flush=True)
    for event in _arabic_event_engine.technical_events(symbol,rows,now):
     status=send_arabic_market_event(event)
     if status=="sent":results["events"]+=1

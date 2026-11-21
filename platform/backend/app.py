@@ -231,7 +231,7 @@ def send_arabic_market_event(event):
  try:
   content=(_arabic_event_engine.technical_message(event) if event["kind"]=="technical"
            else _arabic_event_engine.news_message(event))
-  delivery=send_telegram_message(content)
+  delivery=send_telegram_message(content,category="news" if event["kind"]=="news" else "analysis")
  except Exception:delivery="failed"
  try:
   with history_connection() as db:_arabic_event_engine.finish(db,key,delivery,postgres_enabled())
@@ -871,11 +871,17 @@ def whatsapp_notify(d):
  except (ValueError,KeyError,TypeError):return "invalid_signal"
  except Exception:return "storage_unavailable"
 
-def telegram_destination():
+def telegram_destination(kind=None):
+ override=os.getenv("BIGBEN_TELEGRAM_"+str(kind or "").upper()+"_CHAT_ID","").strip()
+ if override and re.fullmatch(r"-?[0-9]{5,20}",override):return override
  try:
   with history_connection() as c:chat=_destinations.read(c)["telegram_chat_id"]
  except Exception:return ""
  return chat or os.getenv("TELEGRAM_CHAT_ID","").strip()
+
+def telegram_topic_id(kind):
+ raw=os.getenv("BIGBEN_TELEGRAM_"+str(kind).upper()+"_THREAD_ID","").strip()
+ return int(raw) if raw.isdigit() and int(raw)>0 else None
 
 def telegram_notify(d):
  # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
@@ -915,12 +921,15 @@ def audit_telegram_connection():
   except (OSError,ValueError,TimeoutError):
    print("telegram_audit check="+method+" state=CONNECTION_ERROR",flush=True)
 
-def send_telegram_message(message):
+def send_telegram_message(message,category="analysis"):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
+ chat=telegram_destination(category)
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
- payload=json.dumps({"chat_id":chat,"text":message}).encode()
+ data={"chat_id":chat,"text":message}
+ topic=telegram_topic_id(category)
+ if topic:data["message_thread_id"]=topic
+ payload=json.dumps(data,ensure_ascii=False).encode()
  req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
  try:
   with urllib.request.urlopen(req,timeout=8) as response:

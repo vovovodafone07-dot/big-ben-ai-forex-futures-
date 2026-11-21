@@ -1,0 +1,37 @@
+name: Big Ben reference dashboard visual smoke
+on:
+  pull_request:
+    paths:
+      - 'platform/index.html'
+      - 'platform/reference_dashboard.css'
+      - 'platform/backend/app.py'
+      - '.github/workflows/reference-dashboard-visual.yml'
+  workflow_dispatch:
+jobs:
+  screenshot-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render reference dashboard in headless Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8877 --bind 127.0.0.1 --directory platform > /tmp/bigben-visual-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
+          curl --fail --silent http://127.0.0.1:8877/reference_dashboard.css | grep -q 'ref-trading-toolbar'
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p visual-output
+          "$chrome" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --virtual-time-budget=3500 --window-size=1252,481 --screenshot=visual-output/desktop-reference.png http://127.0.0.1:8877/ 2> /tmp/bigben-chrome-desktop.log
+          "$chrome" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --virtual-time-budget=3500 --window-size=390,844 --screenshot=visual-output/mobile-reference.png http://127.0.0.1:8877/ 2> /tmp/bigben-chrome-mobile.log
+          test -s visual-output/desktop-reference.png
+          test -s visual-output/mobile-reference.png
+          file visual-output/*.png
+      - name: Upload design smoke screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-dashboard-screenshots
+          path: visual-output/*.png
+          retention-days: 7

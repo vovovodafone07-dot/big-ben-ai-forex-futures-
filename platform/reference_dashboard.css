@@ -189,3 +189,21 @@ body[data-design="pro"] .ref-chart-expanded #desk-live-chart{height:100%!importa
  body[data-design="pro"] .analysis-dossier{padding:12px!important}
 }
 @media(prefers-reduced-motion:reduce){body[data-design="pro"] .a-sidebar .sidebar button{transition:none!important}}
+
+/* Visual screenshot corrections: match reference LTR header flow, keep Arabic content RTL. */
+body[data-design="pro"] .header-row{direction:ltr!important}
+body[data-design="pro"] .a-workspace-title{direction:rtl!important;text-align:left!important}
+body[data-design="pro"] #clock{direction:rtl!important;text-align:right!important}
+body[data-design="pro"] .ref-flags{letter-spacing:-3px!important;margin-right:4px!important;font-size:18px!important;flex-shrink:0}
+body[data-design="pro"] .ref-symbol-card .symbol-input{position:relative!important;height:25px!important;min-width:0!important}
+body[data-design="pro"] #ref-symbol-short{position:absolute;top:0;left:0;right:0;z-index:1;display:block;pointer-events:none;color:#f4ffff;font-size:16px;font-weight:850;direction:ltr;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-design="pro"] .ref-symbol-card input{position:relative!important;z-index:0;opacity:0!important;width:100%!important;height:25px!important;line-height:25px!important}
+body[data-design="pro"] .ref-symbol-card input:focus{opacity:1!important;background:#052934!important;color:#fff!important;caret-color:#3effd0!important;z-index:3!important;font-size:12px!important}
+body[data-design="pro"] .ref-symbol-card input:focus+#ref-symbol-short{display:none!important}
+body[data-design="pro"] .ref-symbol-card .ref-chevron{background:transparent!important;border:0!important;color:#d6faff!important;box-shadow:none!important;padding:0 3px!important;font-size:22px!important;cursor:pointer}
+@media(max-width:920px){
+ body[data-design="pro"] .desk-main{display:grid!important;grid-template-columns:1fr!important}
+ body[data-design="pro"] .a-chart-column{order:0!important}
+ body[data-design="pro"] .analysis-dossier{order:1!important}
+}
+@media(max-width:780px){body[data-design="pro"] .header-row{direction:ltr!important}body[data-design="pro"] .a-workspace-title{text-align:left!important}}

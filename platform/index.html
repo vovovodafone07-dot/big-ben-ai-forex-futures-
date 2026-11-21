@@ -265,7 +265,7 @@ canvas.style.cssText='display:block;width:100%;height:100%;background:#06191f';
 host.replaceChildren(canvas);
 if(link){link.textContent='مخطط خارجي اختياري';link.setAttribute('title','لا يحتاج تحليل المنصة إلى TradingView')}
 const ctx=canvas.getContext('2d');
-let last=null,seq=0,currentSymbol='',latestTrade=null,currentFrame='M5';
+let last=null,seq=0,currentSymbol='',latestTrade=null,currentFrame='M5',lastClosedStamp=null;
 const price=v=>Number(v).toFixed(Number(v)>20?3:5);
 function aggregateBars(rows,minutes){
  if(!Array.isArray(rows)||minutes<=5)return rows||[];
@@ -318,7 +318,7 @@ function draw(){
  }
  const trade=last.trade;
  if(trade&&last.fresh&&levels.length===3){
-  for(const [label,value,color] of [['Entry',trade.entry,'#397bff'],['SL',trade.sl,'#ff5366'],['TP',trade.tp,'#14d893']]){
+  for(const [label,value,color] of [[trade.conditional?'Entry?':'Entry',trade.entry,'#397bff'],['SL',trade.sl,'#ff5366'],[trade.conditional?'TP1?':'TP1',trade.tp,'#14d893']]){
    ctx.setLineDash(label==='Entry'?[]:[6,4]);ctx.strokeStyle=color;ctx.lineWidth=1.25;
    ctx.beginPath();ctx.moveTo(left,y(value));ctx.lineTo(w-right,y(value));ctx.stroke();
    ctx.setLineDash([]);ctx.textAlign='right';ctx.font='bold 11px sans-serif';const tag=label+' '+price(value);const tagWidth=Math.min(98,ctx.measureText(tag).width+14);ctx.fillStyle=color;ctx.fillRect(w-right-tagWidth+3,y(value)-12,tagWidth,20);ctx.fillStyle=label==='Entry'?'#fff':'#031820';ctx.fillText(tag,w-right-3,y(value)+2);ctx.font='11px sans-serif';
@@ -340,14 +340,20 @@ function draw(){
 async function load(data){
  if(!data||typeof data.symbol!=='string'||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(data.symbol))return;
  currentSymbol=data.symbol;latestTrade=data.selected_trade||null;
- const n=++seq;status.textContent='جارٍ تحميل شموع الشارت الأصلية من قاعدة المنصة…';
+ const n=++seq;if(!last||last.symbol!==data.symbol)status.textContent='جارٍ تحميل شموع الشارت الأصلية من قاعدة المنصة…';
  try{
   const response=await fetch('/api/chart/candles?symbol='+encodeURIComponent(data.symbol),{credentials:'same-origin',cache:'no-store'});
   if(!response.ok)throw new Error('HTTP '+response.status);
   const payload=await response.json();if(n!==seq)return;
   const list=Array.isArray(payload.candles)?payload.candles:[];
   const valid=list.filter(x=>[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(+v)&&+v>0)&&+x.high>=Math.max(+x.open,+x.close)&&+x.low<=Math.min(+x.open,+x.close)&&Number.isFinite(Date.parse(x.time))).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
-  last={candles:valid,trade:latestTrade,symbol:payload.symbol,provider:payload.provider||'unverified',fresh:payload.fresh===true};window.dispatchEvent(new CustomEvent('bigben:chart-data',{detail:{symbol:payload.symbol,provider:last.provider,candles:valid,fresh:last.fresh,last_closed_candle:payload.last_closed_candle}}));
+  const previousStamp=last?.symbol===payload.symbol?lastClosedStamp:null;
+  lastClosedStamp=payload.last_closed_candle||null;
+  last={candles:valid,trade:latestTrade,symbol:payload.symbol,provider:payload.provider||'unverified',fresh:payload.fresh===true};
+  window.dispatchEvent(new CustomEvent('bigben:chart-data',{detail:{symbol:payload.symbol,provider:last.provider,candles:valid,fresh:last.fresh,last_closed_candle:payload.last_closed_candle,age_seconds:payload.age_seconds,feed_state:payload.feed_state,checked_at:payload.checked_at}}));
+  if(previousStamp&&lastClosedStamp&&lastClosedStamp!==previousStamp&&payload.fresh===true){
+    window.dispatchEvent(new CustomEvent('bigben:new-closed-candle',{detail:{symbol:payload.symbol,closed_at:lastClosedStamp}}));
+  }
   status.textContent=payload.symbol+' · '+(payload.provider||'المزود')+' · '+valid.length+' شمعة M5 مغلقة · '+(last.fresh?'بيانات حديثة':'بيانات تاريخية أو مصدر غير متصل')+' · آخر شمعة: '+(payload.last_closed_candle||'غير متاح')+' UTC · دون Pine.';
   if(link){link.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(payload.symbol)+'&interval=5'}
   draw();
@@ -356,13 +362,22 @@ async function load(data){
 window.addEventListener('bigben:native-analysis',ev=>{if(ev.detail&&ev.detail.symbol)load(ev.detail)});
 window.addEventListener('resize',draw);
 window.addEventListener('bigben:chart-timeframe',ev=>{const tf=ev.detail?.timeframe;if(['M5','M15','H1','H4'].includes(tf)){currentFrame=tf;draw()}});
+window.addEventListener('bigben:instant-v2',ev=>{
+ const v=ev.detail;
+ if(!v||v.symbol!==currentSymbol)return;
+ const hasPlan=['READY','CONDITIONAL','NEWS_CAUTION'].includes(v.status)&&
+ Number.isFinite(+v.entry)&&Number.isFinite(+v.sl)&&Array.isArray(v.targets)&&
+ v.targets.length===3&&v.targets.every(t=>Number.isFinite(+t.price));
+ latestTrade=hasPlan?{entry:v.entry,sl:v.sl,tp:v.targets[0].price,conditional:v.status!=='READY'}:null;
+ if(last&&last.symbol===currentSymbol){last.trade=latestTrade;draw()}
+});
 window.addEventListener('bigben:instrument',ev=>{
  const symbol=ev.detail?.symbol;
  if(typeof symbol!=='string'||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(symbol))return;
  if(symbol!==currentSymbol){last=null;latestTrade=null;load({symbol,selected_trade:null});}
 });
 // Update candle close on a bounded interval without relying on TradingView.
-setInterval(()=>{if(currentSymbol&&document.visibilityState!=='hidden')load({symbol:currentSymbol,selected_trade:latestTrade})},60000);
+setInterval(()=>{if(currentSymbol&&document.visibilityState!=='hidden')load({symbol:currentSymbol,selected_trade:latestTrade})},30000);
 const starting=(localStorage.getItem('bigben-desk-symbol')||document.getElementById('desk-symbol')?.value||'OANDA:EURUSD').trim().toUpperCase();if(starting&&/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(starting))load({symbol:starting,selected_trade:null});
 })();</script><script id="pearl-desk-controller">(()=>{'use strict';const get=id=>document.getElementById(id),set=(id,text)=>{if(get(id))get(id).textContent=text},time=s=>s?new Date(s).toLocaleString('ar-OM',{timeZone:'Asia/Muscat'}):'—';let analysisSerial=0,aiPreferenceInitialized=false;try{get('desk-symbol').value=localStorage.getItem('bigben-desk-symbol')||'OANDA:EURUSD'}catch(e){}const roles={market_data:'بيانات السوق',signal_quality:'تحليل الاستراتيجية',risk:'المخاطر',news:'الأخبار',backtesting:'الباك تيست',learning:'التعلّم من النتائج',validation:'التحقق المستقل',updates:'تحديثات المنصة',coordinator:'المنسق'};const node=(tag,text,root)=>{const n=document.createElement(tag);n.textContent=text;root.append(n);return n};async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});if(!r.ok)throw Error('HTTP '+r.status);return r.json()}function headlines(root,items){if(!root)return;root.replaceChildren();if(!items.length){node('p','لا توجد أخبار حديثة مؤكدة حاليًا.',root);return}for(const item of items){const box=node('article','',root);box.className='news-item';const a=node('a',item.title,box);try{const url=new URL(item.url);if(url.protocol==='https:'){a.href=url.href;a.target='_blank';a.rel='noopener noreferrer'}}catch(e){}node('small',item.source+' · '+time(item.published_at||item.time)+(item.feed_fresh?'':' · المصدر غير حديث'),box)}}function plan(id,data){const root=get(id);root.replaceChildren();if(!data){node('p','انتظار إشارة حديثة صالحة؛ لا توجد مستويات دخول معتمدة.',root);return}for(const [label,key]of [['الدخول','entry'],['وقف الخسارة','sl'],['الهدف','tp'],['العائد إلى المخاطرة','rr']]){const row=node('div','',root);row.className='plan-row';node('span',label,row);node('strong',String(data[key]??'—'),row)}}function instantCompat(i){
  const ready=i.status==='READY'&&i.confirmation?.confirmed===true;

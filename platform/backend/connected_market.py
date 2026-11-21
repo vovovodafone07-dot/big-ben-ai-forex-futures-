@@ -1,6 +1,14 @@
 """Evidence-based instrument picker and market gates. A watchlist/TV alert is NOT a data connection."""
 from datetime import datetime,timezone
+from zoneinfo import ZoneInfo
 import json
+
+def forex_weekly_closed(now):
+    """Conservative weekly closure; an open weekly window is not venue-open proof."""
+    local=now.astimezone(ZoneInfo('America/New_York'))
+    return (local.weekday()==5 or
+            (local.weekday()==4 and local.hour>=17) or
+            (local.weekday()==6 and local.hour<17))
 
 SUPPORTED_FOREX={"EUR/USD":"OANDA:EURUSD","GBP/USD":"OANDA:GBPUSD","USD/JPY":"OANDA:USDJPY"}
 SUPPORTED_CRYPTO=("BITSTAMP:BTCUSD","BITSTAMP:ETHUSD","BITSTAMP:XRPUSD",
@@ -40,7 +48,9 @@ def connected(connection,now=None,postgres=False):
             age=(now-stamp).total_seconds()
             result.append({"symbol":symbol,"label":pair.replace("/"," / "),"asset_class":"forex",
               "provider":"Twelve Data","connected":True,
-              "market_state":"مفتوح ـ شموع محدثة" if 300<=age<=630 else "مغلق أو البيانات متأخرة",
+              "market_state":("عطلة نهاية الأسبوع لسوق العملات" if forex_weekly_closed(now) else
+                              "شموع حديثة؛ حالة الجلسة غير مؤكدة" if 300<=age<=630 else "بيانات متأخرة؛ حالة الجلسة غير مؤكدة"),
+              "market_open":False if forex_weekly_closed(now) else None,
               "latest_closed_candle":stamp.isoformat(),"fresh":300<=age<=630})
         except (ValueError,TypeError,KeyError,AttributeError):
             continue
@@ -71,10 +81,13 @@ def gate(plan,now=None):
     symbol=str(plan.get("symbol",""))
     if not (symbol.startswith("BITSTAMP:") or symbol.startswith("OANDA:")):
         return {"open":False,"reason":"لا توجد تغطية عقود موثقة لهذا الأصل"}
-    if plan.get("provider") not in ("Bitstamp","Twelve Data"):
+    expected="Bitstamp" if symbol.startswith("BITSTAMP:") else "Twelve Data"
+    if plan.get("provider") != expected:
         return {"open":False,"reason":"مصدر السعر غير مطابق للأصل"}
     try:
-        stamp=datetime.fromisoformat(plan["source_time"].replace("Z","+00:00")).astimezone(timezone.utc)
+        stamp=datetime.fromisoformat(plan["source_time"].replace("Z","+00:00"))
+        if stamp.tzinfo is None:raise ValueError('missing_timezone')
+        stamp=stamp.astimezone(timezone.utc)
         age=(now-stamp).total_seconds()
     except (KeyError,ValueError,TypeError,AttributeError):
         return {"open":False,"reason":"لا توجد شمعة حديثة"}
@@ -82,6 +95,7 @@ def gate(plan,now=None):
         return {"open":False,"reason":"السوق مغلق أو شموع الأسعار متأخرة","age_seconds":int(age)}
     # Additional conservative forex weekly-closure guard. UTC Sat always closed.
     # Endpoints depend on broker/holidays, hence a recent real bar remains essential.
-    if symbol.startswith("OANDA:") and now.weekday()==5:
+    if symbol.startswith("OANDA:") and forex_weekly_closed(now):
         return {"open":False,"reason":"عطلة نهاية الأسبوع لسوق العملات"}
     return {"open":True,"reason":"شموع مغلقة حديثة من المصدر المطابق","age_seconds":int(age)}
+

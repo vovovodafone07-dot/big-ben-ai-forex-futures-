@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -102,6 +102,7 @@ def init():
    _arabic_event_engine.migrate(c)
    _native_trade_journal.migrate(c)
    _connected_market.migrate(c)
+   _tradingview_dynamic_sync.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -121,6 +122,7 @@ def init():
    _arabic_event_engine.migrate(c)
    _native_trade_journal.migrate(c)
    _connected_market.migrate(c)
+   _tradingview_dynamic_sync.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -727,11 +729,21 @@ def save_event(d):
  received_at=datetime.now(timezone.utc).isoformat()
  stored={**d,"received_at":received_at}
  vals=(d["event_id"],d["symbol"],d["event"],d["time"],json.dumps(stored),received_at)
- if postgres_enabled():
-  with pg_connect() as c:
-   return c.execute("INSERT INTO events (id,symbol,event,time,payload,received_at) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
- with sqlite_connection() as c:
-  return c.execute("INSERT OR IGNORE INTO events (id,symbol,event,time,payload,received_at) VALUES (?,?,?,?,?,?)",vals).rowcount==0
+ with history_connection() as c:
+  if postgres_enabled():
+   duplicate=c.execute("INSERT INTO events (id,symbol,event,time,payload,received_at) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING",vals).rowcount==0
+  else:
+   duplicate=c.execute("INSERT OR IGNORE INTO events (id,symbol,event,time,payload,received_at) VALUES (?,?,?,?,?,?)",vals).rowcount==0
+  if not duplicate:
+   # Called only after the existing webhook authentication and validation.
+   # Same transaction: retries never inflate discovery or enable a price feed.
+   try:instrument=_instruments.describe(d["symbol"])
+   except ValueError:instrument=None  # Preserve legacy accepted identifiers.
+   if instrument and _tradingview_dynamic_sync.SYMBOL_RE.fullmatch(instrument["symbol"]):
+    _tradingview_dynamic_sync.record_symbol(c,
+        {"symbol":instrument["symbol"],"asset_class":instrument["asset_class"]},
+        authenticated=True,postgres=postgres_enabled())
+  return duplicate
 def evaluate_signals(limit=100):
  # Observational outcomes only: a M5 close beyond SL/TP is NOT proof of an
  # actual fill or the first intrabar level touched. Never backfill fake trades.
@@ -1008,7 +1020,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/v1/connected-symbols","/api/tradingview/discovered-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1079,7 +1091,12 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as db:records=_native_trade_journal.recent(db)
     return self.reply(200,{"records":records,"count":len(records),"execution":"متابعة بحثية افتراضية دون تنفيذ أوامر"})
    except Exception:return self.reply(503,{"error":"journal_unavailable"})
-  if path=="/api/connected-symbols":
+  if path=="/api/tradingview/discovered-symbols":
+   try:
+    with history_connection() as c:items=_tradingview_dynamic_sync.discovered(c)
+    return self.reply(200,{"symbols":items,"note":"رموز مستلمة من تنبيهات موثقة؛ لا تعني اتصال الأسعار أو إنشاء تنبيهات جديدة."})
+   except Exception:return self.reply(503,{"error":"symbol_discovery_unavailable"})
+  if path in ("/api/connected-symbols","/v1/connected-symbols"):
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    try:
     with history_connection() as db:symbols=_connected_market.connected(db,postgres=postgres_enabled())
@@ -1389,3 +1406,4 @@ if __name__=="__main__":
  port=int(os.getenv("PORT","10000"))
  print("http_server bind=0.0.0.0 port="+str(port),flush=True)
  ThreadingHTTPServer(("0.0.0.0",port),Handler).serve_forever()
+

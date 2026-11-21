@@ -56,10 +56,10 @@ const chartSymbol = app => decodeURIComponent((app.get('desk-chart-link').href||
   assert.equal(app.calls[0].ai, false, 'automatic analysis must not request the LLM');
   assert.ok(app.get('desk-analysis-status').textContent.includes('لا توجد إشارة دخول صالحة'));
   assert.ok(app.get('desk-chart-link').href.includes('FOREXCOM%3AXAUUSD'));
-  app.get('desk-symbol').value = 'EURUSD'; await app.get('desk-symbol').emit('change');
+  app.get('desk-symbol').value = 'EURUSD'; await app.get('desk-symbol').emit('change'); await flush();
   assert.equal(chartSymbol(app), 'OANDA:EURUSD');
   assert.equal(app.get('desk-symbol').value, 'OANDA:EURUSD');
-  app.get('desk-symbol').value = 'CME_MINI:NQ1!'; await app.get('desk-symbol').emit('change');
+  app.get('desk-symbol').value = 'CME_MINI:NQ1!'; await app.get('desk-symbol').emit('change'); await flush();
   assert.equal(chartSymbol(app), 'CME_MINI:NQ1!', 'Futures symbol remains unchanged; no CFD substitution');
   assert.ok(app.get('desk-chart-link').href.includes('CME_MINI%3ANQ1!'));
   assert.ok(app.calls.every(call => call.ai === false));
@@ -68,7 +68,7 @@ const chartSymbol = app => decodeURIComponent((app.get('desk-chart-link').href||
   app.get('desk-symbol').value = 'OANDA:GBPUSD'; const latest = app.get('desk-symbol').emit('change');
   await flush();
   app.pending.get('OANDA:GBPUSD')(); await latest;
-  app.pending.get('CME_MINI:ES1!')(); await old;
+  app.pending.get('CME_MINI:ES1!')(); await old; await flush();
   assert.equal(chartSymbol(app), 'OANDA:GBPUSD', 'late response for prior symbol must be ignored');
   assert.equal(app.get('desk-symbol').value, 'OANDA:GBPUSD');
   assert.equal(app.storage.get('bigben-desk-symbol'), 'OANDA:GBPUSD');

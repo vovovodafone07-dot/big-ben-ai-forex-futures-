@@ -15,7 +15,7 @@ def bars(mode="break_high",n=70):
     t,op,hi,lo,c=a[-1]
     a[-1]=(t,op,200 if mode=="sweep_high" else 205,
            95 if mode=="sweep_low" else lo,
-           100 if mode=="sweep_high" else 200 if mode=="break_high" else 96)
+           c if mode=="sweep_high" else 200 if mode=="break_high" else 96)
     return a
 class ArabicEventTests(unittest.TestCase):
  def test_breakout_confirmed_and_deduplicated(self):

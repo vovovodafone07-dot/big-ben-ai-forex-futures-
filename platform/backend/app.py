@@ -989,7 +989,7 @@ class Handler(BaseHTTPRequestHandler):
     return self.reply(200,{"symbol":symbol,"provider":provider,"interval":"5min",
       "realtime_verified":False,"candles":out,"last_closed_candle":last,
       "age_seconds":int(age) if age is not None else None,
-      "fresh":age is not None and 300<=age<=900,"note":"Closed provider candles only. Not TradingView indicator events."})
+      "fresh":age is not None and 300<=age<=630,"feed_state":("NO_DATA" if age is None else "CURRENT_CLOSED_M5" if 300<=age<=630 else "STALE" if age>630 else "UNCLOSED"),"checked_at":datetime.now(timezone.utc).isoformat(),"note":"Closed provider candles only, periodically fetched; not tick streaming or TradingView indicator events."})
    except _crypto_history.CryptoHistoryError as error:return self.reply(503,{"error":"crypto_ohlc_unavailable","reason":str(error),"symbol":symbol})
    except (TypeError,ValueError,IndexError):return self.reply(400,{"error":"invalid_symbol"})
    except Exception:return self.reply(503,{"error":"chart_candles_unavailable"})

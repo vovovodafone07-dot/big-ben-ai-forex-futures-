@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -226,6 +226,78 @@ def agent_watchdog():
 
 SIGNAL_ANALYSIS_SLOTS=threading.BoundedSemaphore(2)
 BACKUP_SLOT=threading.BoundedSemaphore(1)
+
+NATIVE_FETCH_TIMES=[]
+NATIVE_FETCH_LOCK=threading.Lock()
+
+def analyze_native_chart(symbol,mode):
+ """Standalone platform decisions from provider candles. Never load TV webhook trades."""
+ now=datetime.now(timezone.utc)
+ instrument=_instruments.describe(symbol)
+ response={"symbol":symbol,"instrument":instrument,"generated_at":now.isoformat(),
+           "requested_mode":mode,"strategy_version":"native-chart-v1","source":"Twelve Data M5 OHLC",
+           "analysis_origin":"platform_native","uses_tradingview_signals":False,
+           "decision":"WAIT","fresh":False,"source_time":None,
+           "reasons":[],"checks":[],"news":[],"news_scenarios":[],"agent_tasks":[],
+           "smt_research":{"state":"NOT_MEASURED"},"ai":{"state":"not_requested"},
+           "full_trade":None,"scalp":None,"selected_trade":None}
+ ticker=symbol.split(":",1)[-1]
+ provider_pair=ticker[:3]+"/"+ticker[3:] if len(ticker)==6 and instrument["asset_class"]=="forex" else None
+ if provider_pair not in _history.FOREX:
+  response.update(decision_reason_code="SOURCE_NOT_SUPPORTED",mode_note="يتطلب هذا السوق مزود شموع OHLC مرخصاً؛ لن نستخدم CFD بديلاً عن عقود Futures.",
+                  independent_setup={"state":"SOURCE_NOT_VERIFIED","candidate":None})
+  response["reasons"]=["لم يثبت مصدر OHLC لهذه الأداة. تحليل Pine غير مستخدم."]
+  return response
+ # One bounded on-demand provider request per symbol/15min; global credit guard.
+ try:
+  with history_connection() as db:
+   prev=db.execute("SELECT payload FROM market_history_checks WHERE symbol="+("%s" if postgres_enabled() else "?"),(provider_pair,)).fetchone()
+  last=json.loads(prev[0]).get("checked_at") if prev else None
+  checked=datetime.fromisoformat(last.replace("Z","+00:00")) if last else None
+  fetch_due=checked is None or (now-checked).total_seconds()>=900
+  if fetch_due and twelve_data_key():
+   allowed=False
+   with NATIVE_FETCH_LOCK:
+    tick=time.monotonic()
+    NATIVE_FETCH_TIMES[:]=[v for v in NATIVE_FETCH_TIMES if tick-v<3600]
+    if len(NATIVE_FETCH_TIMES)<20 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=5):
+     NATIVE_FETCH_TIMES.append(tick);allowed=True
+   if allowed:
+    try:
+     rows,meta=_history.fetch_m5(provider_pair,twelve_data_key(),now)
+     meta.update(state="CONNECTED",reason="native_on_demand_closed_m5")
+    except _history.HistoryError as error:
+     rows=[]
+     meta={"symbol":provider_pair,"state":"DEGRADED","reason":str(error),
+           "checked_at":now.isoformat(),"adapter_version":_history.ADAPTER_VERSION}
+    with history_connection() as db:_history.store_check(db,provider_pair,meta,rows,postgres=postgres_enabled())
+  with history_connection() as db:
+   marker="%s" if postgres_enabled() else "?"
+   candles=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(provider_pair,)).fetchall()
+  setup=_native_chart_analysis.evaluate(candles,mode=mode,now=now)
+ except Exception:
+  setup={"state":"DATA_CHECK_FAILED","candidate":None,"reason":"storage_or_provider_error"}
+ response["independent_setup"]=setup
+ candidate=setup.get("candidate")
+ response["source_time"]=setup.get("source_time")
+ response["fresh"]=setup.get("state") not in ("STALE_OR_UNCLOSED","INSUFFICIENT_DATA","DATA_CHECK_FAILED","MISSING_RECENT_M5_BARS")
+ response["decision_reason_code"]=setup.get("state","NO_SETUP")
+ response["mode_note"]="تحليل مستقل لشموع السوق؛ الفرصة المقترحة غير مؤكدة، ولا تعني تحقق التنفيذ أو الربح."
+ response["reasons"]=["المصدر: Twelve Data M5 من المنصة، وليس إشارات TradingView.",
+                      "نتيجة محرك التحليل: "+str(setup.get("state","UNKNOWN")),
+                      "الأسعار ليست مثبتة كتغذية لحظية مرخصة، والسبريد والعمولة والانزلاق غير محسوبة."]
+ response["mode_timeframes"]=["M5","M15","H1"] if mode=="scalp" else ["H1","H4"]
+ response["analysis_timeframes"]=setup.get("timeframes",{})
+ if candidate:
+  response["decision"]=candidate["event"]
+  response["selected_trade"]=candidate
+  response["full_trade"]=candidate
+  if mode=="scalp":response["scalp"]=candidate
+  response["reasons"].append("نموذج "+candidate["pattern"]+" مكتمل على شمعة مغلقة؛ حالة الفرصة: بحثية، وليست إشارة تنفيذ.")
+ response["agent_tasks"]=[{"role":"market_data","output":"مصدر شموع OHLC مستقل؛ "+str(setup.get("state"))},
+                          {"role":"signal_quality","output":"قرار المحرك: "+response["decision"]+"؛ لا إشارات Pine"},
+                          {"role":"risk","output":"مستويات بحثية وحساب RR؛ لا تنفيذ صفقات"}]
+ return response
 
 def analyze_instrument(symbol,include_ai=False):
  with history_connection() as c:news=_news.snapshot(c)
@@ -896,39 +968,7 @@ class Handler(BaseHTTPRequestHandler):
    try:
     mode=request.get("mode","scalp")
     if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
-    result=analyze_instrument(symbol,request.get("ai") is True)
-    # Additional independent M5 research candidate; never overwrite a verified Pine signal.
-    try:
-     instrument_class=result.get("instrument",{}).get("asset_class")
-     ticker=symbol.split(":",1)[1] if ":" in symbol else ""
-     provider_pair=ticker[:3]+"/"+ticker[3:] if instrument_class=="forex" and len(ticker)==6 else None
-     if provider_pair in _history.REFRESH_FOREX:
-      marker="%s" if postgres_enabled() else "?"
-      with history_connection() as c:
-       candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 80",(provider_pair,)).fetchall()
-      result["independent_setup"]=_analysis_opportunities.evaluate(candles,mode=mode)
-     else:
-      result["independent_setup"]={"state":"SOURCE_NOT_VERIFIED","candidate":None,"confirmed_signal":False,
-        "note":"لم تتوفر شموع M5 متحققة حديثة لهذا الرمز؛ لا نستخدم رمزاً بديلاً للفيوتشرز."}
-    except Exception:
-     result["independent_setup"]={"state":"DATA_CHECK_FAILED","candidate":None,"confirmed_signal":False,
-       "note":"تعذر التحقق من التاريخ الفعلي؛ لم تُنشأ أي فرصة تخمينية."}
-    # Scalp is a bounded alternative of an already validated Pine M5 signal.
-    # Swing requires a separately verified HTF entry model; M5 cannot be relabelled as Swing.
-    result["requested_mode"]=mode
-    result["mode_timeframes"]={"scalp":["M5","M15","H1"],"swing":["H1","H4","D1"]}[mode]
-    if mode=="scalp":
-     result["selected_trade"]=result.get("scalp") if result.get("decision") in ("BUY","SELL") else None
-     result["mode_note"]="خطة سكالب حسابية من إشارة M5 مؤكدة مستلمة؛ ليست إشارة مستقلة، والهدف البديل لا يغير Pine."
-    else:
-     result["selected_trade"]=None
-     result["mode_status"]="HTF_SIGNAL_NOT_VERIFIED"
-     result["mode_note"]="تحليل سياقي للفريمات العليا فقط. لا يوجد محرك دخول Swing مؤكد أو إشارة H1/H4 مستقلة؛ لن نعرض مستويات M5 بوصفها صفقة Swing."
-     result["decision"]="WAIT"
-     result["decision_reason_code"]="SWING_NOT_VERIFIED"
-     result["reasons"]=["SWING_NOT_VERIFIED: لا توجد إشارة سوينج مستقلة موثقة من H1/H4، لذلك لا يمكن تقديم Entry/SL/TP للسوينج."]+result.get("reasons",[])
-     result["full_trade"]=None
-     result["scalp"]=None
+    result=analyze_native_chart(symbol,mode)
     return self.reply(200,result)
    except Exception:return self.reply(503,{"error":"analysis_unavailable"})
   if urlsplit(self.path).path=="/api/test-telegram":

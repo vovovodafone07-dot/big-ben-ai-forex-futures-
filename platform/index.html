@@ -178,7 +178,7 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 <button type="button" data-target="settings"><span class="ref-nav-icon" aria-hidden="true">⚙</span><span>الإعدادات</span></button>
 <details class="ref-more"><summary>المزيد</summary><div><button type="button" data-target="analysis">الأسواق</button><button type="button" data-target="trade-setup">تفاصيل الصفقة</button><button type="button" data-target="performance">الأداء والمخاطر</button><button type="button" data-target="watch">قائمة المتابعة</button><button type="button" data-target="alerts">التنبيهات</button><button type="button" data-target="lab">المختبر</button></div></details>
 </nav><details class="a-delivery-details"><summary>وجهات التنبيهات والمشاركة</summary><section class="a-recipient-panel" id="notification-destinations"><div class="channel-inputs"><div><label for="recipient-telegram">Telegram — معرّف المحادثة Chat ID</label><input id="recipient-telegram" autocomplete="off" placeholder="مثال: 123456789 أو -100…"><p class="workspace-note">Chat ID وليس الهاتف؛ الفراغ يستخدم الوجهة الحالية.</p></div><div><label for="recipient-whatsapp">WhatsApp — الرقم الدولي</label><input id="recipient-whatsapp" type="tel" autocomplete="off" placeholder="+968XXXXXXXX"><p class="workspace-note">رقم دولي يبدأ بـ +. إرسال تلقائي عند تفعيل Meta Cloud API، أو مشاركة يدوية إذا لم تكتمل بيانات المزود.</p></div></div><div class="channel-actions"><button class="btn" id="save-destinations" type="button">حفظ الوجهات</button><button class="text-button" data-go="signals">عرض الصفقات والمشاركة</button></div><p id="destination-status" role="status">جارٍ قراءة إعدادات الوجهات…</p><p class="workspace-note">حفظ الرقم يحدد الوجهة فقط؛ الإرسال التلقائي يتطلب إعدادات Meta Cloud API في Render، ولا يُرسل أي شيء قبل تحقق المزود.</p></section></details><details class="ref-health-sidebar"><summary>بيانات النظام والاتصالات</summary><details class="reference-health-panel"><summary>حالة البيانات والاتصالات <span class="reference-health-hint">تفاصيل المصدر، الأخبار والتخزين</span></summary><div class="integration-strip" aria-live="polite"><span id="desk-tv-state">TradingView · جارٍ الفحص</span><span id="desk-data-state">البيانات · جارٍ الفحص</span><span id="desk-news-state">الأخبار · جارٍ الفحص</span><span id="desk-ai-state">الذكاء الاصطناعي · جارٍ الفحص</span><span id="desk-storage-state">التخزين · جارٍ الفحص</span></div><p id="connection" class="connection-caption">لا يوجد بث سوق لحظي مثبت بعد؛ الإشارات لا تصبح حية إلا بعد وصول Heartbeat حديث.</p><div class="live-readiness" aria-live="polite" role="status"><div class="readiness-indicator" id="readiness-indicator" data-state="checking"><span class="readiness-dot" aria-hidden="true"></span><strong id="readiness-title">جارٍ التحقق من اتصال TradingView M5</strong></div><span id="readiness-last" class="readiness-meta">ننتظر دليلاً حديثاً من المصدر؛ لا نعرض إشارات قديمة باعتبارها Live.</span><button id="readiness-refresh" type="button" class="btn">تحديث الاتصال</button></div></details><div class="market-session-bar"><span id="market-session-state">جلسة السوق: جارٍ الحساب</span><span id="market-session-countdown">العداد: —</span><span id="market-session-rollover">الإغلاق اليومي: —</span><button type="button" class="btn" id="news-test">اختبار تحليل الأخبار</button><span id="news-test-status" class="muted">اختبار آمن لا ينشئ إشارة</span></div></details></aside><header class="pearl-header" role="banner"><div class="header-row"><div class="a-workspace-title"><strong>تحليل مباشر – BIG BEN AI PRO</strong></div><div class="ref-feed-banner" id="ref-feed-banner" data-state="unknown"><strong>حالة مصدر البيانات</strong><small id="ref-feed-caption">بث لحظي غير مثبت · بانتظار شموع موثقة</small></div><span id="clock" class="muted"></span></div></header><div class="workspace"><main class="main"><div class="page-heading"><h1 id="page-title">لوحة التداول والتحليل</h1><span class="muted">Big Ben AI Pro · تحليل عند وصول البيانات — تنفيذ الوساطة مغلق</span></div><div class="grid"><section class="desk-workspace" data-page="overview analyze"><div class="desk-toolbar ref-trading-toolbar" role="group" aria-label="أدوات السوق والتحليل">
-<div class="ref-symbol-card"><span class="ref-flags" aria-hidden="true">🇪🇺 🇺🇸</span><div class="ref-symbol-content"><label for="desk-symbol">الرمز المختار</label><div class="symbol-input"><input id="desk-symbol" list="desk-symbol-options" autocomplete="off" value="OANDA:EURUSD" aria-label="اختيار زوج أو عقد" placeholder="EURUSD" spellcheck="false"><span id="ref-symbol-short" aria-hidden="true">EURUSD</span><datalist id="desk-symbol-options"><option value="BTCUSD"></option><option value="ETHUSD"></option><option value="XRPUSD"></option><option value="SOLUSD"></option><option value="LTCUSD"></option><option value="ADAUSD"></option><option value="DOGEUSD"></option><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist></div></div><button class="ref-chevron" id="ref-symbol-dropdown" type="button" aria-label="عرض قائمة الرموز">⌄</button></div>
+<div class="ref-symbol-card"><span class="ref-flags" aria-hidden="true">🇪🇺 🇺🇸</span><div class="ref-symbol-content"><label for="desk-symbol">الرمز المختار</label><div class="symbol-input"><select id="desk-symbol" aria-label="اختيار أصل متصل بمصدر بيانات موثق"><option value="OANDA:EURUSD">جاري تحميل الأصول المتصلة…</option></select><span id="ref-symbol-short" aria-hidden="true">EURUSD</span><datalist id="desk-symbol-options"><option value="BTCUSD"></option><option value="ETHUSD"></option><option value="XRPUSD"></option><option value="SOLUSD"></option><option value="LTCUSD"></option><option value="ADAUSD"></option><option value="DOGEUSD"></option><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist></div></div><button class="ref-chevron" id="ref-symbol-dropdown" type="button" aria-label="عرض قائمة الرموز">⌄</button></div>
 <div class="ref-price-card"><strong id="ref-last-price" aria-live="polite">—</strong><span id="ref-price-change">آخر شمعة M5: غير متاحة</span><small id="ref-tick-status" aria-live="off">تداولات مباشرة: غير متصلة</small></div>
 <div class="ref-market-card"><small>حالة السوق</small><strong id="ref-session-label">جارٍ التحقق</strong></div>
 <div class="ref-timeframe-tabs" role="group" aria-label="الإطار الزمني للشارت"><button type="button" data-chart-timeframe="M5" aria-pressed="true">M5</button><button type="button" data-chart-timeframe="M15" aria-pressed="false">M15</button><button type="button" data-chart-timeframe="H1" aria-pressed="false">H1</button><button type="button" data-chart-timeframe="H4" aria-pressed="false">H4</button></div>
@@ -812,4 +812,47 @@ setInterval(()=>{
  }
 },5000);
 switchSymbol(input.value);
+})();</script><script id="connected-only-picker">(()=>{
+'use strict';
+const select=document.getElementById('desk-symbol');
+const chevron=document.getElementById('ref-symbol-dropdown');
+const status=document.getElementById('desk-instrument-identity');
+if(!select)return;
+let connected=new Set(),loading=false,lastRefresh=0;
+async function refresh(force=false){
+ if(loading||(!force&&Date.now()-lastRefresh<30000))return;
+ loading=true;
+ try{
+  const response=await fetch('/api/connected-symbols',{credentials:'same-origin',cache:'no-store'});
+  if(!response.ok)throw Error('source-unavailable');
+  const result=await response.json(),items=Array.isArray(result.symbols)?result.symbols:[];
+  const old=select.value;
+  connected=new Set(items.filter(i=>i.connected).map(i=>i.symbol));
+  select.replaceChildren();
+  for(const item of items){
+   if(!connected.has(item.symbol))continue;
+   const option=document.createElement('option');option.value=item.symbol;
+   option.textContent=item.label+' · '+(item.asset_class==='crypto'?'عملة رقمية':item.asset_class==='forex'?'فوركس':'عقد')+' · '+(item.fresh?'محدث':'غير محدث');
+   select.append(option);
+  }
+  const preferred=connected.has(old)?old:connected.has(localStorage.getItem('bigben-desk-symbol'))?localStorage.getItem('bigben-desk-symbol'):items[0]?.symbol;
+  if(preferred&&connected.has(preferred)){
+   select.value=preferred;
+   if(preferred!==old){select.dispatchEvent(new Event('change',{bubbles:true}));}
+  }else if(!items.length){const o=document.createElement('option');o.value='';o.textContent='لا توجد أصول موثقة متصلة';select.append(o);select.disabled=true;}
+  if(status)status.textContent='مصادر OHLC المتصلة: '+items.length+' · العقود الآجلة غير الموثقة مخفية · اختر الأصل للتحليل';
+  lastRefresh=Date.now();
+ }catch(e){
+  select.replaceChildren();const option=document.createElement('option');option.value='';option.textContent='تعذر تحميل الأصول المتصلة';select.append(option);select.disabled=true;
+  if(status)status.textContent='تعذر التحقق من قائمة مصادر OHLC؛ لا يمكن اختيار أصل غير موثق';
+ }finally{loading=false}
+}
+select.addEventListener('change',()=>{
+ if(!connected.has(select.value)){if(status)status.textContent='هذا الأصل غير متصل بمصدر شموع موثق';return}
+ try{localStorage.setItem('bigben-desk-symbol',select.value)}catch(e){}
+});
+if(chevron)chevron.addEventListener('click',()=>{refresh();try{select.showPicker()}catch(e){select.focus()}});
+window.addEventListener('focus',()=>refresh());
+setInterval(()=>{if(document.visibilityState==='visible')refresh()},60000);
+refresh(true);
 })();</script></body></html>

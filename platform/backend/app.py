@@ -358,7 +358,8 @@ def trigger_instant_telegram(plan):
   return {"status":"storage_unavailable"}
  if not key:return {"status":"duplicate"}
  def deliver():
-  result=_instant_telegram.send(plan,token,chat)
+  try:result=_instant_telegram.send(plan,token,chat)
+  except Exception:result="failed"
   try:
    with history_connection() as c:
     _instant_telegram.finish(c,key,result,postgres_enabled())

@@ -91,7 +91,7 @@ class TelegramNativeTests(unittest.TestCase):
   from unittest.mock import patch
   def fake_open(req,timeout):
    raise urllib.error.HTTPError(req.full_url,400,"Bad Request",{},
-        io.BytesIO(b'{"ok":false,"description":"Bad Request: malformed HTML entities"}'))
+        io.BytesIO(b'{"ok":false,"description":"Bad Request: parse entities"}'))
   with patch("builtins.print") as out:
    result=telegram.send(plan(),"test_fake_bot_token","12345678",opener=fake_open)
   self.assertEqual(result,"failed")

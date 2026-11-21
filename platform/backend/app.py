@@ -423,7 +423,7 @@ def trigger_instant_telegram(plan):
  if os.getenv("BIGBEN_NATIVE_TELEGRAM_ENABLED","1")!="1":
   return {"status":"disabled"}
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
+ chat=telegram_destination("trade" if plan.get("status")=="READY" else "analysis")
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return {"status":"not_configured"}
  try:
@@ -433,11 +433,13 @@ def trigger_instant_telegram(plan):
   return {"status":"storage_unavailable"}
  if not key:return {"status":"duplicate"}
  def deliver():
-  try:result=_instant_telegram.send(plan,token,chat)
+  try:result=_instant_telegram.send(plan,token,chat,topic_id=telegram_topic_id("trade" if plan.get("status")=="READY" else "analysis"))
   except Exception:result="failed"
   try:
    with history_connection() as c:
     _instant_telegram.finish(c,key,result,postgres_enabled())
+    if result=="sent" and plan.get("status")=="READY":
+     _native_trade_journal.store(c,plan,postgres_enabled())
    print("native_telegram symbol="+plan["symbol"]+" status="+result,flush=True)
   except Exception:print("native_telegram status=receipt_storage_unavailable",flush=True)
  try:
@@ -993,7 +995,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1058,6 +1060,12 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as c:rows=c.execute("SELECT payload FROM analysis_runs ORDER BY created_at DESC LIMIT 20").fetchall()
     return self.reply(200,{"runs":[json.loads(row[0]) for row in rows],"signal_analysis_enabled":os.getenv("BIGBEN_SIGNAL_ANALYSIS_ENABLED","1")=="1","deterministic_roles":9,"agent_mode":"live_analysis","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning_policy":"evidence_only_no_automatic_code_or_strategy_edits","ai_daily_request_limit":10})
    except Exception:return self.reply(503,{"error":"analysis_history_unavailable"})
+  if path=="/api/trade-journal":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   try:
+    with history_connection() as db:records=_native_trade_journal.recent(db)
+    return self.reply(200,{"records":records,"count":len(records),"execution":"متابعة بحثية افتراضية دون تنفيذ أوامر"})
+   except Exception:return self.reply(503,{"error":"journal_unavailable"})
   if path=="/api/connected-symbols":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    try:

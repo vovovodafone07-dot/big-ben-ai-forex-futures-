@@ -224,3 +224,8 @@ body[data-design="pro"] .ref-symbol-card .ref-chevron{background:transparent!imp
  body[data-design="pro"] #ref-symbol-short{font-size:13px!important;letter-spacing:-.3px}
  body[data-design="pro"] .ref-flags{font-size:15px!important;letter-spacing:-4px!important}
 }
+
+/* Crypto trades continuously; stale prices remain explicitly marked and red negatives are not green. */
+body[data-design="pro"] .ref-price-card[data-direction="down"] #ref-price-change{color:#ff7181!important}
+body[data-design="pro"] .ref-market-card[data-state="crypto"]{background:#06392f!important;border-color:#168d71!important}
+body[data-design="pro"] .ref-market-card[data-state="crypto"] strong{color:#32efbc!important}

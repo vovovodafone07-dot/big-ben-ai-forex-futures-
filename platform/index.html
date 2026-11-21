@@ -178,7 +178,7 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 <button type="button" data-target="settings"><span class="ref-nav-icon" aria-hidden="true">⚙</span><span>الإعدادات</span></button>
 <details class="ref-more"><summary>المزيد</summary><div><button type="button" data-target="analysis">الأسواق</button><button type="button" data-target="trade-setup">تفاصيل الصفقة</button><button type="button" data-target="performance">الأداء والمخاطر</button><button type="button" data-target="watch">قائمة المتابعة</button><button type="button" data-target="alerts">التنبيهات</button><button type="button" data-target="lab">المختبر</button></div></details>
 </nav><details class="a-delivery-details"><summary>وجهات التنبيهات والمشاركة</summary><section class="a-recipient-panel" id="notification-destinations"><div class="channel-inputs"><div><label for="recipient-telegram">Telegram — معرّف المحادثة Chat ID</label><input id="recipient-telegram" autocomplete="off" placeholder="مثال: 123456789 أو -100…"><p class="workspace-note">Chat ID وليس الهاتف؛ الفراغ يستخدم الوجهة الحالية.</p></div><div><label for="recipient-whatsapp">WhatsApp — الرقم الدولي</label><input id="recipient-whatsapp" type="tel" autocomplete="off" placeholder="+968XXXXXXXX"><p class="workspace-note">رقم دولي يبدأ بـ +. إرسال تلقائي عند تفعيل Meta Cloud API، أو مشاركة يدوية إذا لم تكتمل بيانات المزود.</p></div></div><div class="channel-actions"><button class="btn" id="save-destinations" type="button">حفظ الوجهات</button><button class="text-button" data-go="signals">عرض الصفقات والمشاركة</button></div><p id="destination-status" role="status">جارٍ قراءة إعدادات الوجهات…</p><p class="workspace-note">حفظ الرقم يحدد الوجهة فقط؛ الإرسال التلقائي يتطلب إعدادات Meta Cloud API في Render، ولا يُرسل أي شيء قبل تحقق المزود.</p></section></details><details class="ref-health-sidebar"><summary>بيانات النظام والاتصالات</summary><details class="reference-health-panel"><summary>حالة البيانات والاتصالات <span class="reference-health-hint">تفاصيل المصدر، الأخبار والتخزين</span></summary><div class="integration-strip" aria-live="polite"><span id="desk-tv-state">TradingView · جارٍ الفحص</span><span id="desk-data-state">البيانات · جارٍ الفحص</span><span id="desk-news-state">الأخبار · جارٍ الفحص</span><span id="desk-ai-state">الذكاء الاصطناعي · جارٍ الفحص</span><span id="desk-storage-state">التخزين · جارٍ الفحص</span></div><p id="connection" class="connection-caption">لا يوجد بث سوق لحظي مثبت بعد؛ الإشارات لا تصبح حية إلا بعد وصول Heartbeat حديث.</p><div class="live-readiness" aria-live="polite" role="status"><div class="readiness-indicator" id="readiness-indicator" data-state="checking"><span class="readiness-dot" aria-hidden="true"></span><strong id="readiness-title">جارٍ التحقق من اتصال TradingView M5</strong></div><span id="readiness-last" class="readiness-meta">ننتظر دليلاً حديثاً من المصدر؛ لا نعرض إشارات قديمة باعتبارها Live.</span><button id="readiness-refresh" type="button" class="btn">تحديث الاتصال</button></div></details><div class="market-session-bar"><span id="market-session-state">جلسة السوق: جارٍ الحساب</span><span id="market-session-countdown">العداد: —</span><span id="market-session-rollover">الإغلاق اليومي: —</span><button type="button" class="btn" id="news-test">اختبار تحليل الأخبار</button><span id="news-test-status" class="muted">اختبار آمن لا ينشئ إشارة</span></div></details></aside><header class="pearl-header" role="banner"><div class="header-row"><div class="a-workspace-title"><strong>تحليل مباشر – BIG BEN AI PRO</strong></div><div class="ref-feed-banner" id="ref-feed-banner" data-state="unknown"><strong>حالة مصدر البيانات</strong><small id="ref-feed-caption">بث لحظي غير مثبت · بانتظار شموع موثقة</small></div><span id="clock" class="muted"></span></div></header><div class="workspace"><main class="main"><div class="page-heading"><h1 id="page-title">لوحة التداول والتحليل</h1><span class="muted">Big Ben AI Pro · تحليل عند وصول البيانات — تنفيذ الوساطة مغلق</span></div><div class="grid"><section class="desk-workspace" data-page="overview analyze"><div class="desk-toolbar ref-trading-toolbar" role="group" aria-label="أدوات السوق والتحليل">
-<div class="ref-symbol-card"><span class="ref-flags" aria-hidden="true">🇪🇺 🇺🇸</span><div class="ref-symbol-content"><label for="desk-symbol">الرمز المختار</label><div class="symbol-input"><input id="desk-symbol" list="desk-symbol-options" autocomplete="off" value="OANDA:EURUSD" aria-label="اختيار زوج أو عقد" placeholder="EURUSD" spellcheck="false"><span id="ref-symbol-short" aria-hidden="true">EURUSD</span><datalist id="desk-symbol-options"><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist></div></div><button class="ref-chevron" id="ref-symbol-dropdown" type="button" aria-label="عرض قائمة الرموز">⌄</button></div>
+<div class="ref-symbol-card"><span class="ref-flags" aria-hidden="true">🇪🇺 🇺🇸</span><div class="ref-symbol-content"><label for="desk-symbol">الرمز المختار</label><div class="symbol-input"><input id="desk-symbol" list="desk-symbol-options" autocomplete="off" value="OANDA:EURUSD" aria-label="اختيار زوج أو عقد" placeholder="EURUSD" spellcheck="false"><span id="ref-symbol-short" aria-hidden="true">EURUSD</span><datalist id="desk-symbol-options"><option value="BTCUSD"></option><option value="ETHUSD"></option><option value="XRPUSD"></option><option value="SOLUSD"></option><option value="LTCUSD"></option><option value="ADAUSD"></option><option value="DOGEUSD"></option><option value="EURUSD"></option><option value="GBPUSD"></option><option value="USDJPY"></option><option value="NQ"></option><option value="MNQ"></option><option value="ES"></option><option value="MES"></option><option value="YM"></option><option value="6E"></option></datalist></div></div><button class="ref-chevron" id="ref-symbol-dropdown" type="button" aria-label="عرض قائمة الرموز">⌄</button></div>
 <div class="ref-price-card"><strong id="ref-last-price" aria-live="polite">—</strong><span id="ref-price-change">آخر شمعة M5: غير متاحة</span></div>
 <div class="ref-market-card"><small>حالة السوق</small><strong id="ref-session-label">جارٍ التحقق</strong></div>
 <div class="ref-timeframe-tabs" role="group" aria-label="الإطار الزمني للشارت"><button type="button" data-chart-timeframe="M5" aria-pressed="true">M5</button><button type="button" data-chart-timeframe="M15" aria-pressed="false">M15</button><button type="button" data-chart-timeframe="H1" aria-pressed="false">H1</button><button type="button" data-chart-timeframe="H4" aria-pressed="false">H4</button></div>
@@ -335,7 +335,7 @@ function draw(){
    ctx.fillText(new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Muscat'}).format(dt),x,h-19);
   }
  }
- ctx.textAlign='right';ctx.fillText('Twelve Data · OHLC',w-right,h-8);
+ ctx.textAlign='right';ctx.fillText((last.provider||'OHLC source')+' · OHLC',w-right,h-8);
 }
 async function load(data){
  if(!data||typeof data.symbol!=='string'||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(data.symbol))return;
@@ -347,8 +347,8 @@ async function load(data){
   const payload=await response.json();if(n!==seq)return;
   const list=Array.isArray(payload.candles)?payload.candles:[];
   const valid=list.filter(x=>[x.open,x.high,x.low,x.close].every(v=>Number.isFinite(+v)&&+v>0)&&+x.high>=Math.max(+x.open,+x.close)&&+x.low<=Math.min(+x.open,+x.close)&&Number.isFinite(Date.parse(x.time))).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
-  last={candles:valid,trade:latestTrade,symbol:payload.symbol,fresh:payload.fresh===true};window.dispatchEvent(new CustomEvent('bigben:chart-data',{detail:{symbol:payload.symbol,candles:valid,fresh:last.fresh,last_closed_candle:payload.last_closed_candle}}));
-  status.textContent=payload.symbol+' · '+valid.length+' شمعة M5 مغلقة · '+(last.fresh?'بيانات حديثة':'بيانات تاريخية أو سوق مغلق')+' · آخر شمعة: '+(payload.last_closed_candle||'غير متاح')+' UTC · دون Pine.';
+  last={candles:valid,trade:latestTrade,symbol:payload.symbol,provider:payload.provider||'unverified',fresh:payload.fresh===true};window.dispatchEvent(new CustomEvent('bigben:chart-data',{detail:{symbol:payload.symbol,provider:last.provider,candles:valid,fresh:last.fresh,last_closed_candle:payload.last_closed_candle}}));
+  status.textContent=payload.symbol+' · '+(payload.provider||'المزود')+' · '+valid.length+' شمعة M5 مغلقة · '+(last.fresh?'بيانات حديثة':'بيانات تاريخية أو مصدر غير متصل')+' · آخر شمعة: '+(payload.last_closed_candle||'غير متاح')+' UTC · دون Pine.';
   if(link){link.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(payload.symbol)+'&interval=5'}
   draw();
  }catch(err){if(n!==seq)return;last={candles:[],symbol:data.symbol,fresh:false};status.textContent='تعذر قراءة شموع OHLC الأصلية. لا توجد أسعار اصطناعية.';draw()}
@@ -492,10 +492,10 @@ function renderSymbol(){
  text('ref-chart-name',normalizeLabel(symbol));
  text('ref-symbol-short',normalizeLabel(symbol));
  const pair=normalizeLabel(symbol);
- const flags=pair==='EURUSD'?'🇪🇺 🇺🇸':pair==='GBPUSD'?'🇬🇧 🇺🇸':pair==='USDJPY'?'🇺🇸 🇯🇵':'▥';
+ const flags=pair.startsWith('BTC')?'₿':pair.startsWith('ETH')?'Ξ':pair==='EURUSD'?'🇪🇺 🇺🇸':pair==='GBPUSD'?'🇬🇧 🇺🇸':pair==='USDJPY'?'🇺🇸 🇯🇵':'▥';
  const el=document.querySelector('.ref-flags');if(el)el.textContent=flags;
 }
-input.addEventListener('change',renderSymbol);renderSymbol();
+input.addEventListener('change',()=>{renderSymbol();session()});renderSymbol();
 const picker=byId('ref-symbol-dropdown');
 picker?.addEventListener('click',()=>{input.focus();try{input.showPicker?.()}catch(_){}});
 const format=v=>Number(v).toLocaleString('en-US',{useGrouping:false,minimumFractionDigits:+v>=10?2:4,maximumFractionDigits:6});
@@ -512,6 +512,7 @@ window.addEventListener('bigben:chart-data',event=>{
   text('ref-last-price',format(last.close));
   if(previous&&+previous.close>0){
    const delta=+last.close-+previous.close,percent=delta/(+previous.close)*100;
+   if(priceCard)priceCard.dataset.direction=delta>=0?'up':'down';
    text('ref-price-change','تغير M5: '+(delta>=0?'+':'')+format(delta)+' ('+(percent>=0?'+':'')+percent.toFixed(2)+'%)');
   }else text('ref-price-change','آخر إغلاق M5');
   if(priceCard)priceCard.dataset.state=d.fresh?'fresh':'stale';
@@ -519,7 +520,7 @@ window.addEventListener('bigben:chart-data',event=>{
  const banner=byId('ref-feed-banner');
  if(banner)banner.dataset.state=d.fresh?'fresh':'stale';
  text('ref-feed-caption',d.fresh?'شموع M5 حديثة من المزود · ليست ضمان بث مباشر':'بيانات قديمة أو غير متاحة · لا تعرض صفقة على أنها حية');
- text('ref-chart-caption',(d.symbol||'—')+' · Twelve Data · '+(d.last_closed_candle||'وقت آخر شمعة غير متاح'));
+ text('ref-chart-caption',(d.symbol||'—')+' · '+(d.provider||'مصدر غير متاح')+' · '+(d.last_closed_candle||'وقت آخر شمعة غير متاح'));
 });
 function renderAnalysis(d){
  const trade=d.selected_trade;
@@ -562,7 +563,8 @@ function session(){
  const source=byId('market-session-state')?.textContent||'';
  const state=byId('ref-session-label'),card=document.querySelector('.ref-market-card');
  if(!state)return;
- if(source.includes('مغلق')){state.textContent='مغلق';if(card)card.dataset.state='closed'}
+ if(input.value.trim().toUpperCase().startsWith('BITSTAMP:')){state.textContent='تداول 24/7';if(card)card.dataset.state='crypto'}
+ else if(source.includes('مغلق')){state.textContent='مغلق';if(card)card.dataset.state='closed'}
  else if(source.includes('مفتوح')){state.textContent='مفتوح';if(card)card.dataset.state='open'}
  else{state.textContent='غير مؤكد';if(card)card.dataset.state='unknown'}
 }

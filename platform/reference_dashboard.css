@@ -278,3 +278,5 @@ body[data-design="pro"] .ref-symbol-content #desk-symbol{width:100%!important;mi
 body[data-design="pro"] .ref-symbol-content #desk-symbol:disabled{color:#a4bab9!important;cursor:not-allowed!important}
 body[data-design="pro"] .ref-symbol-content .symbol-input{min-width:0;max-width:100%;width:100%;display:flex;align-items:center}
 body[data-design="pro"] .ref-symbol-content .symbol-input #ref-symbol-short{display:none!important}
+
+body[data-design="pro"] .ref-journal-status{padding:6px 8px;margin:4px 0;border:1px solid #235864;border-radius:6px;background:#08242d;color:#b0dce4;font-size:11px;text-align:right;direction:rtl}

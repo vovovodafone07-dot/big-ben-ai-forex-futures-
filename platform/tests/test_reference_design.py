@@ -75,6 +75,14 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertIn("SWING: مستويات H1",self.html)
         self.assertIn("SCALP: مستويات M5",self.html)
 
+    def test_connected_dropdown_only_and_journal_in_analyze(self):
+        self.assertIn('<select id="desk-symbol"',self.html)
+        self.assertNotIn('<input id="desk-symbol"',self.html)
+        self.assertIn("/api/connected-symbols",self.html)
+        self.assertIn("/api/trade-journal",self.html)
+        self.assertEqual(self.tags.ids.get("ref-journal-status"),1)
+        self.assertIn("market_closed:'Telegram",self.html)
+
     def test_no_fake_market_values_or_broker_orders(self):
         for text in ("1.0874","1.0890","1.0840","82%"):
             self.assertNotIn(text,self.html)

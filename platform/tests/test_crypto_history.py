@@ -34,7 +34,7 @@ class CryptoHistoryTests(unittest.TestCase):
         self.assertIn("/ohlc/btcusd/",urls[0])
     def test_filter_current_unclosed_candle(self):
         d=data(count=2)
-        d["data"]["ohlc"][-1]["timestamp"]=str(int(NOW.timestamp())-120)
+        d["data"]["ohlc"][-1]["timestamp"]=str(int(NOW.timestamp()))
         bars,meta=crypto.fetch_m5("BITSTAMP:BTCUSD",NOW,lambda req,timeout:Reply(d))
         self.assertEqual(len(bars),1)
         self.assertEqual(meta["incomplete_candles_excluded"],1)

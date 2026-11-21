@@ -15,6 +15,8 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
   addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
+  setAttribute(name,value) { (this.attributes ||= {})[name]=value; }
+  getContext() { return null; } // Node DOM mock: browser canvas drawing tested through API contracts.
   async emit(type, detail = {}) { for (const listener of this.listeners[type] || []) await listener({type, preventDefault() {}, ...detail}); }
 }
 function boot(savedSymbol = '') {
@@ -33,6 +35,7 @@ function boot(savedSymbol = '') {
       const body = JSON.parse(options.body); calls.push(body);
       if (defer) return new Promise(resolve => pending.set(body.symbol, () => resolve({ok:true,json:async () => analysis(body.symbol)})));
       data = analysis(body.symbol);
+    } else if (url.startsWith('/api/chart/candles?symbol=')) { const symbol=decodeURIComponent(url.split('symbol=')[1]); data={symbol,provider:'Twelve Data',fresh:false,candles:[]};
     } else throw Error('Unexpected fixture fetch: ' + url);
     return {ok:true,json:async () => data};
   };
@@ -43,20 +46,21 @@ function boot(savedSymbol = '') {
   return {get, window, calls, pending, storage, setDefer(value) {defer=value;}};
 }
 const flush = async () => { for (let i = 0; i < 8; i++) await new Promise(resolve => setImmediate(resolve)); };
-const config = app => JSON.parse(app.get('desk-live-chart').children[0].children[2].textContent);
+const chartSymbol = app => decodeURIComponent((app.get('desk-chart-link').href||'').split('symbol=')[1]?.split('&')[0]||'');
 (async () => {
   const app = boot(); await flush();
   assert.equal(app.get('desk-symbol').value, 'FOREXCOM:XAUUSD', 'start from actually observed fresh symbol, not fixed EURUSD');
-  assert.equal(config(app).symbol, 'FOREXCOM:XAUUSD');
-  assert.equal(config(app).allow_symbol_change, false, 'platform picker is the single symbol source');
+  assert.equal(app.get('desk-live-chart').children[0].tagName,'canvas','chart is platform native canvas, not TradingView embed');
+  assert.equal(chartSymbol(app), 'FOREXCOM:XAUUSD');
+  assert.ok(!script('symbol-chart-controller').includes('embed-widget-advanced-chart.js'),'no TradingView embedding');
   assert.equal(app.calls[0].ai, false, 'automatic analysis must not request the LLM');
   assert.ok(app.get('desk-analysis-status').textContent.includes('لا توجد إشارة دخول صالحة'));
   assert.ok(app.get('desk-chart-link').href.includes('FOREXCOM%3AXAUUSD'));
-  app.get('desk-symbol').value = 'EURUSD'; await app.get('desk-symbol').emit('change');
-  assert.equal(config(app).symbol, 'OANDA:EURUSD');
+  app.get('desk-symbol').value = 'EURUSD'; await app.get('desk-symbol').emit('change'); await flush();
+  assert.equal(chartSymbol(app), 'OANDA:EURUSD');
   assert.equal(app.get('desk-symbol').value, 'OANDA:EURUSD');
-  app.get('desk-symbol').value = 'CME_MINI:NQ1!'; await app.get('desk-symbol').emit('change');
-  assert.equal(config(app).symbol, 'CME_MINI:NQ1!', 'Futures symbol must reach chart without CFD/Forex substitution');
+  app.get('desk-symbol').value = 'CME_MINI:NQ1!'; await app.get('desk-symbol').emit('change'); await flush();
+  assert.equal(chartSymbol(app), 'CME_MINI:NQ1!', 'Futures symbol remains unchanged; no CFD substitution');
   assert.ok(app.get('desk-chart-link').href.includes('CME_MINI%3ANQ1!'));
   assert.ok(app.calls.every(call => call.ai === false));
   app.setDefer(true);
@@ -64,16 +68,16 @@ const config = app => JSON.parse(app.get('desk-live-chart').children[0].children
   app.get('desk-symbol').value = 'OANDA:GBPUSD'; const latest = app.get('desk-symbol').emit('change');
   await flush();
   app.pending.get('OANDA:GBPUSD')(); await latest;
-  app.pending.get('CME_MINI:ES1!')(); await old;
-  assert.equal(config(app).symbol, 'OANDA:GBPUSD', 'late response for prior symbol must be ignored');
+  app.pending.get('CME_MINI:ES1!')(); await old; await flush();
+  assert.equal(chartSymbol(app), 'OANDA:GBPUSD', 'late response for prior symbol must be ignored');
   assert.equal(app.get('desk-symbol').value, 'OANDA:GBPUSD');
   assert.equal(app.storage.get('bigben-desk-symbol'), 'OANDA:GBPUSD');
   assert.equal(app.get('desk-analyze').disabled, false);
   app.window.dispatchEvent({type:'bigben:instrument',detail:{symbol:'https://evil.invalid/script'}});
-  assert.equal(config(app).symbol, 'OANDA:GBPUSD', 'invalid symbol cannot inject URL');
+  assert.equal(chartSymbol(app), 'OANDA:GBPUSD', 'invalid symbol cannot inject URL');
   app.setDefer(false); await app.get('desk-analyze').emit('click');
-  assert.equal(app.calls.at(-1).ai, true, 'LLM requires explicit Analyze action and checked option');
+  assert.equal(app.calls.at(-1).ai, false, 'native platform Analyze must not invoke external LLM');
   const restored = boot('CME_MINI:MNQ1!'); await flush();
-  assert.equal(config(restored).symbol, 'CME_MINI:MNQ1!', 'remembered Futures selection survives reload');
-  console.log('Passed selected-symbol chart/analysis, Futures mapping, stale-response isolation, saved selection, and no automatic LLM request.');
+  assert.equal(chartSymbol(restored), 'CME_MINI:MNQ1!', 'remembered Futures selection survives reload');
+  console.log('Passed native chart/analysis symbol selection, no TV embed, futures identity, stale-response isolation, and no LLM request.');
 })().catch(error => {console.error(error);process.exitCode = 1;});

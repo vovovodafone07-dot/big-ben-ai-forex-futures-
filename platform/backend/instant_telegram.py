@@ -96,6 +96,9 @@ def message(plan, now=None):
     c=plan.get("confirmation") or {}
     evidence=plan.get("evidence") or {}
     news=plan.get("news") or {}
+    related=news.get("related_events") or []
+    upcoming=related[0] if isinstance(related,list) and related and isinstance(related[0],dict) else None
+    news_detail=(" | "+str(upcoming.get("title",""))[:100]+" | خلال "+str(upcoming.get("minutes_until","?"))+" دقيقة") if upcoming else ""
     parts=[
       ("🔵" if buy else "🔴")+" <b>"+direction+" | "+_esc(symbol)+" ("+_esc(asset_label)+")</b>",
       "━━━━━━━━━━━━━━━━━━",
@@ -113,7 +116,7 @@ def message(plan, now=None):
           (" · متحقق" if c.get("confirmed") else " · غير متحقق بعد"),
       "• السيولة: "+_esc(evidence.get("LIQUIDITY_SWEEP","غير مثبت"))+" | FVG: "+_esc((evidence.get("FVG") or {}).get("type","غير مثبت") if isinstance(evidence.get("FVG"),dict) else evidence.get("FVG","غير مثبت")),
       "• <b>الإبطال:</b> "+("هبوط" if buy else "صعود")+" السعر إلى "+_f(plan["sl"])+" قبل تحقق الدخول",
-      "📰 <b>الأخبار:</b> "+_esc(news.get("state","NOT_VERIFIED"))+" — الاتجاه الخبري غير مؤكد بدون بيانات اقتصادية فعلية",
+      "📰 <b>الأخبار:</b> "+_esc(news.get("state","NOT_VERIFIED")+news_detail)+" — لا يصنّف اتجاه الخبر دون بيانات ونتائج موثقة",
       "📡 <b>المصدر:</b> "+_esc(plan["provider"])+" | شمعة المصدر: "+_esc(plan["source_time"]),
       "⏱️ <b>وقت الإرسال:</b> "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" (مسقط)",
       "⚠️ بحث وتحليل فقط؛ لا تنفيذ أوامر ولا ضمان للنتائج."

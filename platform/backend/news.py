@@ -131,7 +131,7 @@ def snapshot(connection,now=None):
         sources.append({k:v for k,v in {**data,"fresh":fresh}.items() if k!="items"})
         for item in data.get("items",[]):
             if definition["kind"]=="rss":news.append({**item,"feed_fresh":fresh,"feed_state":data["state"]})
-            elif datetime.fromisoformat(item["time"])>=now:events.append({**item,"feed_fresh":fresh,"feed_state":data["state"]})
+            elif datetime.fromisoformat(item["time"])>=now.replace(microsecond=0)-__import__("datetime").timedelta(minutes=15):events.append({**item,"feed_fresh":fresh,"feed_state":data["state"]})
     return {"generated_at":now.isoformat(),"sources":sources,
         "news":sorted(news,key=lambda x:x["published_at"],reverse=True)[:20],
         "calendar":sorted(events,key=lambda x:x["time"]),"consensus_available":False,

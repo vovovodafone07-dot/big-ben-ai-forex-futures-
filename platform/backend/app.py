@@ -266,6 +266,14 @@ def bitstamp_native_candles(symbol,now=None):
  except Exception:
   raise _crypto_history.CryptoHistoryError("crypto_source_unavailable") from None
 
+def crypto_startup_probe():
+ """One bounded public OHLC probe; never sends orders or trades."""
+ try:
+  rows,meta=bitstamp_native_candles("BITSTAMP:BTCUSD")
+  print("crypto_history symbol=BITSTAMP:BTCUSD provider=Bitstamp state="+str(meta.get("state","UNKNOWN"))+" candles="+str(len(rows))+" reason="+str(meta.get("reason","unknown")),flush=True)
+ except _crypto_history.CryptoHistoryError as error:
+  print("crypto_history symbol=BITSTAMP:BTCUSD provider=Bitstamp state=DEGRADED reason="+str(error),flush=True)
+
 def analyze_native_chart(symbol,mode):
  """Standalone platform decisions from provider candles. Never load TV webhook trades."""
  now=datetime.now(timezone.utc)
@@ -1104,6 +1112,7 @@ if __name__=="__main__":
  init()  # Create schema once at process startup, not for every incoming M5 event.
  import threading
  threading.Thread(target=check_market_connection,daemon=True).start()
+ threading.Thread(target=crypto_startup_probe,daemon=True).start()
  if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
   threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()

@@ -79,6 +79,36 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(len(result['agent_tasks']),3);self.assertFalse(result['uses_tradingview_signals']);self.assertEqual(result['analysis_origin'],'platform_native')
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
 
+    def test_instant_native_v2_rejects_unverified_nq_futures_without_levels(self):
+        self.assertEqual(self.request("POST","/api/instant/analyze",{"symbol":"NQ"})[0],401)
+        code,result=self.request("POST","/api/instant/analyze",{"symbol":"NQ","mode":"scalp"},auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual(result["symbol"],"CME_MINI:NQ1!")
+        self.assertEqual(result["status"],"DATA_UNAVAILABLE")
+        self.assertEqual(result["reason_code"],"FUTURES_ENTITLEMENT_NOT_VERIFIED")
+        self.assertIsNone(result["entry"])
+        self.assertIsNone(result["sl"])
+        self.assertEqual(result["targets"],[])
+        self.assertFalse(result["broker_execution"])
+        self.assertIn("explicit_expiry_contract_required",result["extra"]["preflight"]["issues"])
+        self.assertNotIn("WAIT",result["status"])
+
+    def test_instant_native_v2_never_converts_nas100_cfd_to_nq(self):
+        code,result=self.request("POST","/api/instant/analyze",{"symbol":"NAS100"},auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual(result["status"],"DATA_UNAVAILABLE")
+        self.assertEqual(result["instrument"]["asset_class"],"cfd")
+        self.assertEqual(result["targets"],[])
+        self.assertEqual(result["reason_code"],"PROVIDER_NOT_MATCHED")
+
+    def test_instant_native_v2_forex_unverified_history_returns_no_prices(self):
+        code,result=self.request("POST","/api/instant/analyze",{"symbol":"EURUSD"},auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual(result["status"],"DATA_UNAVAILABLE")
+        self.assertEqual(result["targets"],[])
+        self.assertIn(result["reason_code"],("SOURCE_IDENTITY_UNVERIFIED","NOT_ENOUGH_M5_HISTORY"))
+        self.assertFalse(result["broker_execution"])
+
     def test_native_chart_candles_are_private_and_real_source_only(self):
         self.assertEqual(self.request("GET","/api/chart/candles?symbol=EURUSD")[0],401)
         status,payload=self.request("GET","/api/chart/candles?symbol=EURUSD",auth=self.auth)

@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -273,6 +273,67 @@ def crypto_startup_probe():
   print("crypto_history symbol=BITSTAMP:BTCUSD provider=Bitstamp state="+str(meta.get("state","UNKNOWN"))+" candles="+str(len(rows))+" reason="+str(meta.get("reason","unknown")),flush=True)
  except _crypto_history.CryptoHistoryError as error:
   print("crypto_history symbol=BITSTAMP:BTCUSD provider=Bitstamp state=DEGRADED reason="+str(error),flush=True)
+
+def analyze_instant_native(symbol,mode):
+ """V2 read-only market analysis. Never uses TradingView trade alerts."""
+ now=datetime.now(timezone.utc)
+ instrument=_instruments.describe(symbol)
+ asset=instrument["asset_class"]
+ provider=None
+ rows=[]
+ check_meta={}
+ if asset=="futures":
+  # NQ continuous charts are NOT a licensed, expiry-specific OHLC contract.
+  if symbol=="CME_MINI:NQ1!" or re.fullmatch(r"CME_MINI:NQ[HMUZ][0-9]{2}",symbol):
+   preflight=_futures_preflight.inspect(symbol,barchart_key_configured=bool(os.getenv("BARCHART_API_KEY")),
+       mapped_provider_symbol=None,verified_license=False,now=now)
+   out=_instant_engine.unavailable("FUTURES_ENTITLEMENT_NOT_VERIFIED",symbol,mode,"Barchart OnDemand",preflight=preflight)
+  else:
+   out=_instant_engine.unavailable("FUTURES_SOURCE_NOT_CONNECTED",symbol,mode,asset_class="futures")
+ elif asset=="crypto" and symbol.startswith("BITSTAMP:"):
+  provider="Bitstamp"
+  try:
+   rows,check_meta=bitstamp_native_candles(symbol,now)
+  except _crypto_history.CryptoHistoryError as error:
+   out=_instant_engine.unavailable("CRYPTO_PROVIDER_UNAVAILABLE",symbol,mode,provider,error=str(error))
+  else:
+   out=None
+ elif asset=="forex" and symbol.startswith("OANDA:"):
+  ticker=symbol.split(":",1)[1]
+  pair=ticker[:3]+"/"+ticker[3:]
+  if pair not in _history.FOREX:
+   out=_instant_engine.unavailable("FOREX_PAIR_NOT_VERIFIED",symbol,mode,"Twelve Data")
+  else:
+   provider="Twelve Data"
+   try:
+    with history_connection() as db:
+     mark="%s" if postgres_enabled() else "?"
+     raw=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+     prev=db.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(pair,)).fetchone()
+    rows=raw
+    check_meta=json.loads(prev[0]) if prev else {}
+    out=None
+   except Exception:
+    out=_instant_engine.unavailable("FOREX_STORAGE_UNAVAILABLE",symbol,mode,provider)
+ else:
+  out=_instant_engine.unavailable("PROVIDER_NOT_MATCHED",symbol,mode,None,asset_class=asset)
+ if out is None:
+  try:
+   with history_connection() as db:news=_news.snapshot(db,now)
+  except Exception:news=None
+  # Provider identity checks rely on previously authenticated ingestion; not mere UI symbol names.
+  verified=(provider=="Bitstamp" and check_meta.get("provider")=="Bitstamp"
+            and check_meta.get("symbol")==symbol and check_meta.get("state")=="CONNECTED") or (
+            provider=="Twelve Data" and check_meta.get("symbol")==pair
+            and check_meta.get("interval")=="5min" and check_meta.get("adapter_version"))
+  tick_size=0.01 if asset=="crypto" else (0.001 if ticker.endswith("JPY") else 0.00001)
+  out=_instant_engine.evaluate(symbol,rows,mode=mode,asset_class=asset,provider=provider,
+           tick_size=tick_size,now=now,news=news,source_identity_verified=bool(verified))
+ out["instrument"]=instrument
+ out["generated_at"]=now.isoformat()
+ out["news_integration"]="VERIFIED_EVENT_TIMES_ONLY"
+ out["scalp_ready"]=out["status"]=="READY" and mode=="scalp"
+ return out
 
 def analyze_native_chart(symbol,mode):
  """Standalone platform decisions from provider candles. Never load TV webhook trades."""
@@ -1064,6 +1125,22 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as c:_destinations.save(c,preferences,postgres_enabled())
     return self.reply(200,{"saved":True,**preferences,"whatsapp_automatic_connected":_whatsapp.status()["provider_connection_verified"],"whatsapp":_whatsapp.status()})
    except Exception:return self.reply(503,{"error":"storage_unavailable"})
+  if urlsplit(self.path).path=="/api/instant/analyze":
+   if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
+   if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})
+   origin=self.headers.get("Origin")
+   if origin and urlsplit(origin).netloc!=self.headers.get("Host"):return self.reply(403,{"error":"origin"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=2048:return self.reply(413,{"error":"size"})
+    request=json.loads(self.rfile.read(size))
+    if not isinstance(request,dict):raise ValueError()
+    symbol=_instruments.normalize(request.get("symbol"))
+    mode=request.get("mode","scalp")
+    if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(400,{"error":"invalid_symbol_or_json"})
+   try:return self.reply(200,analyze_instant_native(symbol,mode))
+   except Exception:return self.reply(503,{"error":"instant_analysis_unavailable"})
   if urlsplit(self.path).path=="/api/analyze":
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})

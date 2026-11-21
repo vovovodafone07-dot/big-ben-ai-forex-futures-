@@ -120,23 +120,6 @@ def message(plan, now=None):
     ])
     return "\n".join(parts)
 
-def reserve(connection,plan,chat,postgres=False,now=None):
-    """Returns fingerprint iff this is a newly queued or previously failed alert."""
-    if not eligible(plan):
-        return None
-    key=fingerprint(plan,chat)
-    stamp=(now or datetime.now(timezone.utc)).isoformat()
-    mark="%s" if postgres else "?"
-    args=(key,plan["symbol"],plan["mode"],plan["status"],"sending",stamp,stamp)
-    connection.execute("INSERT INTO native_telegram_alerts(fingerprint,symbol,mode,status,delivery,created_at,updated_at) VALUES ("+
-                       ",".join([mark]*7)+") ON CONFLICT(fingerprint) DO NOTHING",args)
-    # Existing successfully sent or in-progress plan is not sent twice.
-    # Existing failed alert is claimed atomically for another attempt.
-    row=connection.execute("SELECT delivery FROM native_telegram_alerts WHERE fingerprint="+mark,(key,)).fetchone()
-    if not row:return None
-    # Caller uses durable DB claim serialisation; explicit 'new' handled by claim below.
-    return key
-
 def claim(connection,plan,chat,postgres=False,now=None):
     if not eligible(plan):
         return None

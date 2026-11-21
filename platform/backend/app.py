@@ -117,13 +117,13 @@ def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
 def refresh_market_history():
- """Three requests max per six-hour cycle; no retries or guessed contracts."""
+ """At most one provider call per supported symbol per 15 minutes; no retries."""
  for symbol in _history.REFRESH_FOREX:
   now=datetime.now(timezone.utc)
   with history_connection() as c:
    checks=_history.coverage(c,now,postgres=postgres_enabled())["symbols"]
   prior=next(item for item in checks if item["symbol"]==symbol)
-  if prior.get("adapter_version")==_history.ADAPTER_VERSION and prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<21600:
+  if prior.get("adapter_version")==_history.ADAPTER_VERSION and prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<900:
    continue
   try:
    rows,result=_history.fetch_m5(symbol,twelve_data_key(),now)
@@ -334,6 +334,15 @@ def run_history_cycle():
   delivery=send_telegram_message(report["arabic_report"])
   with history_connection() as c:_operations.notification_result(c,report,delivery,postgres_enabled())
  return status
+
+def fast_history_worker():
+ """Bounded freshness refresh for three Forex symbols only; not a licensed realtime stream."""
+ try:interval=max(900,min(3600,int(os.getenv("BIGBEN_FAST_M5_REFRESH_SECONDS","900"))))
+ except ValueError:interval=900
+ while True:
+  time.sleep(interval)
+  try:refresh_market_history()
+  except Exception:print("market_history fast_refresh=failed",flush=True)
 
 def history_worker():
  # A sleeping free Render service cannot guarantee a wall-clock schedule.
@@ -957,6 +966,7 @@ if __name__=="__main__":
  if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
   threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()
+ if os.getenv("BIGBEN_FAST_M5_HISTORY_ENABLED","1")=="1":threading.Thread(target=fast_history_worker,daemon=True).start()
  threading.Thread(target=news_worker,daemon=True).start()
  threading.Thread(target=market_pulse_worker,daemon=True).start()
  port=int(os.getenv("PORT","10000"))

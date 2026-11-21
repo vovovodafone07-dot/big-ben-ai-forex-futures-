@@ -79,6 +79,18 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(len(result['agent_tasks']),3);self.assertFalse(result['uses_tradingview_signals']);self.assertEqual(result['analysis_origin'],'platform_native')
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
 
+    def test_native_chart_candles_are_private_and_real_source_only(self):
+        self.assertEqual(self.request("GET","/api/chart/candles?symbol=EURUSD")[0],401)
+        status,payload=self.request("GET","/api/chart/candles?symbol=EURUSD",auth=self.auth)
+        self.assertEqual(status,200)
+        self.assertEqual(payload["provider"],"Twelve Data")
+        self.assertEqual(payload["symbol"],"OANDA:EURUSD")
+        self.assertFalse(payload["realtime_verified"])
+        self.assertEqual(payload["candles"],[])
+        status,bad=self.request("GET","/api/chart/candles?symbol=NQ",auth=self.auth)
+        self.assertEqual(status,422)
+        self.assertEqual(bad["error"],"ohlc_source_not_verified_for_instrument")
+
     def test_private_api_requires_authentication(self):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
         self.assertEqual(self.request("GET", "/api/events", auth=self.auth)[0], 200)

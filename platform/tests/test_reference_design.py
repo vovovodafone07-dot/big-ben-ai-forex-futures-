@@ -50,7 +50,7 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertIn("refreshCandleAge",self.html)
         self.assertIn("bigben:new-closed-candle",self.html)
         self.assertIn("last_closed_candle",self.html)
-        self.assertIn("بيانات متأخرة",self.html+" "+self.css if "بيانات متأخرة" in self.html else "بيانات متأخرة") # no implicit live claim
+        self.assertIn("شموع متأخرة / غير متاحة",self.html) # do not claim a tick-level feed
 
     def test_no_fake_market_values_or_broker_orders(self):
         for text in ("1.0874","1.0890","1.0840","82%"):

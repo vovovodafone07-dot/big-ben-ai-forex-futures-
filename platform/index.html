@@ -186,10 +186,10 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 <div class="desk-parameters ref-screen-reader-mode"><label for="desk-mode">نوع التحليل</label><select id="desk-mode" aria-label="نوع التحليل"><option value="scalp">Scalp</option><option value="swing">Swing</option></select><span id="desk-mode-timeframe">M5 للدخول</span><input type="checkbox" id="desk-use-ai" disabled><button type="button" id="desk-analyze">تحليل سريع</button></div>
 </div><p id="desk-instrument-identity" class="compact-identity workspace-note">اختر زوج فوركس لتحليله مباشرة من شموع السوق. عقود الفيوتشرز تحتاج موصل OHLC مرخصاً؛ لا نعرض CFD على أنه عقد حقيقي.</p><p id="desk-smt-research" class="workspace-note">قياس ارتباط SMT التاريخي يظهر عند توفر تاريخ متزامن للزوجين.</p><div class="desk-main"><div class="a-chart-column"><section class="panel chartpanel" id="desk-market-chart"><div class="reference-chart-header"><div><h2><span id="ref-chart-name">اختر رمزاً</span> · <span id="ref-chart-timeframe">M5</span></h2><small id="ref-chart-caption">مصدر الشموع: Twelve Data · ليست بيانات تجريبية</small></div></div><div style="height:420px;border:1px solid #344c81;border-radius:10px;overflow:hidden;margin-top:12px"><div id="desk-live-chart" style="height:100%;width:100%"><p class="muted">اختر الزوج أو العقد؛ الرسم يتبع الرمز المحدد في التحليل.</p></div></div><div class="notice ref-chart-status"><span id="desk-chart-status" role="status">شموع M5 يتم رسمها داخل المنصة من مزود OHLC عند تحليل الرمز؛ لا حاجة لمؤشر TradingView.</span> <a id="desk-chart-link" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">فتح الرسم على TradingView</a>. الرابط الخارجي اختياري؛ تحليل المنصة لا يعتمد على TradingView.</div><details class="ref-external-links"><summary>روابط شارت خارجية</summary><div class="market-chart-links" aria-label="مخططات الأسواق على TradingView"><a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AEURUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">EURUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AGBPUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">GBPUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AUSDJPY&amp;interval=5" target="_blank" rel="noopener noreferrer">USDJPY</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3ANQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">NQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMNQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MNQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">ES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CBOT_MINI%3AYM1!&amp;interval=5" target="_blank" rel="noopener noreferrer">YM</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME%3A6E1!&amp;interval=5" target="_blank" rel="noopener noreferrer">6E</a></div></details></section></div><aside class="panel analysis-dossier"><div class="dossier-heading"><h2>نتيجة التحليل <span aria-hidden="true">◎</span></h2><span class="decision-pill" id="desk-decision">انتظار</span></div>
 <div class="ref-mode-switch" role="group" aria-label="نمط التحليل"><button type="button" data-analysis-mode="scalp" aria-pressed="true">سكالب</button><button type="button" data-analysis-mode="swing" aria-pressed="false">سوينج</button></div>
-<div class="ref-signal-card" id="ref-signal-card" data-decision="wait"><strong id="ref-signal-title">البيانات قيد التحقق</strong><small id="ref-signal-reason">لا توجد صفقة مؤكدة قبل التحقق من شموع السوق</small></div>
+<div class="ref-signal-card" id="ref-signal-card" data-decision="wait"><strong id="ref-signal-title">جاري التحقق من الاتجاه</strong><small id="ref-signal-reason">لا توجد صفقة مؤكدة قبل التحقق من شموع السوق</small></div>
 <div class="ref-trade-levels" aria-label="مستويات الصفقة">
 <div><span>Entry</span><strong id="ref-entry">—</strong></div><div><span>SL</span><strong id="ref-sl">—</strong></div><div><span>TP</span><strong id="ref-tp">—</strong></div><div><span>RR</span><strong id="ref-rr">—</strong></div>
-</div>
+</div><div class="ref-targets-extra" id="ref-targets-extra" aria-live="polite">TP1 — · TP2 — · TP3 —</div>
 <div class="ref-signal-quality"><div><strong id="ref-signal-quality-label">جودة الإعداد: غير معايرة</strong><span id="ref-signal-quality-help">لا توجد نسبة نجاح مثبتة</span></div><div class="ref-quality-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
 <div class="ref-validation-chips" aria-label="شروط الفحص"><span id="ref-check-trend">الاتجاه · غير معلوم</span><span id="ref-check-momentum">الزخم · غير معلوم</span><span id="ref-check-confirmation">التوافق · غير معلوم</span><span id="ref-check-liquidity">السيولة · غير مقاسة</span></div>
 <p id="desk-analysis-status" role="status">اختر زوجاً ثم اضغط التحليل؛ نتائج WAIT ليست توصيات تداول.</p>
@@ -611,13 +611,14 @@ session();setInterval(session,15000);
      &&v.entry!=null&&v.sl!=null&&Array.isArray(v.targets)&&v.targets.length===3;
   const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'تحذير خبر مؤثر',
                 DATA_UNAVAILABLE:'بيانات غير متاحة'};
-  const box=$('ref-signal-card');if(box)box.dataset.decision=status==='READY'?(dir==='BUY'?'buy':'sell'):'wait';
-  put('ref-signal-title',(labels[status]||'البيانات غير متاحة')+(valid?' · '+(dir==='BUY'?'شراء':'بيع'):''));
+  const box=$('ref-signal-card');if(box)box.dataset.decision=valid?(status==='READY'?(dir==='BUY'?'buy':'sell'):status==='NEWS_CAUTION'?'caution':dir==='BUY'?'conditional-buy':'conditional-sell'):'unavailable';
+  put('ref-signal-title',valid?(dir==='BUY'?'↗ شراء BUY':'↘ بيع SELL')+' · '+labels[status]:(labels[status]||'بيانات غير متاحة'));
   put('ref-signal-reason',v.reason_code||'سبب غير متاح');
   put('ref-entry',valid?safeNumber(v.entry):'—');
   put('ref-sl',valid?safeNumber(v.sl):'—');
   put('ref-tp',valid?safeNumber(v.targets[0].price):'—');
-  put('ref-rr',valid?'TP1 1R · TP2 2R · TP3 3R':'—');
+  put('ref-rr',valid?'1R / 2R / 3R':'—');
+  put('ref-targets-extra',valid?v.targets.map(t=>t.name+' '+safeNumber(t.price)).join(' · '):'TP1 — · TP2 — · TP3 —');
   put('desk-mode-selected',valid?'Entry '+safeNumber(v.entry)+' · SL '+safeNumber(v.sl)
     +' · TP1 '+safeNumber(v.targets[0].price)+' · TP2 '+safeNumber(v.targets[1].price)
     +' · TP3 '+safeNumber(v.targets[2].price):
@@ -640,4 +641,12 @@ session();setInterval(session,15000);
   }
  }
  window.addEventListener('bigben:instant-v2',e=>{if(e.detail)show(e.detail)});
+ let lastAutomatic=0;
+ window.addEventListener('bigben:new-closed-candle',e=>{
+   const input=$('desk-symbol'),button=$('desk-analyze');
+   if(!input||!button||button.disabled||document.visibilityState==='hidden')return;
+   if(e.detail?.symbol!==input.value.trim().toUpperCase())return;
+   const now=Date.now();if(now-lastAutomatic<20000)return;
+   lastAutomatic=now;button.click();
+ });
 })();</script></body></html>

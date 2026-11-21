@@ -62,6 +62,19 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertIn("Never inserts provisional ticks",self.html)
         self.assertIn("Date.now()-tradeTick.receivedAt<16000",self.html)
 
+    def test_chart_zoom_target_rows_and_frame_throttling(self):
+        for zoom in ("in","out","targets","reset"):
+            self.assertIn('data-zoom="'+zoom+'"',self.html)
+        for target in ("ref-tp1","ref-tp2","ref-tp3"):
+            self.assertEqual(self.tags.ids.get(target),1)
+        self.assertIn("addEventListener('wheel'",self.html)
+        self.assertIn("pointermove",self.html)
+        self.assertIn("requestAnimationFrame",self.html)
+        self.assertIn("last.aggregates?.[currentFrame]",self.html)
+        self.assertIn("fitAllTargets",self.html)
+        self.assertIn("SWING: مستويات H1",self.html)
+        self.assertIn("SCALP: مستويات M5",self.html)
+
     def test_no_fake_market_values_or_broker_orders(self):
         for text in ("1.0874","1.0890","1.0840","82%"):
             self.assertNotIn(text,self.html)

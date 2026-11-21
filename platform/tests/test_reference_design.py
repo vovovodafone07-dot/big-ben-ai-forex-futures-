@@ -41,6 +41,27 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertIn('inset:0 auto 0 0!important',self.css) # Left rail per screenshot
         self.assertIn('.ref-trading-toolbar',self.css)
         self.assertIn('.ref-signal-card',self.css)
+    def test_conditional_direction_and_closed_bar_age_visible(self):
+        self.assertEqual(self.tags.ids.get("ref-targets-extra"),1)
+        self.assertIn("conditional-buy",self.html)
+        self.assertIn("conditional-sell",self.html)
+        self.assertIn("↗ شراء BUY",self.html)
+        self.assertIn("↘ بيع SELL",self.html)
+        self.assertIn("refreshCandleAge",self.html)
+        self.assertIn("bigben:new-closed-candle",self.html)
+        self.assertIn("last_closed_candle",self.html)
+        self.assertIn("شموع متأخرة / غير متاحة",self.html) # do not claim a tick-level feed
+
+    def test_public_bitstamp_live_stream_never_modifies_closed_candles(self):
+        self.assertEqual(self.tags.ids.get("ref-tick-status"),1)
+        self.assertIn("wss://ws.bitstamp.net",self.html)
+        self.assertIn("live_trades_",self.html)
+        self.assertIn("event:'bts:subscribe'",self.html)
+        self.assertIn("bigben:bitstamp-trade",self.html)
+        self.assertIn("liveTrade:latestLiveTrade",self.html)
+        self.assertIn("Never inserts provisional ticks",self.html)
+        self.assertIn("Date.now()-tradeTick.receivedAt<16000",self.html)
+
     def test_no_fake_market_values_or_broker_orders(self):
         for text in ("1.0874","1.0890","1.0840","82%"):
             self.assertNotIn(text,self.html)

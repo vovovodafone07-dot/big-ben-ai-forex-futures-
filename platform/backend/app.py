@@ -240,13 +240,13 @@ def bitstamp_native_candles(symbol,now=None):
    prev=c.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(symbol,)).fetchone()
   prior=json.loads(prev[0]) if prev else {}
   checked=datetime.fromisoformat(prior["checked_at"].replace("Z","+00:00")) if prior.get("checked_at") else None
-  needs_refresh=checked is None or (now-checked).total_seconds()>=300
+  needs_refresh=checked is None or (now-checked).total_seconds()>=90
   if needs_refresh:
    allowed=False
    with NATIVE_FETCH_LOCK:
     tick=time.monotonic()
     NATIVE_FETCH_TIMES[:]=[v for v in NATIVE_FETCH_TIMES if tick-v<3600]
-    if len(NATIVE_FETCH_TIMES)<35 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=3):
+    if len(NATIVE_FETCH_TIMES)<90 and (not NATIVE_FETCH_TIMES or tick-NATIVE_FETCH_TIMES[-1]>=3):
      NATIVE_FETCH_TIMES.append(tick);allowed=True
    if allowed:
     try:
@@ -989,7 +989,7 @@ class Handler(BaseHTTPRequestHandler):
     return self.reply(200,{"symbol":symbol,"provider":provider,"interval":"5min",
       "realtime_verified":False,"candles":out,"last_closed_candle":last,
       "age_seconds":int(age) if age is not None else None,
-      "fresh":age is not None and 300<=age<=900,"note":"Closed provider candles only. Not TradingView indicator events."})
+      "fresh":age is not None and 300<=age<=630,"feed_state":("NO_DATA" if age is None else "CURRENT_CLOSED_M5" if 300<=age<=630 else "STALE" if age>630 else "UNCLOSED"),"checked_at":datetime.now(timezone.utc).isoformat(),"note":"Closed provider candles only, periodically fetched; not tick streaming or TradingView indicator events."})
    except _crypto_history.CryptoHistoryError as error:return self.reply(503,{"error":"crypto_ohlc_unavailable","reason":str(error),"symbol":symbol})
    except (TypeError,ValueError,IndexError):return self.reply(400,{"error":"invalid_symbol"})
    except Exception:return self.reply(503,{"error":"chart_candles_unavailable"})
@@ -1086,7 +1086,7 @@ class Handler(BaseHTTPRequestHandler):
   try:body=(Path(__file__).resolve().parents[1]/"index.html").read_bytes()
   except OSError:return self.reply(503,{"error":"dashboard_unavailable"})
   self.send_response(200)
-  for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
+  for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self' wss://ws.bitstamp.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
   if urlsplit(self.path).path in ("/api/workspace/drafts","/api/workspace/notes"):

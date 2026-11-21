@@ -229,3 +229,23 @@ body[data-design="pro"] .ref-symbol-card .ref-chevron{background:transparent!imp
 body[data-design="pro"] .ref-price-card[data-direction="down"] #ref-price-change{color:#ff7181!important}
 body[data-design="pro"] .ref-market-card[data-state="crypto"]{background:#06392f!important;border-color:#168d71!important}
 body[data-design="pro"] .ref-market-card[data-state="crypto"] strong{color:#32efbc!important}
+
+/* Instant native direction, conditional is distinct from a verified ready trade. */
+body[data-design="pro"] .ref-signal-card[data-decision="conditional-buy"]{background:linear-gradient(125deg,#083b40,#092c36)!important;border-color:#16a6a0!important}
+body[data-design="pro"] .ref-signal-card[data-decision="conditional-buy"] strong{color:#39e9b0!important}
+body[data-design="pro"] .ref-signal-card[data-decision="conditional-sell"]{background:linear-gradient(125deg,#412536,#102c38)!important;border-color:#bb6070!important}
+body[data-design="pro"] .ref-signal-card[data-decision="conditional-sell"] strong{color:#ff8793!important}
+body[data-design="pro"] .ref-signal-card[data-decision="caution"]{background:#352c20!important;border-color:#c08a38!important}
+body[data-design="pro"] .ref-signal-card[data-decision="caution"] strong{color:#ffca74!important}
+body[data-design="pro"] .ref-signal-card[data-decision="unavailable"]{background:#102b35!important;border-color:#3e5c63!important}
+body[data-design="pro"] .ref-targets-extra{border:1px solid #255b61!important;border-radius:6px!important;background:#07252f!important;padding:6px 7px!important;text-align:center!important;color:#56eabc!important;font-size:11px!important;direction:ltr!important;font-variant-numeric:tabular-nums}
+body[data-design="pro"] .ref-feed-banner[data-state="stale"]{border-color:#ba633f!important;background:linear-gradient(100deg,#412b28,#3d2229)!important}
+body[data-design="pro"] .ref-price-card[data-state="stale"]{border-color:#9e6547!important}
+
+/* Separate REAL Bitstamp trades from closed M5 historical chart evidence. */
+body[data-design="pro"] #ref-tick-status{display:block;font-size:10px!important;line-height:1.1!important;color:#91b2bd!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-design="pro"] #ref-tick-status[data-state="live"]{color:#22efb5!important}
+body[data-design="pro"] #ref-tick-status[data-state="delayed"]{color:#ffbc6d!important}
+body[data-design="pro"] #ref-tick-status[data-state="connecting"]{color:#9dcddd!important}
+body[data-design="pro"] .ref-price-card{gap:1px!important}
+body[data-design="pro"] .ref-price-card strong{font-size:20px!important}

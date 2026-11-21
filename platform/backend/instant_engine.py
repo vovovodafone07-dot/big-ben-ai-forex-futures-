@@ -116,7 +116,7 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
         return unavailable("NOT_ENOUGH_M5_HISTORY",symbol,mode,provider,received=len(bars),minimum=300)
     stamp=bars[-1][0];age=(now-stamp).total_seconds()
     # 5m candle is stamped at OPEN, so >=300s means it has fully closed.
-    if not 300<=age<=900:
+    if not 300<=age<=630:
         return unavailable("STALE_OR_UNCLOSED_M5",symbol,mode,provider,age_seconds=round(age))
     if any((b[0]-a[0]).total_seconds()!=300 for a,b in zip(bars[-60:-1],bars[-59:])):
         return unavailable("MISSING_RECENT_M5",symbol,mode,provider)

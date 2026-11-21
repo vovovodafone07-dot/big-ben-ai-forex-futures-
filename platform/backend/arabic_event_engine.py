@@ -159,13 +159,10 @@ def news_message(event,now=None):
         scenarios=("• سيناريو صعود محتمل عند مفاجأة داعمة للأصل وتأكيد حركة الشموع.\n"
                    "• سيناريو هبوط محتمل عند مفاجأة معاكسة وتأكيد حركة الشموع.")
     when=_stamp(event["source_time"]).astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M")
+    forecast=str(event["consensus"]) if event.get("consensus") is not None else "غير متوفر من مصدر موثق"
+    previous=str(event["previous"]) if event.get("previous") is not None else "غير متوفر"
     return ("📰 سيناريوهات خبر اقتصادي | "+event["classification"]+"\n━━━━━━━━━━━━━━━━━━\n"
             "📌 الحدث: "+event["title"]+"\n⏰ الموعد: "+when+" (مسقط)\n"
-            "📊 التوقع: "+str(event["consensus"]) if event.get("consensus") is not None else
-            "📰 سيناريوهات خبر اقتصادي | "+event["classification"]+"\n━━━━━━━━━━━━━━━━━━\n"
-            "📌 الحدث: "+event["title"]+"\n⏰ الموعد: "+when+" (مسقط)\n"
-            "📊 التوقع: غير متوفر من مصدر موثق\n") + (
-            "📉 السابق: "+str(event.get("previous") if event.get("previous") is not None else "غير متوفر")+"\n"
+            "📊 التوقع: "+forecast+"\n📉 السابق: "+previous+"\n"
             "🔮 سيناريوهات مشروطة:\n"+scenarios+"\n"
-            "⚠️ لا توجد مقارنة فعلية مع المتوقع أو إشارة شراء/بيع مؤكدة قبل صدور بيانات موثقة؛ التأثير غير مصنف رسمياً إن لم يرد تقييم موثق."
-            )
+            "⚠️ لا توجد مقارنة فعلية مع المتوقع أو إشارة شراء/بيع مؤكدة قبل صدور بيانات موثقة؛ التأثير غير مصنف رسمياً إن لم يرد تقييم موثق.")

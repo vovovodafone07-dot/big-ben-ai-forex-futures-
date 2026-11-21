@@ -267,3 +267,8 @@ body[data-design="pro"] .ref-targets-extra>div:nth-child(3) strong{color:#c1aaff
 body[data-design="pro"] .ref-mode-explanation{display:block;font-size:10px;color:#8dc2c2;text-align:center;line-height:1.3}
 body[data-design="pro"] .reference-chart-header{gap:10px!important}
 @media(max-width:500px){body[data-design="pro"] .ref-targets-extra strong{font-size:12px}body[data-design="pro"] .ref-zoom-controls button{min-width:27px;padding:2px 4px}}
+
+/* Private native research Telegram delivery indicators (no signal quality claim). */
+body[data-design="pro"] .ref-telegram-delivery{margin:6px 0;font-size:11px;color:#aad5d7;border:1px solid #31545a;border-radius:6px;background:#09242d;padding:6px 8px;text-align:right;direction:rtl}
+body[data-design="pro"] .ref-telegram-delivery[data-state="sent"]{color:#40eabc;border-color:#238b70}
+body[data-design="pro"] .ref-telegram-delivery[data-state="failed"],body[data-design="pro"] .ref-telegram-delivery[data-state="not_configured"]{color:#ffbf82;border-color:#8a5f3f}

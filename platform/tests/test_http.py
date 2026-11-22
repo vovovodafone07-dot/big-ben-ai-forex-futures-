@@ -324,6 +324,25 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(status,200);self.assertEqual([r['symbol'] for r in body['symbols']],['CAPITALCOM:US100'])
         self.assertFalse(body['symbols'][0]['actionable'])
 
+    def test_real_news_verification_is_scoped_and_durably_once_per_day(self):
+        article={'id':'official-fixture','source':'Federal Reserve','feed_fresh':True,'feed_state':'CONNECTED',
+                 'published_at':datetime.now(timezone.utc).isoformat(),'url':'https://www.federalreserve.gov/newsevents/pressreleases/example.htm'}
+        key={'X-BigBen-News-Proof':'n'*40}
+        with patch.dict(os.environ,{'BIGBEN_NEWS_PROOF_TOKEN':'n'*40,'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._news,'snapshot',return_value={'news':[article]}),patch.object(app,'send_transport_card',return_value={'الحالة':'قبله Telegram','معرف_الرسالة':903}) as send:
+            self.assertEqual(self.request('POST','/v1/verification/news-delivery',{})[0],401)
+            code,body=self.request('POST','/v1/verification/news-delivery',{},extra_headers=key)
+            self.assertEqual(code,200);self.assertEqual(body['معرف_الرسالة'],903)
+            code,again=self.request('POST','/v1/verification/news-delivery',{},extra_headers=key)
+            self.assertTrue(again['مكرر']);self.assertEqual(send.call_count,1)
+            self.assertIn('نشرة مستقلة',send.call_args.args[0])
+            self.assertNotIn('توصية شراء',send.call_args.args[0])
+            self.assertEqual(self.request('GET','/api/trade-journal',extra_headers=key)[0],401)
+
+    def test_news_proof_never_fabricates_an_article_when_feeds_are_empty(self):
+        with patch.dict(os.environ,{'BIGBEN_NEWS_PROOF_TOKEN':'n'*40}),patch.object(app._news,'snapshot',return_value={'news':[]}),patch.object(app,'send_transport_card') as send:
+            self.assertEqual(self.request('POST','/v1/verification/news-delivery',{},extra_headers={'X-BigBen-News-Proof':'n'*40})[0],409)
+            send.assert_not_called()
+
     def test_scalp_api_is_private_and_paired(self):
         self.assertEqual(self.request("GET", "/api/scalping")[0], 401)
         self.request("POST", "/v1/tradingview/events", self.payload("BUY"))

@@ -97,6 +97,17 @@ class DeliveryWorkflowTests(unittest.TestCase):
             app.scan_arabic_market_once(NOW)
         fetch.assert_called_once_with('BITSTAMP:BTCUSD',NOW)
 
+    def test_short_chart_does_not_mask_complete_matching_venue_history(self):
+        symbol='BITSTAMP:BTCUSD'
+        venue_rows=[('venue-candle',1,2,1,2)]*300
+        meta={'symbol':symbol,'provider':'Bitstamp','state':'CONNECTED','last_candle':(NOW-timedelta(minutes=5)).isoformat()}
+        answer={'status':'CONDITIONAL','symbol':symbol}
+        with patch.object(app._tradingview_candles,'read',return_value=([('chart-candle',1,2,1,2)],{})),patch.object(app._tradingview_candles,'fresh',return_value=True),patch.object(app,'bitstamp_native_candles',return_value=(venue_rows,meta)),patch.object(app._news,'snapshot',return_value={}),patch.object(app._instant_engine,'evaluate',return_value=answer) as engine:
+            result=app.analyze_instant_native(symbol,'scalp')
+        self.assertEqual(engine.call_args.args[1],venue_rows)
+        self.assertEqual(engine.call_args.kwargs['provider'],'Bitstamp')
+        self.assertEqual(result['chart_candles_received'],1)
+
     def test_closed_forex_never_enters_analysis_or_trade_delivery(self):
         sunday=datetime(2026,11,22,18,0,tzinfo=timezone.utc)
         with patch.object(app,'refresh_tracked_crypto_once'),patch.object(app,'refresh_tracked_candles_once'),patch.object(app,'owner_connected_assets',return_value=[{'symbol':'OANDA:GBPUSD'}]),patch.object(app,'analyze_instant_native') as analyze,patch.object(app,'trigger_instant_telegram') as send,patch.object(app,'deliver_bot_news'):

@@ -30,7 +30,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture","live_candle_adapter","tv_watchlist","tradingview_candles"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -132,25 +132,8 @@ def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
 def refresh_market_history():
- """At most one provider call per supported symbol per 15 minutes; no retries."""
- for symbol in _history.REFRESH_FOREX:
-  now=datetime.now(timezone.utc)
-  with history_connection() as c:
-   checks=_history.coverage(c,now,postgres=postgres_enabled())["symbols"]
-  prior=next(item for item in checks if item["symbol"]==symbol)
-  if prior.get("adapter_version")==_history.ADAPTER_VERSION and prior.get("checked_at") and (now-datetime.fromisoformat(prior["checked_at"])).total_seconds()<900:
-   continue
-  try:
-   rows,result=_history.fetch_m5(symbol,twelve_data_key(),now)
-   result.update(state="CONNECTED",reason="validated_closed_m5_history")
-  except _history.HistoryError as error:
-   rows=[]
-   result={"symbol":symbol,"state":"DEGRADED" if twelve_data_key() else "DISCONNECTED",
-     "reason":str(error),"checked_at":now.isoformat(),"realtime_verified":False,
-     "adapter_version":_history.ADAPTER_VERSION}
-  with history_connection() as c:
-   result=_history.store_check(c,symbol,result,rows,postgres=postgres_enabled())
-  print("market_history symbol="+symbol+" state="+result["state"]+" reason="+result["reason"]+" inserted="+str(result["candles_inserted"]),flush=True)
+ """Use one budgeted ingestion path; never probe a pair outside TV membership."""
+ return refresh_tracked_candles_once()
 
 def run_daily_research():
  now=datetime.now(timezone.utc)
@@ -255,6 +238,7 @@ def scan_arabic_market_once(now=None):
  # Refresh watched supported sources BEFORE filtering by freshness. Otherwise a
  # stale asset is excluded from the very scan that could restore its data.
  refresh_tracked_crypto_once(now)
+ refresh_tracked_candles_once(now)
  with history_connection() as db:
   from_market=tuple(item["symbol"] for item in owner_connected_assets(db,now))[:100]
  results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
@@ -269,7 +253,9 @@ def scan_arabic_market_once(now=None):
     notification="🟢 استئناف بيانات السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nعادت شموع مغلقة حديثة من المصدر المطابق.\nهذا تحديث اتصال؛ لا يثبت افتتاح جلسة البورصة أو وجود صفقة."
     send_telegram_message(notification,category="market")
    if analysis["status"]=="DATA_UNAVAILABLE":continue
-   if symbol.startswith("BITSTAMP:"):
+   if analysis.get('provider')==_tradingview_candles.PROVIDER:
+    with history_connection() as db:rows,_=_tradingview_candles.read(db,symbol,postgres_enabled())
+   elif symbol.startswith("BITSTAMP:"):
     rows,_=bitstamp_native_candles(symbol,now)
    else:
     base=symbol.split(":",1)[1]
@@ -336,6 +322,49 @@ BACKUP_SLOT=threading.BoundedSemaphore(1)
 
 NATIVE_FETCH_TIMES=[]
 NATIVE_FETCH_LOCK=threading.Lock()
+ADAPTER_FETCH_LOCK=threading.Lock()
+
+def refresh_tracked_candles_once(now=None):
+ """Read-only cached ingestion; references never promote a feed to live."""
+ now=now or datetime.now(timezone.utc)
+ if not ADAPTER_FETCH_LOCK.acquire(blocking=False):return {}
+ result={}
+ try:
+  with history_connection() as db:symbols=sorted(owner_watchlist(db))
+  for symbol in symbols:
+   spec=_live_candle_adapter.mapping(symbol)
+   if not spec:continue
+   with history_connection() as db:_,tv_meta=_tradingview_candles.read(db,symbol,postgres_enabled())
+   if _tradingview_candles.fresh(tv_meta,now):continue
+   with history_connection() as db:_,prior=_live_candle_adapter.read(db,symbol,postgres_enabled())
+   try:
+    age=(now-datetime.fromisoformat(prior['checked_at'])).total_seconds()
+    ttl=300 if prior.get('provider')=='Twelve Data' else 900
+    if 0<=age<ttl:continue
+   except (ValueError,KeyError,TypeError):pass
+   def primary(s,key,at):
+    if not spec['twelve']:raise _live_candle_adapter.CandleError('unsupported')
+    if not key:raise _live_candle_adapter.CandleError('not_configured')
+    with history_connection() as db:allowed=_live_candle_adapter.reserve(db,'twelve',at,postgres_enabled())
+    if not allowed:raise _live_candle_adapter.CandleError('budget')
+    return _live_candle_adapter.twelve(s,key,at)
+   def fallback(s,at):
+    with history_connection() as db:allowed=_live_candle_adapter.reserve(db,'yahoo',at,postgres_enabled())
+    if not allowed:raise _live_candle_adapter.CandleError('budget')
+    return _live_candle_adapter.yahoo(s,at)
+   rows,meta=_live_candle_adapter.fetch(symbol,twelve_data_key(),now,primary=primary,fallback=fallback)
+   with history_connection() as db:
+    _live_candle_adapter.store(db,symbol,rows,meta,postgres_enabled())
+    # Keep the existing FX research reader populated from the same successful
+    # primary fetch. Do not copy Yahoo/reference bars into Twelve Data history.
+    if rows and spec['kind']=='forex' and meta.get('provider')=='Twelve Data':
+     legacy=dict(meta,symbol=spec['twelve'],adapter_version=_history.ADAPTER_VERSION,
+                 state='CONNECTED' if meta['fresh'] else 'STALE')
+     _history.store_check(db,spec['twelve'],legacy,rows,postgres_enabled())
+   result[symbol]=meta['state']
+   print('محول_الشموع الرمز='+symbol+' المصدر='+str(meta.get('provider') or 'غير متاح')+' الحالة='+meta['state']+' الشموع='+str(len(rows))+' العمر='+str(meta.get('source_age_seconds','غير متاح')),flush=True)
+ finally:ADAPTER_FETCH_LOCK.release()
+ return result
 
 def refresh_tracked_crypto_once(now=None):
  now=now or datetime.now(timezone.utc)
@@ -410,12 +439,28 @@ def analyze_instant_native(symbol,mode):
  provider=None
  rows=[]
  check_meta={}
+ with history_connection() as db:tv_rows,tv_meta=_tradingview_candles.read(db,symbol,postgres_enabled())
+ if _tradingview_candles.fresh(tv_meta,now):
+  with history_connection() as db:news=_news.snapshot(db,now)
+  out=_instant_engine.evaluate(symbol,tv_rows,mode=mode,asset_class=asset,
+       provider=_tradingview_candles.PROVIDER,tick_size=tv_meta['tick_size'],
+       now=now,news=news,source_identity_verified=True,realtime_verified=False)
+  out.update(instrument=instrument,generated_at=now.isoformat(),source_provenance=tv_meta,
+             scalp_ready=out['status']=='READY' and mode=='scalp',
+             source_notice='تحديث شموع شارت TradingView؛ ليس تنفيذاً ولا بث أسعار لكل تغير')
+  return out
  if asset=="futures":
-  # NQ continuous charts are NOT a licensed, expiry-specific OHLC contract.
-  if symbol=="CME_MINI:NQ1!" or re.fullmatch(r"CME_MINI:NQ[HMUZ][0-9]{2}",symbol):
-   preflight=_futures_preflight.inspect(symbol,barchart_key_configured=bool(os.getenv("BARCHART_API_KEY")),
-       mapped_provider_symbol=None,verified_license=False,now=now)
-   out=_instant_engine.unavailable("FUTURES_ENTITLEMENT_NOT_VERIFIED",symbol,mode,"Barchart OnDemand",preflight=preflight)
+  with history_connection() as db:rows,check_meta=_live_candle_adapter.read(db,symbol,postgres_enabled())
+  if rows:
+   provider=check_meta.get('provider')
+   out=_instant_engine.evaluate(symbol,rows,mode=mode,asset_class=asset,provider=provider,
+      tick_size=check_meta.get('tick_size',.01),now=now,source_identity_verified=True,realtime_verified=False)
+   # A matching Yahoo root is still a different continuous-series source, and
+   # Yahoo delay/roll conventions are not verified TradingView live pricing.
+   if out['status']=='READY':out['status']='CONDITIONAL'
+   out['reference_only']=True
+   out['source_provenance']=check_meta
+   out['source_notice']='تحليل مرجعي لشموع المصدر الاحتياطي؛ لا يُرسل كتوصية لايف'
   else:
    out=_instant_engine.unavailable("FUTURES_SOURCE_NOT_CONNECTED",symbol,mode,asset_class="futures")
  elif asset=="crypto" and symbol.startswith("BITSTAMP:"):
@@ -454,6 +499,9 @@ def analyze_instant_native(symbol,mode):
   tick_size=0.01 if asset=="crypto" else (0.001 if ticker.endswith("JPY") else 0.00001)
   out=_instant_engine.evaluate(symbol,rows,mode=mode,asset_class=asset,provider=provider,
            tick_size=tick_size,now=now,news=news,source_identity_verified=bool(verified))
+  if check_meta.get('reference_only'):
+   out['reference_only']=True
+   out['source_provenance']=check_meta
  out["instrument"]=instrument
  out["generated_at"]=now.isoformat()
  out["news_integration"]="VERIFIED_EVENT_TIMES_ONLY"
@@ -658,6 +706,17 @@ def process_bbb_event(event):
  except Exception:state="تعذر التحليل؛ التنبيه محفوظ للمراجعة"
  with history_connection() as c:c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(state,key))
  print("تنبيه_BBB الحالة="+state,flush=True)
+
+def process_chart_candle(symbol):
+ """Immediate chart-driven evaluation; sender retains durable setup dedup."""
+ try:
+  with history_connection() as db:
+   if symbol not in owner_watchlist(db):return
+  for mode in ('scalp','swing'):
+   plan=analyze_instant_native(symbol,mode)
+   result=trigger_instant_telegram(plan)
+   print('معالجة_شمعة_الشارت الرمز='+symbol+' النمط='+mode+' الحالة='+str(result.get('status','غير متاحة')),flush=True)
+ except Exception:print('معالجة_شمعة_الشارت الحالة=تعذر_الفحص',flush=True)
 
 def bbb_recovery_worker():
  while True:
@@ -1054,26 +1113,54 @@ def send_telegram_message(message,category="analysis"):
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
 def owner_watchlist(db):
- """Only explicit platform selections and the authorized TV list snapshot."""
- watched=list(_destinations.read(db).get("watchlist",[]))
+ """TradingView snapshot/authorized new alerts only; no old UI preference union."""
+ watched=[]
  try:
   configured=json.loads(os.getenv("BIGBEN_TRACKED_SYMBOLS_JSON","[]"))
   if isinstance(configured,list):watched.extend(configured[:1000])
  except (ValueError,TypeError):pass
- return {s for s in watched if isinstance(s,str) and _tradingview_dynamic_sync.SYMBOL_RE.fullmatch(s)}
+ return _tv_watchlist.members(db,watched,postgres_enabled())
 
 def owner_connected_assets(db,now=None):
+ now=now or datetime.now(timezone.utc)
  watched=owner_watchlist(db)
- return [a for a in _connected_market.connected(db,now,postgres_enabled()) if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True]
+ current={a['symbol']:a for a in _connected_market.connected(db,now,postgres_enabled()) if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True}
+ for symbol in watched:
+  rows,meta=_tradingview_candles.read(db,symbol,postgres_enabled())
+  if _tradingview_candles.fresh(meta,now):
+   asset=_instruments.describe(symbol)['asset_class']
+   gate=_connected_market.gate(dict(symbol=symbol,provider=_tradingview_candles.PROVIDER,
+              source_time=meta['last_candle'],source_provenance=meta,asset_class=asset),now)
+   current[symbol]=dict(symbol=symbol,label=symbol,asset_class=asset,provider=_tradingview_candles.PROVIDER,
+       connected=True,fresh=True,market_open=gate['open'],market_state=gate['reason'],
+       latest_closed_candle=meta['last_candle'],history_ready=len(rows)>=300)
+ return list(current.values())
 
 def tracked_asset_catalog(db,connected=None):
- if connected is None:return owner_connected_assets(db)
+ now=datetime.now(timezone.utc)
+ if connected is None:connected=owner_connected_assets(db,now)
  watched=owner_watchlist(db)
- return [a for a in connected if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True]
+ current={a['symbol']:a for a in connected if a['symbol'] in watched}
+ result=[]
+ for symbol in sorted(watched):
+  info=_instruments.describe(symbol)
+  row=dict(current.get(symbol) or {},symbol=symbol,label=symbol,asset_class=info['asset_class'])
+  row.setdefault('connected',False);row.setdefault('fresh',False)
+  row['actionable']=row['connected'] is True and row['fresh'] is True
+  with_meta=_live_candle_adapter.read(db,symbol,postgres_enabled())[1]
+  row['candle_adapter']=with_meta
+  if not row['actionable']:
+   row['market_state']=with_meta.get('reason','لا توجد تغذية مطابقة موثقة؛ الأصل محفوظ في قائمة TradingView')
+  if info['asset_class']=='forex' and _connected_market.forex_weekly_closed(now):
+   row['market_open']=False
+   row['next_weekly_open']=_connected_market.next_forex_open(now)
+   row['market_state']='السوق مغلق أسبوعياً؛ الافتتاح العام المتوقع بتوقيت عُمان: '+row['next_weekly_open']+'؛ يلزم تدفق شموع حديثة بعده'
+  result.append(row)
+ return result
 
 def watchlist_diagnostics(db,now=None):
  """Per-symbol readiness, without probes, secret values, or invented prices."""
- current={a['symbol']:a for a in _connected_market.connected(db,now,postgres_enabled())}
+ current={a['symbol']:a for a in tracked_asset_catalog(db)}
  result=[]
  for symbol in sorted(owner_watchlist(db)):
   asset=_instruments.describe(symbol);row=current.get(symbol)
@@ -1083,7 +1170,7 @@ def watchlist_diagnostics(db,now=None):
   elif symbol.startswith(('OANDA:','BITSTAMP:')):reason='لم يجتز المصدر تحقق الهوية والشموع الكافية والحداثة؛ لا تُغيّر حالته إلى متصل بمجرد وجود الرمز.'
   else:reason='لا يوجد محول شموع مستمر مطابق لهذا الرمز؛ Webhook ينقل حدثاً ولا يعوض سجل الأسعار.'
   result.append({'الرمز':symbol,'نوع_الأصل':asset['asset_class'],'متصل_حديث':fresh,'التشخيص':reason,
-                 'مصدر_الشموع':row.get('provider') if row else None,'وقت_الشمعة':row.get('latest_closed_candle') if row else None})
+                 'مصدر_الشموع':(row.get('provider') or row.get('candle_adapter',{}).get('provider')) if row else None,'وقت_الشمعة':(row.get('latest_closed_candle') or row.get('candle_adapter',{}).get('last_candle')) if row else None})
  return result
 
 def send_bot_payload(payload):
@@ -1402,7 +1489,7 @@ class Handler(BaseHTTPRequestHandler):
    except Exception:return self.reply(503,{"error":"connected_symbols_unavailable"})
   if path=="/api/instruments":
    try:
-    with history_connection() as c:allowed={a['symbol'] for a in owner_connected_assets(c)}
+    with history_connection() as c:allowed=owner_watchlist(c)
     catalog=[i for i in _instruments.catalog(allowed,[]) if i['symbol'] in allowed]
     return self.reply(200,{"instruments":catalog,"selected_instruments":catalog,"watchlist":sorted(allowed),"arbitrary_qualified_symbols":False,"alert_coverage_not_implied":True})
    except Exception:return self.reply(503,{"error":"catalog_unavailable"})
@@ -1455,12 +1542,14 @@ class Handler(BaseHTTPRequestHandler):
    mapping_configured=bool(os.getenv("BIGBEN_BARCHART_SYMBOL_MAP","").strip())
    twelve_key=bool(twelve_data_key())
    with history_connection() as c:diagnostics=watchlist_diagnostics(c)
-   return self.reply(200,{"تشخيص_المتابعة":diagnostics,"status":"configuration_only","preferred_provider":"Barchart OnDemand",
+   return self.reply(200,{"تشخيص_المتابعة":diagnostics,"status":"configuration_only","preferred_provider":"TradingView Webhook",
      "barchart":{"api_key_configured":barchart_key,"symbol_mapping_configured":mapping_configured,
                   "licensed_symbol_coverage":"unverified","live_and_historical_entitlements":"unverified",
                   "research_ready":barchart_key and mapping_configured},
-     "twelve_data":{"api_key_configured":twelve_key,"role":"existing_quotes_optional",
+     "twelve_data":{"api_key_configured":twelve_key,"role":"primary_candles_budgeted_400_daily",
                     "futures_coverage":"not_confirmed","probe":MARKET_DATA_DIAGNOSTIC.copy()},
+     "tradingview":{"role":"primary_authenticated_chart_candles","url":"/v1/tradingview/candles","history_required":300,"configured_alerts_do_not_prove_candle_delivery":True},
+     "yfinance":{"role":"free_reference_fallback","daily_attempt_limit":144,"live_verified":False,"broker_cfd_equivalence":False},
      "data_policy":"Never use unsupported futures quotes, stale candles, or fabricated backtests"})
   if path=="/api/chart/candles":
    # Native canvas uses exactly the stored, provider-verified closed OHLC bars.
@@ -1468,10 +1557,15 @@ class Handler(BaseHTTPRequestHandler):
    try:
     q=parse_qs(urlsplit(self.path).query)
     symbol=_instruments.normalize(q.get("symbol",[""])[0])
+    with history_connection() as c:
+     if symbol not in owner_watchlist(c):return self.reply(403,{'رسالة':'الأصل خارج قائمة TradingView المصرح بها'})
     instrument=_instruments.describe(symbol)
     marker="%s" if postgres_enabled() else "?"
     provider="Twelve Data"
-    if instrument["asset_class"]=="crypto" and symbol.startswith("BITSTAMP:"):
+    with history_connection() as c:tv_rows,tv_meta=_tradingview_candles.read(c,symbol,postgres_enabled())
+    if _tradingview_candles.fresh(tv_meta):
+     candles,source_meta=tv_rows,tv_meta;provider=_tradingview_candles.PROVIDER
+    elif instrument["asset_class"]=="crypto" and symbol.startswith("BITSTAMP:"):
      provider="Bitstamp"
      candles,source_meta=bitstamp_native_candles(symbol)
     elif instrument["asset_class"]=="forex" and symbol.split(":",1)[1][:3]+"/"+symbol.split(":",1)[1][3:] in _history.FOREX:
@@ -1479,12 +1573,15 @@ class Handler(BaseHTTPRequestHandler):
      pair=ticker[:3]+"/"+ticker[3:]
      with history_connection() as c:
       candles=c.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+marker+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
-    else:return self.reply(422,{"error":"ohlc_source_not_verified_for_instrument","symbol":symbol,"asset_class":instrument["asset_class"]})
+    else:
+     with history_connection() as c:candles,source_meta=_live_candle_adapter.read(c,symbol,postgres_enabled())
+     if not candles:return self.reply(422,{'رسالة':'لا توجد شموع مرجعية لهذا الأصل','symbol':symbol})
+     provider=source_meta.get('provider')
     out=[{"time":row[0],"open":row[1],"high":row[2],"low":row[3],"close":row[4]} for row in reversed(candles)]
     last=out[-1]["time"] if out else None
     age=(datetime.now(timezone.utc)-datetime.fromisoformat(last.replace("Z","+00:00"))).total_seconds() if last else None
     return self.reply(200,{"symbol":symbol,"provider":provider,"interval":"5min",
-      "realtime_verified":False,"candles":out,"last_closed_candle":last,
+      "realtime_verified":False,"reference_only":provider=='yfinance / Yahoo Finance',"candles":out,"last_closed_candle":last,
       "age_seconds":int(age) if age is not None else None,
       "fresh":age is not None and 300<=age<=630,"feed_state":("NO_DATA" if age is None else "CURRENT_CLOSED_M5" if 300<=age<=630 else "STALE" if age>630 else "UNCLOSED"),"checked_at":datetime.now(timezone.utc).isoformat(),"note":"Closed provider candles only, periodically fetched; not tick streaming or TradingView indicator events."})
    except _crypto_history.CryptoHistoryError as error:return self.reply(503,{"error":"crypto_ohlc_unavailable","reason":str(error),"symbol":symbol})
@@ -1586,6 +1683,38 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self' wss://ws.bitstamp.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/v1/tradingview/candles":
+   secret=os.getenv('BIGBEN_WEBHOOK_TOKEN','')
+   if len(secret)<32:return self.reply(503,{'رسالة':'مستقبل الشموع غير مهيأ'})
+   try:
+    size=int(self.headers.get('Content-Length','0'))
+    if not 0<size<=8192:return self.reply(413,{'رسالة':'حجم غير مقبول'})
+    data=json.loads(self.rfile.read(size))
+    if not isinstance(data,dict):raise ValueError()
+    if not secure_equal(data.pop('token',''),secret):return self.reply(401,{'رسالة':'شمعة غير مصرح بها'})
+    event=_tradingview_candles.validate(data)
+    instrument=_instruments.describe(event['symbol'])
+    specs=instrument.get('contract_specs')
+    if specs and not math.isclose(event['tick_size'],specs['price_tick']):raise ValueError()
+    with history_connection() as db:
+     inserted=_tradingview_candles.ingest(db,event,postgres_enabled())
+    duplicate=save_event(event)
+    self.reply(202 if inserted else 200,{'تم_الاستلام':True,'شمعة_جديدة':inserted,'مكرر':duplicate,'الرمز':event['symbol'],'التنفيذ':'معطل','ملاحظة':'إرسال الصفقة يتطلب تاريخاً كافياً وأهدافاً مقاسة وفحص السوق؛ لا يشترط مصدراً خارجياً'})
+    if not duplicate:threading.Thread(target=process_chart_candle,args=(event['symbol'],),daemon=True).start()
+    return
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(422,{'رسالة':'حمولة شمعة غير صالحة أو متأخرة؛ لم تُجدّد حداثة السعر'})
+   except Exception:return self.reply(503,{'رسالة':'تعذر حفظ شمعة TradingView'})
+  if urlsplit(self.path).path=="/v1/tradingview/watchlist-sync":
+   secret=os.getenv('BIGBEN_WATCHLIST_SYNC_TOKEN','')
+   if len(secret)<32 or not secure_equal(self.headers.get('X-BigBen-Watchlist-Token',''),secret):return self.reply(401,{'رسالة':'مزامنة غير مصرح بها'})
+   try:
+    size=int(self.headers.get('Content-Length','0'))
+    if not 0<size<=65536:return self.reply(413,{'رسالة':'حجم المزامنة غير صالح'})
+    data=json.loads(self.rfile.read(size))
+    with history_connection() as db:result=_tv_watchlist.sync(db,data,postgres_enabled())
+    return self.reply(200,{'تمت_المزامنة':True,'عدد_الأصول':len(result['symbols']),'المراجعة':result['revision']})
+   except (ValueError,TypeError,UnicodeDecodeError):return self.reply(422,{'رسالة':'قائمة أو مراجعة مزامنة غير صالحة؛ حُفظت القائمة السابقة'})
+   except Exception:return self.reply(503,{'رسالة':'تعذر حفظ مزامنة القائمة'})
   if urlsplit(self.path).path=="/v1/tradingview/transport-test":
    secret=os.getenv("BIGBEN_TRANSPORT_TEST_TOKEN","")
    if os.getenv("BIGBEN_TRANSPORT_TEST_ENABLED","0")!="1":return self.reply(503,{"message":"الاختبار معطل"})

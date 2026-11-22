@@ -1,5 +1,5 @@
 """Evidence-based instrument picker and market gates. A watchlist/TV alert is NOT a data connection."""
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from zoneinfo import ZoneInfo
 import json
 import re
@@ -10,6 +10,13 @@ def forex_weekly_closed(now):
     return (local.weekday()==5 or
             (local.weekday()==4 and local.hour>=17) or
             (local.weekday()==6 and local.hour<17))
+
+def next_forex_open(now):
+    """General Sunday 17:00 New York window, DST-aware, not holiday proof."""
+    local=now.astimezone(ZoneInfo('America/New_York'))
+    candidate=(local+timedelta(days=(6-local.weekday())%7)).replace(hour=17,minute=0,second=0,microsecond=0)
+    if candidate<=local:candidate+=timedelta(days=7)
+    return candidate.astimezone(ZoneInfo('Asia/Muscat')).isoformat()
 
 SUPPORTED_CRYPTO=("BITSTAMP:BTCUSD","BITSTAMP:ETHUSD","BITSTAMP:XRPUSD",
                   "BITSTAMP:SOLUSD","BITSTAMP:LTCUSD","BITSTAMP:ADAUSD",
@@ -22,7 +29,6 @@ def migrate(db):
 
 def record_open_state(db,symbol,is_open,postgres=False,now=None):
     """Emit 'opened' only after a previous real closed observation."""
-    if not symbol.startswith(("BITSTAMP:","OANDA:")):return None
     mark="%s" if postgres else "?"
     previous=db.execute("SELECT is_open FROM native_market_open_state WHERE symbol="+mark,(symbol,)).fetchone()
     stamp=(now or datetime.now(timezone.utc)).isoformat()
@@ -80,6 +86,29 @@ def connected(connection,now=None,postgres=False):
 def gate(plan,now=None):
     """Never send new trade during stale/cancelled/no-source closed M5 snapshot."""
     now=now or datetime.now(timezone.utc)
+    if isinstance(plan,dict) and (plan.get('reference_only') or (plan.get('source_provenance') or {}).get('reference_only')):
+        return {'open':False,'reason':'المصدر احتياطي أو مرجعي؛ لا يثبت تغذية لايف مطابقة'}
+    if isinstance(plan,dict) and plan.get('provider')=='TradingView Webhook':
+        meta=plan.get('source_provenance') or {}
+        try:
+            bar=datetime.fromisoformat(meta['last_candle'].replace('Z','+00:00'))
+            received=datetime.fromisoformat(meta['last_received_at'].replace('Z','+00:00'))
+            valid=(bar.tzinfo is not None and received.tzinfo is not None
+                   and meta.get('symbol')==plan.get('symbol') and meta.get('provider')=='TradingView Webhook'
+                   and meta.get('source_identity_verified') is True
+                   and plan.get('source_time')==meta['last_candle']
+                   and 300<=(now-bar).total_seconds()<=630
+                   and 0<=(now-received).total_seconds()<=330)
+        except (KeyError,ValueError,TypeError,AttributeError):valid=False
+        if not valid:return {'open':False,'reason':'شمعة TradingView غير حديثة أو غير مطابقة للأصل'}
+        kind=plan.get('asset_class');symbol=str(plan.get('symbol',''))
+        if kind in ('forex','metals','cfd') and forex_weekly_closed(now):
+            return {'open':False,'reason':'عطلة نهاية الأسبوع؛ الافتتاح العام المتوقع بتوقيت عُمان: '+next_forex_open(now)}
+        if kind=='futures':
+            local=now.astimezone(ZoneInfo('America/New_York'))
+            if local.weekday()==5 or (local.weekday()==4 and local.hour>=17) or (local.weekday()==6 and local.hour<18) or 17<=local.hour<18:
+                return {'open':False,'reason':'فترة إغلاق أسبوعية أو صيانة عامة للعقود؛ يلزم استئناف شموع الشارت'}
+        return {'open':True,'reason':'شمعة شارت TradingView حديثة مستلمة؛ لا يعتمد هذا المسار على المزود الخارجي'}
     if not isinstance(plan,dict) or plan.get("status")=="DATA_UNAVAILABLE":
         return {"open":False,"reason":"بيانات الأصل غير موثقة"}
     symbol=str(plan.get("symbol",""))

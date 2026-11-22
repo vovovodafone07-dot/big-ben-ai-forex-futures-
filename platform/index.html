@@ -823,26 +823,26 @@ async function refresh(force=false){
  if(loading||(!force&&Date.now()-lastRefresh<30000))return;
  loading=true;
  try{
-  const response=await fetch('/api/connected-symbols',{credentials:'same-origin',cache:'no-store'});
+  const response=await fetch('/api/tracked-symbols',{credentials:'same-origin',cache:'no-store'});
   if(!response.ok)throw Error('source-unavailable');
   const result=await response.json(),items=Array.isArray(result.symbols)?result.symbols:[];
   const old=select.value;
-  connected=new Set(items.filter(i=>i.connected).map(i=>i.symbol));
+  connected=new Set(items.filter(i=>i.connected&&i.fresh).map(i=>i.symbol));
   connectedDetails=new Map(items.map(i=>[i.symbol,i]));
   select.replaceChildren();select.disabled=false;
   for(const item of items){
-   if(!connected.has(item.symbol))continue;
    const option=document.createElement('option');option.value=item.symbol;
-   option.textContent=item.label+' · '+(item.asset_class==='crypto'?'عملة رقمية':item.asset_class==='forex'?'فوركس':'عقد')+' · '+(item.fresh?'محدث':'غير محدث');
+   option.disabled=!connected.has(item.symbol);
+   option.textContent=item.label+' · '+(item.asset_class==='crypto'?'عملة رقمية':item.asset_class==='forex'?'فوركس':'عقد')+' · '+(connected.has(item.symbol)?'شموع حديثة':'التغذية غير مؤهلة؛ التفاصيل في حالة الربط');
    select.append(option);
   }
-  const preferred=connected.has(old)?old:connected.has(localStorage.getItem('bigben-desk-symbol'))?localStorage.getItem('bigben-desk-symbol'):items[0]?.symbol;
+  const preferred=connected.has(old)?old:connected.has(localStorage.getItem('bigben-desk-symbol'))?localStorage.getItem('bigben-desk-symbol'):[...connected][0];
   if(preferred&&connected.has(preferred)){
    select.value=preferred;
    if(!initialized||preferred!==old){select.dispatchEvent(new Event('change',{bubbles:true}));}
-  }else if(!items.length){const o=document.createElement('option');o.value='';o.textContent='لا توجد أصول موثقة متصلة';select.append(o);select.disabled=true;}
+  }else {const o=document.createElement('option');o.value='';o.textContent='اختر من الأصول ذات الشموع الحديثة؛ راجع حالة الربط للبقية';select.prepend(o);select.value='';}
   initialized=true;
-  if(status)status.textContent='مصادر OHLC المتصلة: '+items.length+' · العقود الآجلة غير الموثقة مخفية · اختر الأصل للتحليل';
+  if(status)status.textContent='أصول TradingView: '+items.length+' · ذات الشموع الحديثة: '+connected.size+' · بقية الأصول ظاهرة مع حالة التغذية';
   lastRefresh=Date.now();
  }catch(e){
   select.replaceChildren();const option=document.createElement('option');option.value='';option.textContent='تعذر تحميل الأصول المتصلة';select.append(option);select.disabled=true;
@@ -891,7 +891,7 @@ title.textContent='📋 أصول المتابعة وحالة ربط الأسعا
 box.addEventListener('toggle',async()=>{if(!box.open)return;body.textContent='جار قراءة الأصول…';try{
  const response=await fetch('/api/tracked-symbols',{credentials:'same-origin',cache:'no-store'});
  if(!response.ok)throw Error('unavailable');const data=await response.json();body.replaceChildren();
- for(const item of data.symbols||[]){const row=document.createElement('p');row.textContent=(item.connected?'🟢 ':'⚪ ')+item.symbol+' — '+item.market_state;body.append(row)}
+ for(const item of data.symbols||[]){const row=document.createElement('p');row.textContent=(item.actionable?'🟢 ':'⚪ ')+item.symbol+' — '+item.market_state;body.append(row)}
  if(!body.childNodes.length)body.textContent='لا توجد أصول متابعة مسجلة.';
 }catch(_){body.textContent='تعذر قراءة أصول المتابعة؛ لا يمكن تأكيد اتصال الأسعار.'}});
 })();</script>

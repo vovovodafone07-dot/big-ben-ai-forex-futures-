@@ -24,7 +24,8 @@ class WebhookHTTPTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {
             "DATABASE_URL": "", "BIGBEN_WEBHOOK_TOKEN": "t" * 40,
             "BIGBEN_DASHBOARD_PASSWORD": "p" * 24,
-            "TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": "", "BIGBEN_SIGNAL_ANALYSIS_ENABLED":"0"
+            "TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": "", "BIGBEN_SIGNAL_ANALYSIS_ENABLED":"0",
+            "BIGBEN_TRACKED_SYMBOLS_JSON": '["OANDA:EURUSD","CME_MINI:NQ1!"]'
         })
         self.environment.start()
         self.notify = patch.object(app, "telegram_notify", return_value="not_configured")
@@ -44,10 +45,11 @@ class WebhookHTTPTests(unittest.TestCase):
         app.DB = self.original_db
         self.temp.cleanup()
 
-    def request(self, method, path, data=None, auth=None):
+    def request(self, method, path, data=None, auth=None, extra_headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         try:
             headers = {"Content-Type": "application/json"}
+            headers.update(extra_headers or {})
             if auth is not None:
                 headers["Authorization"] = auth
             conn.request(method, path, json.dumps(data) if data is not None else None, headers)
@@ -128,12 +130,11 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(code,200)
         self.assertEqual(result["symbol"],"CME_MINI:NQ1!")
         self.assertEqual(result["status"],"DATA_UNAVAILABLE")
-        self.assertEqual(result["reason_code"],"FUTURES_ENTITLEMENT_NOT_VERIFIED")
+        self.assertEqual(result["reason_code"],"FUTURES_SOURCE_NOT_CONNECTED")
         self.assertIsNone(result["entry"])
         self.assertIsNone(result["sl"])
         self.assertEqual(result["targets"],[])
         self.assertFalse(result["broker_execution"])
-        self.assertIn("explicit_expiry_contract_required",result["extra"]["preflight"]["issues"])
         self.assertNotIn("WAIT",result["status"])
 
     def test_instant_native_v2_never_converts_nas100_cfd_to_nq(self):
@@ -162,7 +163,7 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(payload["candles"],[])
         status,bad=self.request("GET","/api/chart/candles?symbol=NQ",auth=self.auth)
         self.assertEqual(status,422)
-        self.assertEqual(bad["error"],"ohlc_source_not_verified_for_instrument")
+        self.assertIn('شموع',bad['رسالة'])
 
     def test_private_api_requires_authentication(self):
         self.assertEqual(self.request("GET", "/api/events")[0], 401)
@@ -277,14 +278,51 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(app.list_events(),[])
 
     def test_history_refresh_is_bounded_and_restart_safe(self):
-        with patch.object(app._history, "fetch_m5", side_effect=app._history.HistoryError("rate_limited")) as fetch:
+        with patch.object(app._live_candle_adapter, "twelve", side_effect=app._live_candle_adapter.CandleError("rate_limit")) as fetch,patch.object(app._live_candle_adapter,'yahoo',side_effect=app._live_candle_adapter.CandleError('provider_failure')),patch.object(app,'twelve_data_key',return_value='fixture-key'):
             app.refresh_market_history()
             app.refresh_market_history()
-        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(fetch.call_count, 1)
         with app.history_connection() as c:
-            checks=app._history.coverage(c)["symbols"][:3]
-        self.assertTrue(all(s["reason"]=="rate_limited" for s in checks))
+            rows,meta=app._live_candle_adapter.read(c,'OANDA:EURUSD')
+        self.assertFalse(rows);self.assertEqual(meta['state'],'UNAVAILABLE')
+        self.assertIn('حد الطلبات',meta['errors'][0]['reason'])
         self.assertEqual(app.list_events(), [])
+
+    def test_chart_webhook_auth_closed_bar_duplicate_and_private_visibility(self):
+        now=datetime.now(timezone.utc)
+        bar=datetime.fromtimestamp(int(now.timestamp())//300*300-300,timezone.utc)
+        sent=bar+timedelta(seconds=300)
+        value=dict(schema='bigben.candle.v1',token='wrong',symbol='CME_MINI:NQ1!',timeframe='5',time=sent.isoformat(),bar_time=bar.isoformat(),open=100,high=103,low=99,close=101,tick_size=.25)
+        self.assertEqual(self.request('POST','/v1/tradingview/candles',value)[0],401)
+        value['token']='t'*40
+        validate_bar=app._tradingview_candles.validate
+        with patch.object(app,'process_chart_candle'),patch.object(app._tradingview_candles,'validate',side_effect=lambda data:validate_bar(data,sent+timedelta(seconds=1))):
+            status,body=self.request('POST','/v1/tradingview/candles',value)
+            self.assertEqual(status,202);self.assertTrue(body['شمعة_جديدة'])
+            status,body=self.request('POST','/v1/tradingview/candles',value)
+            self.assertEqual(status,200);self.assertTrue(body['مكرر'])
+        self.assertEqual(self.request('GET','/api/chart/candles?symbol=NQ')[0],401)
+        status,body=self.request('GET','/api/chart/candles?symbol=NQ',auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual(body['provider'],'TradingView Webhook')
+        self.assertEqual(len(body['candles']),1);self.assertFalse(body['realtime_verified'])
+        with patch.object(app._live_candle_adapter,'fetch') as external:
+            plan=app.analyze_instant_native('CME_MINI:NQ1!','scalp')
+            external.assert_not_called()
+        self.assertEqual(plan['reason_code'],'NOT_ENOUGH_M5_HISTORY')
+        self.assertEqual(plan['provider'],'TradingView Webhook')
+
+    def test_watchlist_scope_cannot_open_private_ui_and_invalid_sync_preserves_membership(self):
+        value=dict(schema='bigben.watchlist.v1',watchlist_id='207266246',revision=1,symbols=['CAPITALCOM:US100'])
+        key={'X-BigBen-Watchlist-Token':'w'*40}
+        with patch.dict(os.environ,{'BIGBEN_WATCHLIST_SYNC_TOKEN':'w'*40}):
+            self.assertEqual(self.request('POST','/v1/tradingview/watchlist-sync',value)[0],401)
+            self.assertEqual(self.request('POST','/v1/tradingview/watchlist-sync',value,extra_headers=key)[0],200)
+            self.assertEqual(self.request('POST','/v1/tradingview/watchlist-sync',value,extra_headers=key)[0],200)
+            self.assertEqual(self.request('POST','/v1/tradingview/watchlist-sync',dict(value,revision=2,symbols=[]),extra_headers=key)[0],422)
+            self.assertEqual(self.request('GET','/api/tracked-symbols',extra_headers=key)[0],401)
+            status,body=self.request('GET','/api/tracked-symbols',auth=self.auth)
+        self.assertEqual(status,200);self.assertEqual([r['symbol'] for r in body['symbols']],['CAPITALCOM:US100'])
+        self.assertFalse(body['symbols'][0]['actionable'])
 
     def test_scalp_api_is_private_and_paired(self):
         self.assertEqual(self.request("GET", "/api/scalping")[0], 401)
@@ -332,7 +370,7 @@ class WebhookHTTPTests(unittest.TestCase):
         event=self.payload();event['symbol']='EUREX:FDAX1!'
         self.request('POST','/v1/tradingview/events',event)
         status,result=self.request('GET','/api/instruments',auth=self.auth)
-        self.assertEqual(status,200);self.assertEqual(result['instruments'],[])
+        self.assertEqual(status,200);self.assertEqual({r['symbol'] for r in result['instruments']},{'OANDA:EURUSD','CME_MINI:NQ1!'})
         self.assertFalse(result['arbitrary_qualified_symbols'])
         with app.history_connection() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM events WHERE symbol='EUREX:FDAX1!'").fetchone()[0],1)

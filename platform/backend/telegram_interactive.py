@@ -158,7 +158,7 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnos
     mode,symbol,enabled=db.execute('SELECT mode,symbol,news_enabled FROM telegram_bot_state WHERE chat='+m,(chat_id,)).fetchone()
     action=callback.get('data') or 'home'
     text='اختر نوع التحليل أو الخدمة المطلوبة.';markup=home();request=None;news_request=None
-    assets=[a for a in connected() if a.get('asset_class') in ('forex','cfd','futures','crypto')]
+    assets=list(connected())
     if action.startswith('mode:'):
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
@@ -200,18 +200,24 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnos
     elif action.startswith('symbols:'):
         try:page=max(0,int(action.split(':',1)[1]))
         except ValueError:raise ValueError('صفحة غير صالحة')
-        rows=[[(a.get('label') or a['symbol'],'pick:'+token(a['symbol']))] for a in assets[page*12:(page+1)*12]]
+        catalog=tracked() if tracked else assets
+        available={a['symbol'] for a in assets}
+        rows=[[(('🟢 ' if a['symbol'] in available else '⚪ ')+(a.get('label') or a['symbol']),
+                ('pick:' if a['symbol'] in available else 'info:')+token(a['symbol']))]
+              for a in catalog[page*12:(page+1)*12]]
         if page:rows.append([('السابق','symbols:'+str(page-1))])
-        if (page+1)*12<len(assets):rows.append([('التالي','symbols:'+str(page+1))])
+        if (page+1)*12<len(catalog):rows.append([('التالي','symbols:'+str(page+1))])
         rows.append([('📋 أصول المتابعة وحالة الربط','tracked:0')])
         rows.append([('القائمة الرئيسية','home')]);markup=keyboard(rows)
-        text=('اختر الأصل لتحليل '+('السكالب' if mode=='scalp' else 'السوينغ')+'.' if assets else 'لا توجد أصول مؤهلة ذات مصدر أسعار موثق حالياً؛ لا يكفي ظهور الأصل في قائمة TradingView.')
+        text='📋 أصول TradingView — '+('السكالب' if mode=='scalp' else 'السوينغ')+'\n🟢 بيانات حديثة للتحليل؛ ⚪ اضغط لمعرفة حالة التغذية. لا يُرسل الأصل غير المتصل كصفقة.'
+        if not catalog:text+='\nلا توجد قائمة TradingView مصرح بها حالياً.'
     elif action.startswith('tracked:'):
         try:page=max(0,int(action.split(':',1)[1]))
         except ValueError:raise ValueError('صفحة غير صالحة')
         catalog=tracked() if tracked else assets
-        rows=[[(('🟢 ' if a.get('connected') else '⚪ ')+a['symbol'],
-                 ('pick:' if a.get('connected') else 'info:')+token(a['symbol']))]
+        available={a['symbol'] for a in assets}
+        rows=[[(('🟢 ' if a['symbol'] in available else '⚪ ')+a['symbol'],
+                 ('pick:' if a['symbol'] in available else 'info:')+token(a['symbol']))]
               for a in catalog[page*12:(page+1)*12]]
         if page:rows.append([('السابق','tracked:'+str(page-1))])
         if (page+1)*12<len(catalog):rows.append([('التالي','tracked:'+str(page+1))])
@@ -237,7 +243,7 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnos
     elif action=='scenario':
         text='اختر اختباراً تعليمياً؛ لن يُرسل كصفقة.';markup=keyboard([[('التضخم','scenario:CPI'),('الوظائف','scenario:NFP')],[('الفائدة','scenario:RATE')]])
     elif action.startswith('scenario:'):text=scenario(action.split(':',1)[1])
-    elif action=='market':text='🟢 حالة السوق\n'+ ('\n'.join(a['symbol']+' — '+str(a.get('market_state','حالة الجلسة غير مؤكدة')) for a in assets) or 'لا توجد تغذية موثقة متصلة؛ إرسال الصفقات غير مفعل لهذه الأصول.')
+    elif action=='market':text='🟢 حالة السوق\n'+ ('\n'.join(a['symbol']+' — '+str(a.get('market_state','حالة الجلسة غير مؤكدة')) for a in (tracked() if tracked else assets)) or 'لا توجد قائمة TradingView مصرح بها حالياً.')
     elif action=='active':
         active=[e for e in journal() if e.get('state') not in ('الهدف الثالث تحقق','وقف الخسارة تحقق','نتيجة غير محسومة')]
         text='🎯 متابعة الصفقات البحثية النشطة\n'+ ('\n'.join(str(e['symbol'])+' — '+str(e['state']) for e in active[:20]) or 'لا توجد صفقات نشطة مسجلة.')

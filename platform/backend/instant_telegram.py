@@ -39,7 +39,7 @@ def eligible(plan):
         return False
     if not SYMBOL.fullmatch(str(plan.get("symbol",""))):
         return False
-    if plan.get("mode") not in ("scalp","swing") or plan.get("provider") not in ("Twelve Data","Bitstamp"):
+    if plan.get("mode") not in ("scalp","swing") or plan.get("provider") not in ("Twelve Data","Bitstamp","TradingView Webhook"):
         return False
     if plan.get("broker_execution") is not False:
         return False

@@ -78,7 +78,8 @@ class ReferenceLayoutContracts(unittest.TestCase):
     def test_connected_dropdown_only_and_journal_in_analyze(self):
         self.assertIn('<select id="desk-symbol"',self.html)
         self.assertNotIn('<input id="desk-symbol"',self.html)
-        self.assertIn("/api/connected-symbols",self.html)
+        self.assertIn("/api/tracked-symbols",self.html)
+        self.assertIn("option.disabled=!connected.has(item.symbol)",self.html)
         self.assertIn("/api/trade-journal",self.html)
         self.assertEqual(self.tags.ids.get("ref-journal-status"),1)
         self.assertIn("market_closed:'Telegram",self.html)

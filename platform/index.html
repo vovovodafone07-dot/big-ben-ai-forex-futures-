@@ -667,7 +667,7 @@ session();setInterval(session,15000);
   put('ref-entry',valid?safeNumber(v.entry):'—');
   put('ref-sl',valid?safeNumber(v.sl):'—');
   put('ref-tp',valid?safeNumber(v.targets[0].price):'—');
-  put('ref-rr',valid?'1R / 2R / 3R':'—');
+  put('ref-rr',valid?v.targets.map(t=>safeNumber(Math.abs((t.price-v.entry)/(v.entry-v.sl)))+'R').join(' / '):'—');
   for(let i=0;i<3;i++)put('ref-tp'+(i+1),valid?safeNumber(v.targets[i].price):'—');
   put('desk-mode-selected',valid?'Entry '+safeNumber(v.entry)+' · SL '+safeNumber(v.sl)
     +' · TP1 '+safeNumber(v.targets[0].price)+' · TP2 '+safeNumber(v.targets[1].price)

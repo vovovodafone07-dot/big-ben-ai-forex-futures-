@@ -15,6 +15,33 @@ _precision=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(_prec
 STATUS = ("READY", "CONDITIONAL", "NEWS_CAUTION", "DATA_UNAVAILABLE")
 DEFAULT_RR = (1.0, 2.0, 3.0)
 
+def measured_targets(bars,side,entry,risk,tick_size):
+    """Confirmed historical price extrema, not measured order-book liquidity.
+
+    Two bars confirm each pivot. Exclude levels touched after confirmation and
+    never extrapolate missing targets. A price level is a liquidity proxy only.
+    """
+    sign=1 if side=='BUY' else -1
+    candidates=[]
+    for i in range(2,len(bars)-2):
+        value=bars[i][2 if sign==1 else 3]
+        neighbors=bars[i-2:i]+bars[i+1:i+3]
+        if not all(sign*(value-b[2 if sign==1 else 3])>0 for b in neighbors):continue
+        if any(sign*(b[2 if sign==1 else 3]-value)>=0 for b in bars[i+3:]):continue
+        if sign*(value-entry)<risk:continue
+        rounded=_tick(value,tick_size,'down' if sign==1 else 'up')
+        if sign*(rounded-entry)<risk:continue
+        candidates.append({'price':rounded,'measured_price':value,'source_time':bars[i][0].isoformat(),
+            'confirmed_at':bars[i+2][0].isoformat(),'liquidity_type':'قمة محورية مؤكدة' if sign==1 else 'قاع محوري مؤكد',
+            'reason':'مستوى سعري تاريخي مقاس؛ سيولة محتملة وليست أوامر مثبتة'})
+    result=[]
+    for target in sorted(candidates,key=lambda t:sign*t['price']):
+        if result and abs(target['price']-result[-1]['price'])<tick_size*.9:continue
+        target.update(name='TP'+str(len(result)+1),rr_nominal=round(sign*(target['price']-entry)/risk,4))
+        result.append(target)
+        if len(result)==3:break
+    return result
+
 def unavailable(code, symbol, mode="scalp", provider=None, **details):
     return {
         "version": "instant-native-v2", "symbol": symbol, "mode": mode,
@@ -189,9 +216,12 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
 
     nr=news_filter(news,symbol,asset_class,now)
     status="NEWS_CAUTION" if nr["state"] in ("NEWS_CAUTION","EVENT_UNRATED") else "READY" if confirmed and nr["state"]!="NOT_VERIFIED" else "CONDITIONAL"
-    targets=[{"name":f"TP{i}","price":_tick(trigger+sign*risk*i,tick_size,
-             "up" if sign>0 else "down"),"rr_nominal":float(i),
-              "reason":"Risk multiple benchmark; validate against actual external liquidity"} for i in (1,2,3)]
+    targets=measured_targets(bars,side,trigger,risk,tick_size)
+    precision['checks']['ثلاثة أهداف سعرية مقاسة']=len(targets)==3
+    if len(targets)!=3:
+        confirmed=False
+        precision['confirmed']=False
+        if status=='READY':status='CONDITIONAL'
     evidence={"LIQUIDITY_SWEEP":"HIGH" if sweep_high else "LOW" if sweep_low else "NOT_DETECTED",
               "TURTLE_SOUP":"POTENTIAL" if sweep_high or sweep_low else "NOT_DETECTED",
               "FVG":fvg or "NOT_DETECTED","IFVG":"NOT_MEASURED",

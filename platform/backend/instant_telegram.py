@@ -11,6 +11,10 @@ import json
 import re
 import urllib.request
 import urllib.error
+import importlib.util
+from pathlib import Path
+_journal_spec=importlib.util.spec_from_file_location('telegram_journal',Path(__file__).with_name('native_trade_journal.py'))
+_journal=importlib.util.module_from_spec(_journal_spec);_journal_spec.loader.exec_module(_journal)
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -100,7 +104,7 @@ def trade_only_message(plan, now=None):
           "🎯 الدخول: "+_f(plan["entry"]),
           "🛑 وقف الخسارة: "+_f(plan["sl"]),
           "✅ الأهداف:"]
-    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+" (TP"+str(i)+"): "+_f(t["price"]))
+    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+" (TP"+str(i)+"): "+_f(t["price"])+(' — '+_esc(t['liquidity_type']) if t.get('liquidity_type') else ''))
     body+=["📋 شروط الدخول:",
             "• تأكيد إغلاق "+("ساعة" if plan["mode"]=="swing" else "خمس دقائق")+" عند "+_f(c.get("level",plan["entry"])),
             "• إبطال الفكرة عند تجاوز وقف الخسارة",
@@ -219,6 +223,10 @@ def send(plan,token,chat,opener=None,timeout=5,topic_id=None,category=None):
     content=analysis_message(plan) if category=="analysis" else trade_only_message(plan) if plan["status"]=="READY" else message(plan)
     body={"chat_id":chat,"text":content,"parse_mode":"HTML",
                         "disable_web_page_preview":True}
+    if category!='analysis' and plan['status']=='READY':
+        ident=_journal.key(plan)[:24]
+        body['reply_markup']={'inline_keyboard':[[{'text':title,'callback_data':'trade:'+action+':'+ident} for title,action in
+            [('📊 تحليل الزوج','view'),('🔄 فحص دخول جديد','new'),('📌 حالة الصفقة','state')]]]}
     if isinstance(topic_id,int) and topic_id>0:body["message_thread_id"]=topic_id
     payload=json.dumps(body,ensure_ascii=False).encode("utf-8")
     request=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,

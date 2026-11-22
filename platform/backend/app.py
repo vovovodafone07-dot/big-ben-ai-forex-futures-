@@ -443,6 +443,7 @@ def deliver_native_companion(plan,trade_chat):
  """One separate technical card, after the durable trade acceptance receipt."""
  if plan.get("status")!="READY" or not _connected_market.gate(plan)["open"]:return
  chat=telegram_destination("analysis")
+ if notifications_muted(chat):return
  with history_connection() as c:
   key=_instant_telegram.claim_companion(c,plan,trade_chat,chat,postgres_enabled())
  if not key:return
@@ -467,6 +468,7 @@ def trigger_instant_telegram(plan):
   return {"status":"disabled"}
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
  chat=telegram_destination("trade" if plan.get("status")=="READY" else "analysis")
+ if notifications_muted(chat):return {'status':'disabled'}
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return {"status":"not_configured"}
  try:
@@ -1006,9 +1008,15 @@ def audit_telegram_connection():
   except (OSError,ValueError,TimeoutError):
    print("telegram_audit check="+method+" state=CONNECTION_ERROR",flush=True)
 
+def notifications_muted(chat):
+ try:
+  with history_connection() as c:return _telegram_interactive.muted(c,chat,postgres_enabled())
+ except Exception:return True
+
 def send_telegram_message(message,category="analysis"):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
  chat=telegram_destination(category)
+ if notifications_muted(chat):return 'not_configured'
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
  data={"chat_id":chat,"text":message}
@@ -1140,7 +1148,9 @@ def process_bot_update(update):
    reply["text"]="📈 تحليل "+requested["symbol"]+" — "+("سكالب" if requested["mode"]=="scalp" else "سوينغ")+"\n"+labels.get(plan.get("status"),"تعذر التحقق من التحليل")
    checks=(plan.get("quality_filter") or {}).get("checks",{})
    if checks:reply["text"]+="\n"+"\n".join(("✅ " if value else "❌ ")+name for name,value in checks.items())
-   if plan.get("status")=="READY":trigger_instant_telegram(plan)
+   if requested.get('read_only'):
+    if _instant_telegram.eligible(plan):reply['text']=_instant_telegram.analysis_message(plan)
+   elif plan.get("status")=="READY":trigger_instant_telegram(plan)
   delivery=send_bot_payload(reply)
   with history_connection() as c:
    m="%s" if postgres_enabled() else "?"
@@ -1168,6 +1178,7 @@ def deliver_bot_news(snapshot,now):
      c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(status,key))
  for (chat,) in chats:
   if chat not in allowed:continue
+  if notifications_muted(chat):continue
   messages=[]
   if local.hour>=max(0,min(23,hour)) and chat!=destination:
    messages.append(("digest:"+chat+":"+local.date().isoformat(),_telegram_interactive.digest(snapshot,now)))

@@ -22,7 +22,12 @@ def home():
     return keyboard([[('⚡ سكالب','mode:scalp'),('🌊 سوينغ','mode:swing')],
         [('📰 تداول الأخبار المهمة','news_symbols:0')],
         [('🔔 تنبيه الأخبار','news'),('📌 اختيار الزوج','symbols:0')],
-        [('🟢 حالة السوق','market'),('🎯 الصفقات النشطة','active')], [('🔄 تحديث التحليل','refresh')]])
+        [('🟢 حالة السوق','market'),('🎯 الصفقات النشطة','active')], [('🔄 تحديث التحليل','refresh')],
+        [('🔕 كتم / تفعيل الإشعارات','notifications')]])
+
+def muted(db,chat,postgres=False):
+    row=db.execute('SELECT status FROM telegram_bot_receipts WHERE id='+('%s' if postgres else '?'),('mute:'+str(chat),)).fetchone()
+    return bool(row and row[0]=='muted')
 
 def token(symbol):return hashlib.sha256(symbol.encode()).hexdigest()[:16]
 
@@ -123,7 +128,24 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgre
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
         db.execute('UPDATE telegram_bot_state SET mode='+m+' WHERE chat='+m,(mode,chat_id));action='symbols:0'
-    if action.startswith('news_symbols:'):
+    if action=='notifications':
+        state='enabled' if muted(db,chat_id,postgres) else 'muted'
+        db.execute('INSERT INTO telegram_bot_receipts(id,status,created_at) VALUES ('+','.join([m]*3)+') ON CONFLICT(id) DO UPDATE SET status=excluded.status,created_at=excluded.created_at',('mute:'+chat_id,state,now.isoformat()))
+        text='🔕 كُتمت الإشعارات التلقائية لهذا الحساب؛ تبقى المنصة والتحليلات اليدوية والمتابعة تعمل.' if state=='muted' else '🔔 فُعّلت الإشعارات التلقائية لهذا الحساب.'
+    elif action.startswith('trade:'):
+        parts=action.split(':')
+        records=[t for t in journal() if len(parts)==3 and len(parts[2])==24 and str(t.get('id','')).startswith(parts[2])]
+        record=records[0] if len(records)==1 else None
+        if not record:text='سجل الصفقة غير متاح أو المعرف غير صالح؛ لم يُطلب دخول جديد.'
+        elif parts[1]=='state':
+            text='🎯 حالة الصفقة البحثية | '+record['symbol']+'\n━━━━━━━━━━━━━━━━━━\n'+record['state']+'\nآخر متابعة: '+str(record.get('updated_at','غير متاحة'))+'\nهذه متابعة شموع مسجلة، وليست حالة تنفيذ وسيط أو تأميناً تلقائياً.'
+        elif parts[1] in ('view','new'):
+            if not any(a['symbol']==record['symbol'] for a in assets):text='مصدر الأصل غير متصل حالياً؛ لا يمكن فحص دخول جديد.'
+            else:
+                request={'symbol':record['symbol'],'mode':record['mode']}
+                if parts[1]=='view':request['read_only']=True
+        else:text='إجراء غير صالح.'
+    elif action.startswith('news_symbols:'):
         try:page=max(0,int(action.split(':',1)[1]))
         except ValueError:raise ValueError('صفحة غير صالحة')
         news_assets=[a for a in assets if a.get('asset_class') in ('forex','cfd','futures')]

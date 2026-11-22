@@ -21,11 +21,12 @@ class InstantNativeTests(unittest.TestCase):
     self.assertEqual(r["status"],"DATA_UNAVAILABLE")
     self.assertEqual(r["reason_code"],"SOURCE_IDENTITY_UNVERIFIED")
     self.assertIsNone(r["entry"]);self.assertFalse(r["broker_execution"])
- def test_real_complete_m5_conditional_has_three_targets(self):
+ def test_history_without_three_unswept_levels_cannot_invent_targets(self):
     r=engine.evaluate("CME_MINI:NQH27",candles(),asset_class="futures",tick_size=.25,now=NOW,
                       provider="Barchart OnDemand",source_identity_verified=True)
     self.assertIn(r["status"],("READY","CONDITIONAL"))
-    self.assertEqual(len(r["targets"]),3)
+    self.assertEqual(r["status"],'CONDITIONAL')
+    self.assertTrue(all(t.get('measured_price') and t.get('source_time') for t in r['targets']))
     self.assertNotIn("WAIT",r["status"])
     self.assertAlmostEqual(r["entry"]/.25,round(r["entry"]/.25))
     self.assertTrue(r["sl"]!=r["entry"])
@@ -39,11 +40,21 @@ class InstantNativeTests(unittest.TestCase):
     self.assertEqual(scalp["execution_timeframe"],"M5")
     self.assertEqual(swing["execution_timeframe"],"H1")
     self.assertEqual(swing["confirmation"]["type"],"H1_CLOSE")
-    self.assertEqual(len(swing["targets"]),3)
+    self.assertEqual(swing['status'],'CONDITIONAL')
     self.assertNotEqual((scalp["entry"],scalp["sl"]),(swing["entry"],swing["sl"]))
-    self.assertNotEqual([x["price"] for x in scalp["targets"]],
-                        [x["price"] for x in swing["targets"]])
     self.assertFalse(swing["broker_execution"])
+
+ def test_measured_pivots_have_provenance_no_future_pivot_and_no_reused_level(self):
+    highs=[101,102,140,103,104,105,130,106,107,108,120,109,110]
+    rows=[(NOW+timedelta(minutes=5*i),95,h,90,96) for i,h in enumerate(highs)]
+    targets=engine.measured_targets(rows,'BUY',100,10,.25)
+    self.assertEqual([t['price'] for t in targets],[120,130,140])
+    self.assertTrue(all(t['source_time'] and t['confirmed_at'] and t['liquidity_type'] for t in targets))
+    touched=rows+[(NOW+timedelta(minutes=65),95,121,90,96)]
+    self.assertEqual([t['price'] for t in engine.measured_targets(touched,'BUY',100,10,.25)],[130,140])
+    mirrored=[(t,200-o,200-l,200-h,200-c) for t,o,h,l,c in rows]
+    self.assertEqual([t['price'] for t in engine.measured_targets(mirrored,'SELL',100,10,.25)],[80,70,60])
+    self.assertEqual(engine.measured_targets(rows[:4],'BUY',100,10,.25),[])
 
  def test_stale_no_targets(self):
     r=engine.evaluate("BITSTAMP:BTCUSD",candles(),asset_class="crypto",tick_size=.01,

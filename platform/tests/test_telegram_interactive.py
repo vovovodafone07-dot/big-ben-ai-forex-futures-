@@ -20,7 +20,7 @@ class BotTests(unittest.TestCase):
   return bot.handle(self.db,update,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:[],now=NOW)
  def test_all_main_actions_present_and_callback_size_bounded(self):
   buttons=[b for row in bot.home()['inline_keyboard'] for b in row]
-  self.assertEqual(len(buttons),8)
+  self.assertEqual(len(buttons),9)
   self.assertTrue(all(len(b['callback_data'].encode())<=64 for b in buttons))
  def test_private_allowlist_rejects_groups_and_others(self):
   with self.assertRaises(PermissionError):self.run_update(uid=99)
@@ -50,6 +50,23 @@ class BotTests(unittest.TestCase):
  def test_news_opt_in_and_out_persist(self):
   self.run_update('news:on');self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],1)
   self.run_update('news:off',2);self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],0)
+ def test_mute_is_durable_scoped_and_duplicate_does_not_toggle(self):
+  self.run_update('notifications')
+  self.assertTrue(bot.muted(self.db,'12345678'));self.assertFalse(bot.muted(self.db,'other'))
+  self.assertIsNone(self.run_update('notifications'))
+  self.assertTrue(bot.muted(self.db,'12345678'))
+  self.run_update('notifications',2);self.assertFalse(bot.muted(self.db,'12345678'))
+ def test_trade_buttons_are_bound_to_unique_journal_record(self):
+  ident='a'*64;record={'id':ident,'symbol':self.assets[0]['symbol'],'mode':'swing','state':'الهدف الأول تحقق','updated_at':NOW.isoformat()}
+  def run(action,identnum,records):
+   update={'update_id':identnum,'callback_query':{'from':{'id':12345678},'message':{'chat':{'id':12345678,'type':'private'}},'data':action}}
+   return bot.handle(self.db,update,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:records,now=NOW)
+  action='trade:view:'+ident[:24]
+  self.assertTrue(run(action,1,[record])['analysis_request']['read_only'])
+  self.assertNotIn('read_only',run('trade:new:'+ident[:24],2,[record])['analysis_request'])
+  r=run('trade:state:'+ident[:24],3,[record]);self.assertIsNone(r['analysis_request']);self.assertIn('الهدف الأول تحقق',r['text'])
+  self.assertIsNone(run(action,4,[record,dict(record,id='a'*24+'b'*40)])['analysis_request'])
+  self.assertIsNone(run('trade:new:forged',5,[record])['analysis_request'])
  def test_news_picker_separate_from_trade_and_rechecks_connection(self):
   self.assets.append({'symbol':'BITSTAMP:BTCUSD','asset_class':'crypto'})
   reply=self.run_update('news_symbols:0')

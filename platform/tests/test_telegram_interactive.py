@@ -20,7 +20,7 @@ class BotTests(unittest.TestCase):
   return bot.handle(self.db,update,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:[],now=NOW)
  def test_all_main_actions_present_and_callback_size_bounded(self):
   buttons=[b for row in bot.home()['inline_keyboard'] for b in row]
-  self.assertEqual(len(buttons),9)
+  self.assertEqual(len(buttons),10)
   self.assertTrue(all(len(b['callback_data'].encode())<=64 for b in buttons))
  def test_private_allowlist_rejects_groups_and_others(self):
   with self.assertRaises(PermissionError):self.run_update(uid=99)
@@ -84,9 +84,9 @@ class BotTests(unittest.TestCase):
   text=bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW)
   self.assertNotIn('987654',text);self.assertNotIn('خبر أجنبي',text);self.assertNotIn('خبر قديم',text)
   self.assertIn('🔵',text);self.assertIn('🔴',text);self.assertIn('غير موثق',text)
-  plan.update(realtime_verified=True,source_age_seconds=30)
+  plan.update(realtime_verified=True,source_age_seconds=330)
   self.assertIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
-  plan['source_age_seconds']=181
+  plan['source_age_seconds']=631
   self.assertNotIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
  def test_digest_local_date_freshness_and_missing_numbers(self):
   event={'time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI'}
@@ -107,6 +107,15 @@ class BotTests(unittest.TestCase):
   self.assertLessEqual(len(text),4096)
   self.assertEqual(text.count('توقع غير موثق'),30)
   self.assertIn('05:00',text)
+
+ def test_signal_briefing_never_fabricates_a_trade_or_prints_generic_block(self):
+  plan={'symbol':'COMEX_MINI:MGC1!','mode':'swing','status':'DATA_UNAVAILABLE','reason_code':'FUTURES_SOURCE_NOT_CONNECTED','entry':12345}
+  text=bot.signal_briefing(plan,{'open':False})
+  self.assertIn('محول شموع العقود',text);self.assertNotIn('12345',text)
+  self.assertNotIn('شروط الدخول غير مكتملة',text);self.assertNotIn('WAIT',text)
+  plan.update(status='CONDITIONAL',quality_filter={'checks':{'سحب سيولة واضح':False}})
+  text=bot.signal_briefing(plan,{'open':True,'reason':'شموع حديثة'})
+  self.assertIn('لم يُرصد: سحب سيولة واضح',text);self.assertNotIn('توصية شراء',text)
 
 class PrecisionTests(unittest.TestCase):
  def bars(self):

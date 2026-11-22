@@ -135,13 +135,19 @@ class DeliveryWorkflowTests(unittest.TestCase):
             with patch.object(telegram,'send') as send:
                 self.assertEqual(app.trigger_instant_telegram(plan())['status'],'not_tracked');send.assert_not_called()
 
+    def test_diagnostics_keep_exact_owner_symbols_without_connection_promotion(self):
+        with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'["COMEX_MINI:MGC1!","CAPITALCOM:US100"]'}),patch.object(app._connected_market,'connected',return_value=[]):
+            with app.history_connection() as db:rows=app.watchlist_diagnostics(db)
+            self.assertEqual({r['الرمز'] for r in rows},{'COMEX_MINI:MGC1!','CAPITALCOM:US100'})
+            self.assertTrue(all(r['متصل_حديث'] is False and r['وقت_الشمعة'] is None for r in rows))
+
     def test_news_callback_uses_platform_engine_without_trade_dispatch(self):
         asset={'symbol':'COMEX_MINI:MGCZ26','asset_class':'futures','connected':True,'fresh':True}
         update={'update_id':902,'callback_query':{'from':{'id':12345678},'message':{'chat':{'id':12345678,'type':'private'}},'data':'news_pick:'+app._telegram_interactive.token(asset['symbol'])}}
         with patch.dict(os.environ,{'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._connected_market,'connected',return_value=[asset]),patch.object(app,'tracked_asset_catalog',return_value=[]),patch.object(app._news,'snapshot',return_value={}),patch.object(app,'analyze_instant_native',return_value={'symbol':asset['symbol'],'status':'DATA_UNAVAILABLE'}) as engine,patch.object(app,'trigger_instant_telegram') as trade,patch.object(app,'send_bot_payload',return_value='sent') as send:
             app.process_bot_update(update)
             engine.assert_called_once_with(asset['symbol'],'scalp');trade.assert_not_called()
-            self.assertIn('تحليل تداول الأخبار المهمة',send.call_args.args[0]['text'])
+            self.assertIn('إشارة تداول أخبار',send.call_args.args[0]['text'])
             app.process_bot_update(update)
             self.assertEqual(send.call_count,1)
 

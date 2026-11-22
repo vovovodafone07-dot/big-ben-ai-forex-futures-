@@ -69,6 +69,18 @@ class DeliveryWorkflowTests(unittest.TestCase):
     def test_unconfirmed_ready_is_not_a_trade(self):
         p=plan();p['confirmation']['confirmed']=False
         self.assertFalse(telegram.eligible(p))
+        p=plan();p['status']='CONDITIONAL'
+        with patch.object(telegram,'send') as send:
+            self.assertEqual(app.trigger_instant_telegram(p)['status'],'not_eligible');send.assert_not_called()
+
+    def test_muted_destination_keeps_analysis_running_without_dispatch(self):
+        with app.history_connection() as db:
+            db.execute("INSERT INTO telegram_bot_receipts(id,status,created_at) VALUES (?,?,?)",('mute:12345678','muted',NOW.isoformat()))
+        app.init()
+        with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(telegram,'send') as send:
+            self.assertEqual(app.trigger_instant_telegram(plan())['status'],'disabled')
+            self.assertEqual(app.send_telegram_message('تحديث سوق',category='market'),'not_configured')
+            send.assert_not_called()
 
     def test_target_jump_enqueues_each_target_in_order_and_never_repeats(self):
         p=plan();bar=(NOW.isoformat(),100,135,99,134)

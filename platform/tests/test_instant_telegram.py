@@ -26,6 +26,17 @@ class R:
  def __exit__(self,*args):return False
  def read(self,size):return b'{"ok":true,"result":{"message_id":42}}'
 class TelegramNativeTests(unittest.TestCase):
+ def test_trade_inline_buttons_bind_journal_not_latest_symbol(self):
+  p=plan(status='READY');p['confirmation']['confirmed']=True
+  captured=[]
+  def opener(req,timeout):captured.append(json.loads(req.data));return R()
+  telegram.send(p,'offline-fixture','12345678',opener=opener)
+  buttons=captured[0]['reply_markup']['inline_keyboard'][0]
+  self.assertEqual(len(buttons),3)
+  self.assertTrue(all(len(b['callback_data'].encode())<=64 for b in buttons))
+  self.assertTrue(all(b['callback_data'].endswith(telegram._journal.key(p)[:24]) for b in buttons))
+  telegram.send(p,'offline-fixture','12345678',opener=opener,category='analysis')
+  self.assertNotIn('reply_markup',captured[1])
  def setUp(self):
   self.db=sqlite3.connect(":memory:")
   telegram.migrate(self.db)

@@ -41,7 +41,7 @@ def store(db,plan,postgres=False,now=None):
     args=(ident,plan["symbol"],plan["mode"],plan["technical_direction"],
           float(plan["entry"]),float(plan["sl"]),
           json.dumps([t["price"] for t in plan["targets"]]),now,plan["source_time"],
-          "مراقبة دخول افتراضي",None,0,now,json.dumps({"source":plan["provider"],"note":"لا يمثل تنفيذ وسيط"}))
+          "مراقبة دخول افتراضي",None,0,now,json.dumps({"source":plan["provider"],"note":"لا يمثل تنفيذ وسيط","target_evidence":plan['targets']},ensure_ascii=False))
     command="INSERT INTO native_trade_journal(id,symbol,mode,side,entry,sl,targets_json,announced_at,announced_candle,state,last_bar,tp_count,updated_at,evidence_json) VALUES ("+",".join([marker]*14)+") ON CONFLICT(id) DO NOTHING"
     result=db.execute(command,args)
     return ident if result.rowcount==1 else None

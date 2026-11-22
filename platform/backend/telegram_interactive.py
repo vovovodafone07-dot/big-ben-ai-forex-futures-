@@ -23,7 +23,7 @@ def home():
         [('📰 تداول الأخبار المهمة','news_symbols:0')],
         [('🔔 تنبيه الأخبار','news'),('📌 اختيار الزوج','symbols:0')],
         [('🟢 حالة السوق','market'),('🎯 الصفقات النشطة','active')], [('🔄 تحديث التحليل','refresh')],
-        [('🔕 كتم / تفعيل الإشعارات','notifications')]])
+        [('🔕 كتم / تفعيل الإشعارات','notifications')], [('🔎 تشخيص اتصال المتابعة','diagnostics')]])
 
 def muted(db,chat,postgres=False):
     row=db.execute('SELECT status FROM telegram_bot_receipts WHERE id='+('%s' if postgres else '?'),('mute:'+str(chat),)).fetchone()
@@ -82,7 +82,7 @@ def important_news_analysis(symbol,snapshot,plan,now=None):
     code=symbol.split(':')[-1].upper()
     currencies={code[:3],code[3:6]} if len(code)==6 and code.isalpha() else {'USD'}
     events=[(dt,e) for dt,e in today_events(snapshot,now) if e.get('currency') in currencies]
-    lines=['⚡ تحليل تداول الأخبار المهمة: '+symbol,'━━━━━━━━━━━━━━━━━━']
+    lines=['⚡ إشارة تداول أخبار: '+symbol,'━━━━━━━━━━━━━━━━━━','سيناريوهات مشروطة؛ ليست إشارة دخول مؤكدة من الرقم وحده.']
     if not events:
         lines.append('لا تتوفر أخبار اليوم المرتبطة بهذا الأصل من مصدر حديث موثق؛ لا يُستنتج غياب الأخبار أو اتجاه السعر.')
     for dt,e in events[:8]:
@@ -96,7 +96,7 @@ def important_news_analysis(symbol,snapshot,plan,now=None):
             lines.append('التضخم الأعلى من التوقع قد يدعم الدولار ويضغط على الذهب؛ الأقل قد يعكس ذلك. استجابة المؤشرات والعملات تعتمد أيضاً على التسعير والسياق، ولا تُعمّم آلياً على الأصل المختار.')
     lines.append('📍 المناطق الفنية والسيولة:')
     verified=(plan.get('symbol')==symbol and plan.get('status')!='DATA_UNAVAILABLE' and plan.get('realtime_verified') is True
-              and isinstance(plan.get('source_age_seconds'),(int,float)) and 0<=plan['source_age_seconds']<=180)
+              and isinstance(plan.get('source_age_seconds'),(int,float)) and 300<=plan['source_age_seconds']<=630)
     found=False
     if verified:
         indicators=plan.get('indicators') or {}
@@ -113,7 +113,35 @@ def important_news_analysis(symbol,snapshot,plan,now=None):
                   '⏱️ '+now.astimezone(ZONE).strftime('%Y-%m-%d %H:%M')+' بتوقيت عُمان'])
     return '\n'.join(lines)[:3900]
 
-def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgres=False,now=None):
+def signal_briefing(plan,market):
+    """Immediate evidence report. Never converts missing data into a trade."""
+    symbol=str(plan.get('symbol','أصل غير محدد'))
+    lines=['📈 تحديث تحليل فني: '+symbol+' — '+('سوينغ' if plan.get('mode')=='swing' else 'سكالب'),'━━━━━━━━━━━━━━━━━━']
+    reasons={'FUTURES_ENTITLEMENT_NOT_VERIFIED':'صلاحية بيانات العقد الفعلي وهوية مصدره غير مثبتتين.',
+             'FUTURES_SOURCE_NOT_CONNECTED':'محول شموع العقود لهذا الرمز غير متصل بالخادم.',
+             'PROVIDER_NOT_MATCHED':'لا يوجد محول أسعار مطابق لهذا الرمز؛ تنبيه TradingView ليس تغذية شموع مستمرة.',
+             'CRYPTO_PROVIDER_UNAVAILABLE':'تعذر جلب شموع المصدر الآن.',
+             'NOT_ENOUGH_M5_HISTORY':'سجل الشموع الموثق أقصر من الحد اللازم للتحليل متعدد الأطر.',
+             'STALE_OR_UNCLOSED_M5':'آخر شمعة متأخرة أو لم تغلق بعد.'}
+    if plan.get('status')=='DATA_UNAVAILABLE':
+        lines.append('📡 '+reasons.get(plan.get('reason_code'),'بيانات المصدر غير كافية أو لم تُثبت هويتها وحداثتها.'))
+        lines.append('لم تُنشأ مستويات دخول أو أهداف من بيانات غائبة.')
+        return '\n'.join(lines)
+    lines.append('🧭 الاتجاه: '+{'BULLISH':'صاعد','BEARISH':'هابط','RANGING':'عرضي'}.get(plan.get('bias'),'غير محدد بالأدلة'))
+    lines.append('📡 مصدر الشموع: '+str(plan.get('provider','غير موثق'))+' | وقت الشمعة: '+str(plan.get('source_time','غير متاح')))
+    lines.append('🟢 حالة البيانات: '+str(market.get('reason','حالة الجلسة غير مثبتة')))
+    if not market.get('open'):return '\n'.join(lines+['إرسال الصفقات محجوب لهذه الحالة؛ لا توجد توصية مباشرة.'])
+    if plan.get('status')=='READY':lines.append('تأكد النموذج على شمعة مغلقة؛ يراجع الإرسال بصمته الدائمة.')
+    else:lines.append('المعطيات الحالية موضحة أدناه؛ المستويات سيناريو فني وليست توصية دخول مؤكدة.')
+    for name,value in ((plan.get('quality_filter') or {}).get('checks') or {}).items():
+        lines.append(('✅ رُصد: ' if value else '▫️ لم يُرصد: ')+name)
+    if plan.get('status')=='READY':
+        for title,key in (('🎯 سعر التأكيد','entry'),('🛑 مستوى الإبطال','sl')):
+            value=plan.get(key)
+            if type(value) in (int,float) and math.isfinite(value):lines.append(title+': '+str(value))
+    return '\n'.join(lines)
+
+def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnostics=None,postgres=False,now=None):
     now=now or datetime.now(timezone.utc)
     callback=update.get('callback_query') or {}
     msg=callback.get('message') or update.get('message') or {}
@@ -135,7 +163,11 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgre
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
         db.execute('UPDATE telegram_bot_state SET mode='+m+' WHERE chat='+m,(mode,chat_id));action='symbols:0'
-    if action=='notifications':
+    if action=='diagnostics':
+        rows=diagnostics() if diagnostics else []
+        text='🔎 تشخيص اتصال أصول المتابعة\n━━━━━━━━━━━━━━━━━━\n'+'\n'.join(r['الرمز']+' — '+('بيانات حديثة: ' if r['متصل_حديث'] else 'غير متصل بسعر حديث: ')+r['التشخيص'] for r in rows[:20])
+        if not rows:text+='لا توجد متابعة مصرح بها لفحصها.'
+    elif action=='notifications':
         state='enabled' if muted(db,chat_id,postgres) else 'muted'
         db.execute('INSERT INTO telegram_bot_receipts(id,status,created_at) VALUES ('+','.join([m]*3)+') ON CONFLICT(id) DO UPDATE SET status=excluded.status,created_at=excluded.created_at',('mute:'+chat_id,state,now.isoformat()))
         text='🔕 كُتمت الإشعارات التلقائية لهذا الحساب؛ تبقى المنصة والتحليلات اليدوية والمتابعة تعمل.' if state=='muted' else '🔔 فُعّلت الإشعارات التلقائية لهذا الحساب.'

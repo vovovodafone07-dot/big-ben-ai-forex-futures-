@@ -405,20 +405,17 @@ def analyze_instant_native(symbol,mode):
  elif asset=="forex" and symbol.startswith("OANDA:"):
   ticker=symbol.split(":",1)[1]
   pair=ticker[:3]+"/"+ticker[3:]
-  if pair not in _history.FOREX:
-   out=_instant_engine.unavailable("FOREX_PAIR_NOT_VERIFIED",symbol,mode,"Twelve Data")
-  else:
-   provider="Twelve Data"
-   try:
-    with history_connection() as db:
-     mark="%s" if postgres_enabled() else "?"
-     raw=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
-     prev=db.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(pair,)).fetchone()
-    rows=raw
-    check_meta=json.loads(prev[0]) if prev else {}
-    out=None
-   except Exception:
-    out=_instant_engine.unavailable("FOREX_STORAGE_UNAVAILABLE",symbol,mode,provider)
+  provider="Twelve Data"
+  try:
+   with history_connection() as db:
+    mark="%s" if postgres_enabled() else "?"
+    raw=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+    prev=db.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(pair,)).fetchone()
+   rows=raw
+   check_meta=json.loads(prev[0]) if prev else {}
+   out=None
+  except Exception:
+   out=_instant_engine.unavailable("FOREX_STORAGE_UNAVAILABLE",symbol,mode,provider)
  else:
   out=_instant_engine.unavailable("PROVIDER_NOT_MATCHED",symbol,mode,None,asset_class=asset)
  if out is None:
@@ -429,7 +426,7 @@ def analyze_instant_native(symbol,mode):
   verified=(provider=="Bitstamp" and check_meta.get("provider")=="Bitstamp"
             and check_meta.get("symbol")==symbol and check_meta.get("state")=="CONNECTED") or (
             provider=="Twelve Data" and check_meta.get("symbol")==pair
-            and check_meta.get("interval")=="5min" and check_meta.get("adapter_version"))
+            and check_meta.get("interval")=="5min" and check_meta.get("adapter_version") and check_meta.get("state")=="CONNECTED")
   tick_size=0.01 if asset=="crypto" else (0.001 if ticker.endswith("JPY") else 0.00001)
   out=_instant_engine.evaluate(symbol,rows,mode=mode,asset_class=asset,provider=provider,
            tick_size=tick_size,now=now,news=news,source_identity_verified=bool(verified))
@@ -633,7 +630,7 @@ def process_bbb_event(event):
    if not _connected_market.gate(plan)["open"]:state="محفوظ؛ مصدر الأسعار أو الجلسة غير موثق"
    else:
     outcome=trigger_instant_telegram(plan)
-    state="اكتملت المعالجة؛ "+{"sending":"حجز الإرسال","duplicate":"حجب التكرار","not_eligible":"شروط الدخول غير مكتملة","not_configured":"التسليم غير مهيأ","market_closed":"السوق مغلق"}.get(outcome.get("status"),"حالة التسليم تحتاج مراجعة")
+    state="اكتملت المعالجة؛ "+{"sending":"حجز الإرسال","duplicate":"حجب التكرار","not_eligible":"لم يتأكد دخول قابل للإرسال","not_configured":"التسليم غير مهيأ","market_closed":"السوق مغلق"}.get(outcome.get("status"),"حالة التسليم تحتاج مراجعة")
  except Exception:state="تعذر التحليل؛ التنبيه محفوظ للمراجعة"
  with history_connection() as c:c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(state,key))
  print("تنبيه_BBB الحالة="+state,flush=True)
@@ -1050,6 +1047,21 @@ def tracked_asset_catalog(db,connected=None):
  watched=owner_watchlist(db)
  return [a for a in connected if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True]
 
+def watchlist_diagnostics(db,now=None):
+ """Per-symbol readiness, without probes, secret values, or invented prices."""
+ current={a['symbol']:a for a in _connected_market.connected(db,now,postgres_enabled())}
+ result=[]
+ for symbol in sorted(owner_watchlist(db)):
+  asset=_instruments.describe(symbol);row=current.get(symbol)
+  fresh=bool(row and row.get('connected') and row.get('fresh'))
+  if row:reason=row.get('market_state','حالة الجلسة غير مثبتة')
+  elif asset['asset_class']=='futures':reason='لا يوجد مسار OHLC حي موثق لهذا العقد في المحرك الحالي؛ يلزم مصدر مطابق وصلاحية بيانات ومواصفات العقد.'
+  elif symbol.startswith(('OANDA:','BITSTAMP:')):reason='لم يجتز المصدر تحقق الهوية والشموع الكافية والحداثة؛ لا تُغيّر حالته إلى متصل بمجرد وجود الرمز.'
+  else:reason='لا يوجد محول شموع مستمر مطابق لهذا الرمز؛ Webhook ينقل حدثاً ولا يعوض سجل الأسعار.'
+  result.append({'الرمز':symbol,'نوع_الأصل':asset['asset_class'],'متصل_حديث':fresh,'التشخيص':reason,
+                 'مصدر_الشموع':row.get('provider') if row else None,'وقت_الشمعة':row.get('latest_closed_candle') if row else None})
+ return result
+
 def send_bot_payload(payload):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
  if not token:return "not_configured"
@@ -1130,6 +1142,10 @@ def configure_interactive_bot():
  result=_telegram_interactive.configure_webhook(os.getenv("TELEGRAM_BOT_TOKEN","").strip(),
      os.getenv("BIGBEN_TELEGRAM_WEBHOOK_SECRET",""),os.getenv("RENDER_EXTERNAL_URL","").strip(),allowed)
  print("تهيئة_البوت الحالة="+result,flush=True)
+ try:
+  with history_connection() as c:rows=watchlist_diagnostics(c)
+  for row in rows:print('تشخيص_المتابعة الرمز='+row['الرمز']+' متصل_حديث='+('نعم' if row['متصل_حديث'] else 'لا')+' السبب='+str(row['التشخيص']),flush=True)
+ except Exception:print('تشخيص_المتابعة الحالة=تعذر_فحص_السجل',flush=True)
 
 def process_bot_update(update):
  try:
@@ -1137,9 +1153,10 @@ def process_bot_update(update):
   with history_connection() as c:
    assets=owner_connected_assets(c)
    catalog=tracked_asset_catalog(c,assets)
+   diagnostics=watchlist_diagnostics(c)
    news=_news.snapshot(c);trades=_native_trade_journal.recent(c)
    reply=_telegram_interactive.handle(c,update,allowed_users=allowed,connected=lambda:assets,
-       news=lambda:news,journal=lambda:trades,tracked=lambda:catalog,postgres=postgres_enabled())
+       news=lambda:news,journal=lambda:trades,tracked=lambda:catalog,diagnostics=lambda:diagnostics,postgres=postgres_enabled())
   if not reply:return
   callback=reply.get("callback_id")
   if callback:
@@ -1155,10 +1172,7 @@ def process_bot_update(update):
    reply["text"]=_telegram_interactive.important_news_analysis(news_requested["symbol"],news,news_plan)
   if requested:
    plan=analyze_instant_native(requested["symbol"],requested["mode"])
-   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الإرسال محجوب بسبب قيد سلامة؛ راجع قسم التنبيهات","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
-   reply["text"]="📈 تحليل "+requested["symbol"]+" — "+("سكالب" if requested["mode"]=="scalp" else "سوينغ")+"\n"+labels.get(plan.get("status"),"تعذر التحقق من التحليل")
-   checks=(plan.get("quality_filter") or {}).get("checks",{})
-   if checks:reply["text"]+="\n"+"\n".join(("✅ " if value else "❌ ")+name for name,value in checks.items())
+   reply["text"]=_telegram_interactive.signal_briefing(plan,_connected_market.gate(plan))
    if requested.get('read_only'):
     if _instant_telegram.eligible(plan):reply['text']=_instant_telegram.analysis_message(plan)
    elif plan.get("status")=="READY":trigger_instant_telegram(plan)
@@ -1416,7 +1430,8 @@ class Handler(BaseHTTPRequestHandler):
    barchart_key=bool(os.getenv("BARCHART_API_KEY","").strip())
    mapping_configured=bool(os.getenv("BIGBEN_BARCHART_SYMBOL_MAP","").strip())
    twelve_key=bool(twelve_data_key())
-   return self.reply(200,{"status":"configuration_only","preferred_provider":"Barchart OnDemand",
+   with history_connection() as c:diagnostics=watchlist_diagnostics(c)
+   return self.reply(200,{"تشخيص_المتابعة":diagnostics,"status":"configuration_only","preferred_provider":"Barchart OnDemand",
      "barchart":{"api_key_configured":barchart_key,"symbol_mapping_configured":mapping_configured,
                   "licensed_symbol_coverage":"unverified","live_and_historical_entitlements":"unverified",
                   "research_ready":barchart_key and mapping_configured},

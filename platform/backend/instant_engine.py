@@ -232,10 +232,10 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
     return {"version":"instant-native-v2","symbol":symbol,"mode":mode,
             "status":status,"reason_code":"NEWS_RESTRICTION" if status=="NEWS_CAUTION"
                else ("M5_BREAKOUT_CONFIRMED" if mode=="scalp" else "H1_BREAKOUT_CONFIRMED") if confirmed
-               else ("AWAIT_M5_CLOSE_ABOVE_OR_BELOW_TRIGGER" if mode=="scalp" else "AWAIT_H1_CLOSE_ABOVE_OR_BELOW_TRIGGER"),
+               else ("M5_CONFIRMATION_NOT_OBSERVED" if mode=="scalp" else "H1_CONFIRMATION_NOT_OBSERVED"),
             "bias":bias,"bias_reason":"Last two completed H1 and H4 candle closes; not a calibrated probability",
             "execution_timeframe":"M5" if mode=="scalp" else "H1",
-            "quality_filter":precision,"status_ar":("شروط الدخول مكتملة" if status=="READY" else "الإرسال محجوب بسبب قيد سلامة خارجي" if status=="NEWS_CAUTION" else "شروط الدخول غير مكتملة؛ راجع قائمة التحقق"),
+            "quality_filter":precision,"status_ar":("شروط الدخول مكتملة" if status=="READY" else "الإرسال محجوب بسبب قيد سلامة خارجي" if status=="NEWS_CAUTION" else "تحليل سعري متاح؛ تفاصيل التأكيد موضحة في قائمة الأدلة"),
             "provider":provider,"source_time":stamp.isoformat(),"source_age_seconds":round(age),
             "realtime_verified":bool(realtime_verified),"entry":trigger,"entry_zone":precision.get("zone",[trigger,trigger]),
             "sl":stop,"targets":targets,"confirmation":{"type":"M5_CLOSE" if mode=="scalp" else "H1_CLOSE",

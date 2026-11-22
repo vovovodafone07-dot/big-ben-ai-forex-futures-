@@ -26,6 +26,13 @@ class BotTests(unittest.TestCase):
   with self.assertRaises(PermissionError):self.run_update(uid=99)
   with self.assertRaises(PermissionError):self.run_update(chat_type='group')
   self.assertEqual(self.db.execute('SELECT COUNT(*) FROM telegram_bot_receipts').fetchone()[0],0)
+ def test_massive_command_is_private_and_deduplicated(self):
+  update={'update_id':1,'message':{'from':{'id':12345678},'chat':{'id':12345678,'type':'private'},'text':'/massive MNQZ6'}}
+  with self.assertRaises(PermissionError):
+   bot.handle(self.db,update,allowed_users=set(),connected=list,news=dict,journal=list,now=NOW)
+  reply=bot.handle(self.db,update,allowed_users={'12345678'},connected=list,news=dict,journal=list,now=NOW)
+  self.assertEqual(reply['massive_request'],('MNQZ6','M5'))
+  self.assertIsNone(bot.handle(self.db,update,allowed_users={'12345678'},connected=list,news=dict,journal=list,now=NOW))
  def test_risk_calculator_does_not_guess_cfd_specs_or_round_futures_up(self):
   self.assertIn('5 عقد',bot.risk_helper('/risk MNQ 100 10'))
   self.assertIn('5 عقد',bot.risk_helper('/riskp MNQ 10000 1 10'))

@@ -71,6 +71,19 @@ class WebhookHTTPTests(unittest.TestCase):
             result.update(entry=100, sl=102, tp=94, rr=3)
         return result
 
+    def test_massive_history_requires_dashboard_access_and_a_configured_key(self):
+        url = "/api/massive/history?ticker=MNQZ6&frame=M5"
+        with patch.dict(os.environ, {
+            "BIGBEN_TRACKED_SYMBOLS_JSON": '["CME_MINI:MNQ1!"]',
+            "MASSIVE_FUTURES_API_KEY": "",
+        }):
+            self.assertEqual(self.request("GET", url)[0], 401)
+            status, body = self.request("GET", url, auth=self.auth)
+            self.assertEqual((status, body["error"]), (503, "not_configured"))
+        with patch.object(app._massive_history, "read", return_value={"historical_only": True}) as read:
+            self.assertEqual(self.request("GET", url, auth=self.auth), (200, {"historical_only": True}))
+            self.assertEqual(read.call_args.args[:2], ("MNQZ6", "M5"))
+
     def test_audit_token_reads_only_dedicated_state_endpoint(self):
         with patch.dict(os.environ,{'BIGBEN_AUDIT_TOKEN':'a'*40}):
             for path,expected in (('/v1/audit/state',200),('/api/events',401)):

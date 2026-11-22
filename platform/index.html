@@ -882,3 +882,16 @@ window.addEventListener('bigben:instant-telegram',()=>setTimeout(refresh,2500));
 setInterval(refresh,60000);
 setTimeout(refresh,1200);
 })();</script></body></html>
+
+<script id="tracked-assets-status">(()=>{
+'use strict';
+const anchor=document.getElementById('desk-instrument-identity');if(!anchor)return;
+const box=document.createElement('details'),title=document.createElement('summary'),body=document.createElement('div');
+title.textContent='📋 أصول المتابعة وحالة ربط الأسعار';box.append(title,body);anchor.after(box);
+box.addEventListener('toggle',async()=>{if(!box.open)return;body.textContent='جار قراءة الأصول…';try{
+ const response=await fetch('/api/tracked-symbols',{credentials:'same-origin',cache:'no-store'});
+ if(!response.ok)throw Error('unavailable');const data=await response.json();body.replaceChildren();
+ for(const item of data.symbols||[]){const row=document.createElement('p');row.textContent=(item.connected?'🟢 ':'⚪ ')+item.symbol+' — '+item.market_state;body.append(row)}
+ if(!body.childNodes.length)body.textContent='لا توجد أصول متابعة مسجلة.';
+}catch(_){body.textContent='تعذر قراءة أصول المتابعة؛ لا يمكن تأكيد اتصال الأسعار.'}});
+})();</script>

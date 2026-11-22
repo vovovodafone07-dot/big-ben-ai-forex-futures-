@@ -36,6 +36,17 @@ class BotTests(unittest.TestCase):
   self.assertIsNone(self.run_update('pick:forged')['analysis_request'])
   self.assets=[]
   r=self.run_update('symbols:0',2);self.assertIn('لا توجد',r['text']);self.assertIsNone(r['analysis_request'])
+ def test_watchlist_catalog_never_promotes_disconnected_futures(self):
+  symbol='CME_MINI:NQ1!'
+  update={'update_id':1,'callback_query':{'from':{'id':12345678},'message':{'chat':{'id':12345678,'type':'private'}},'data':'tracked:0'}}
+  def run(data):
+   return bot.handle(self.db,data,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:[],tracked=lambda:[{'symbol':symbol,'connected':False,'market_state':'مصدر غير متصل'}],now=NOW)
+  reply=run(update)
+  buttons=[b for row in reply['reply_markup']['inline_keyboard'] for b in row]
+  self.assertTrue(any(b['callback_data']=='info:'+bot.token(symbol) for b in buttons))
+  update['update_id']=2;update['callback_query']['data']='info:'+bot.token(symbol)
+  self.assertIn('مصدر غير متصل',run(update)['text'])
+
  def test_news_opt_in_and_out_persist(self):
   self.run_update('news:on');self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],1)
   self.run_update('news:off',2);self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],0)

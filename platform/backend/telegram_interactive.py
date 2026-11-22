@@ -61,7 +61,7 @@ def digest(snapshot,now=None):
         return '\n'.join(lines[:2])+ '\nعدد الأخبار يتجاوز حجم رسالة واحدة؛ افتح التقويم في المنصة للاطلاع على القائمة كاملة.\nلم تُرسل قائمة مبتورة على أنها كاملة.'
     return text
 
-def handle(db,update,*,allowed_users,connected,news,journal,postgres=False,now=None):
+def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgres=False,now=None):
     now=now or datetime.now(timezone.utc)
     callback=update.get('callback_query') or {}
     msg=callback.get('message') or update.get('message') or {}
@@ -78,7 +78,7 @@ def handle(db,update,*,allowed_users,connected,news,journal,postgres=False,now=N
     mode,symbol,enabled=db.execute('SELECT mode,symbol,news_enabled FROM telegram_bot_state WHERE chat='+m,(chat_id,)).fetchone()
     action=callback.get('data') or 'home'
     text='اختر نوع التحليل أو الخدمة المطلوبة.';markup=home();request=None
-    assets=[a for a in connected() if a.get('asset_class') in ('forex','cfd','futures')]
+    assets=[a for a in connected() if a.get('asset_class') in ('forex','cfd','futures','crypto')]
     if action.startswith('mode:'):
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
@@ -89,8 +89,24 @@ def handle(db,update,*,allowed_users,connected,news,journal,postgres=False,now=N
         rows=[[(a.get('label') or a['symbol'],'pick:'+token(a['symbol']))] for a in assets[page*12:(page+1)*12]]
         if page:rows.append([('السابق','symbols:'+str(page-1))])
         if (page+1)*12<len(assets):rows.append([('التالي','symbols:'+str(page+1))])
+        rows.append([('📋 أصول المتابعة وحالة الربط','tracked:0')])
         rows.append([('القائمة الرئيسية','home')]);markup=keyboard(rows)
         text=('اختر الأصل لتحليل '+('السكالب' if mode=='scalp' else 'السوينغ')+'.' if assets else 'لا توجد أصول مؤهلة ذات مصدر أسعار موثق حالياً؛ لا يكفي ظهور الأصل في قائمة TradingView.')
+    elif action.startswith('tracked:'):
+        try:page=max(0,int(action.split(':',1)[1]))
+        except ValueError:raise ValueError('صفحة غير صالحة')
+        catalog=tracked() if tracked else assets
+        rows=[[(('🟢 ' if a.get('connected') else '⚪ ')+a['symbol'],
+                 ('pick:' if a.get('connected') else 'info:')+token(a['symbol']))]
+              for a in catalog[page*12:(page+1)*12]]
+        if page:rows.append([('السابق','tracked:'+str(page-1))])
+        if (page+1)*12<len(catalog):rows.append([('التالي','tracked:'+str(page+1))])
+        rows.append([('الأصول المتصلة','symbols:0'),('القائمة الرئيسية','home')])
+        markup=keyboard(rows);text='📋 أصول المتابعة وحالة الربط\n🟢 مصدر أسعار موثق؛ ⚪ مصدر غير متصل. ظهور الأصل لا يثبت وجود بيانات أو صلاحية إرسال صفقة.'
+    elif action.startswith('info:'):
+        item=next((a for a in (tracked() if tracked else assets) if token(a['symbol'])==action[5:]),None)
+        text=(item['symbol']+'\n'+str(item.get('market_state','مصدر الأسعار غير موثق'))+'\nلن تُرسل صفقة قبل التحقق من مصدر الأسعار وجلسة التداول.' if item else 'لم يعد الأصل موجوداً في قائمة المتابعة.')
+        markup=keyboard([[('أصول المتابعة','tracked:0'),('الأصول المتصلة','symbols:0')]])
     elif action.startswith('pick:') or action=='refresh':
         selected=next((a['symbol'] for a in assets if (token(a['symbol'])==action[5:] if action.startswith('pick:') else a['symbol']==symbol)),None)
         if not selected:text='الأصل غير متصل حالياً أو لم يُحدّد؛ اختر أصلاً من القائمة.'

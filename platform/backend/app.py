@@ -1,5 +1,8 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading
+import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading,sys
+# Arabic operational logs must also work on Windows pipes with a legacy code page.
+for _stream in (sys.stdout,sys.stderr):
+ if callable(getattr(_stream,"reconfigure",None)):_stream.reconfigure(encoding="utf-8",errors="backslashreplace")
 from contextlib import contextmanager
 from datetime import datetime,timezone,timedelta
 from pathlib import Path

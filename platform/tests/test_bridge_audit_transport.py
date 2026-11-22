@@ -42,6 +42,10 @@ class TransportTests(unittest.TestCase):
  def test_closed_fixture_sends_nothing(self):
   with patch.object(app,'send_transport_card') as send:
    result=app.execute_transport_fixture('closed-123','closed');self.assertEqual(result['بوابة_السوق_المغلق'],'حجبت الإرسال');send.assert_not_called()
+ def test_legacy_signal_cannot_bypass_market_and_native_dedup_gate(self):
+  with patch.dict(os.environ,{'TELEGRAM_BOT_TOKEN':'fixture'}),patch.object(app,'telegram_destination',return_value='8996403863'),patch.object(app,'analyze_instant_native',return_value={'status':'DATA_UNAVAILABLE'}),patch.object(app,'trigger_instant_telegram') as send:
+   self.assertEqual(app.telegram_notify({'event':'BUY','symbol':'FOREXCOM:XAUUSD'}),'market_closed');send.assert_not_called()
+
  def test_archived_stale_bbb_is_retained_but_never_replayed_as_fresh(self):
   event=bridge.normalize(payload(),NOW);app.save_event(event)
   with patch.object(app,'analyze_instant_native') as analyze:

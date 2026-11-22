@@ -972,21 +972,15 @@ def telegram_topic_id(kind):
  return int(raw) if raw.isdigit() and int(raw)>0 else None
 
 def telegram_notify(d):
- # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
- token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
- if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
-  return "not_configured"
- if d.get("event") not in ("BUY","SELL"):
-  return "skipped"
- message=trade_notification_text(d)
- payload=json.dumps({"chat_id":chat,"text":message}).encode()
- req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
+ # Legacy events must use the same native market/source/dedup pipeline as the new bridge.
+ if d.get("event") not in ("BUY","SELL"):return "skipped"
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip();chat=telegram_destination()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):return "not_configured"
  try:
-  with urllib.request.urlopen(req,timeout=6) as response:
-   return "sent" if response.status==200 else "failed"
- except (urllib.error.URLError,TimeoutError,ValueError):
-  return "failed"
+  plan=analyze_instant_native(_instruments.normalize(d["symbol"]),"scalp")
+  if not _connected_market.gate(plan)["open"]:return "market_closed"
+  return trigger_instant_telegram(plan).get("status","not_eligible")
+ except Exception:return "source_unverified"
 def audit_telegram_connection():
  """Read-only Telegram bot/chat checks; no test messages, tokens or chat ids in logs."""
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()

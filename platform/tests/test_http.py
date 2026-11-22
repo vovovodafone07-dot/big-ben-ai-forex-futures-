@@ -421,6 +421,24 @@ class WebhookHTTPTests(unittest.TestCase):
             app.run_signal_analysis('EURUSD')
             analyze.assert_not_called();slots.release.assert_not_called()
 
+    def test_agent_pattern_audits_require_auth_and_keep_watchlist_source_scope(self):
+        self.assertEqual(self.request('GET','/api/agent')[0],401)
+        now=datetime.now(timezone.utc).replace(second=0,microsecond=0)
+        now=now-timedelta(minutes=now.minute%5)
+        with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'["BITSTAMP:BTCUSD"]'}):
+            with app.history_connection() as db:
+                for symbol,provider,count in [('BITSTAMP:BTCUSD','Bitstamp',35),('BITSTAMP:BTCUSD','TradingView Webhook',2),('OANDA:EURUSD','Twelve Data',35)]:
+                    for i in range(count):
+                        stamp=(now-timedelta(minutes=5*(count-i))).isoformat()
+                        db.execute('INSERT INTO market_candles(provider,symbol,time,open,high,low,close,received_at) VALUES (?,?,?,?,?,?,?,?)',(provider,symbol,stamp,100,102,98,100,now.isoformat()))
+            code,data=self.request('GET','/api/agent',auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual(len(data['pattern_audits']),1)
+        audit=data['pattern_audits'][0]
+        self.assertEqual(audit['symbol'],'BITSTAMP:BTCUSD');self.assertEqual(audit['provider'],'Bitstamp')
+        self.assertEqual(audit['candles'],35);self.assertEqual(len(audit['checks']),7)
+        self.assertNotIn('entry',audit)
+
     def test_integration_status_reports_agent_activation_and_recent_delivery(self):
         with patch.dict(os.environ, {"BIGBEN_SIGNAL_ANALYSIS_ENABLED":"1","TELEGRAM_BOT_TOKEN":"configured","TELEGRAM_CHAT_ID":"123456789"}):
             with app.history_connection() as c:

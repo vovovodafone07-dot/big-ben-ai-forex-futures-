@@ -188,7 +188,7 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
             return unavailable('RISK_GEOMETRY_UNSAFE',symbol,mode,provider)
 
     nr=news_filter(news,symbol,asset_class,now)
-    status="NEWS_CAUTION" if nr["state"]=="NEWS_CAUTION" else "READY" if confirmed and nr["state"]!="NOT_VERIFIED" else "CONDITIONAL"
+    status="NEWS_CAUTION" if nr["state"] in ("NEWS_CAUTION","EVENT_UNRATED") else "READY" if confirmed and nr["state"]!="NOT_VERIFIED" else "CONDITIONAL"
     targets=[{"name":f"TP{i}","price":_tick(trigger+sign*risk*i,tick_size,
              "up" if sign>0 else "down"),"rr_nominal":float(i),
               "reason":"Risk multiple benchmark; validate against actual external liquidity"} for i in (1,2,3)]
@@ -205,7 +205,7 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
                else ("AWAIT_M5_CLOSE_ABOVE_OR_BELOW_TRIGGER" if mode=="scalp" else "AWAIT_H1_CLOSE_ABOVE_OR_BELOW_TRIGGER"),
             "bias":bias,"bias_reason":"Last two completed H1 and H4 candle closes; not a calibrated probability",
             "execution_timeframe":"M5" if mode=="scalp" else "H1",
-            "quality_filter":precision,"status_ar":("شروط الدخول مكتملة" if status=="READY" else "الدخول محظور قرب خبر مؤثر" if status=="NEWS_CAUTION" else "شروط الدخول غير مكتملة؛ راجع قائمة التحقق"),
+            "quality_filter":precision,"status_ar":("شروط الدخول مكتملة" if status=="READY" else "الدخول محظور قرب حدث اقتصادي يحتاج مراجعة" if status=="NEWS_CAUTION" else "شروط الدخول غير مكتملة؛ راجع قائمة التحقق"),
             "provider":provider,"source_time":stamp.isoformat(),"source_age_seconds":round(age),
             "realtime_verified":bool(realtime_verified),"entry":trigger,"entry_zone":precision.get("zone",[trigger,trigger]),
             "sl":stop,"targets":targets,"confirmation":{"type":"M5_CLOSE" if mode=="scalp" else "H1_CLOSE",

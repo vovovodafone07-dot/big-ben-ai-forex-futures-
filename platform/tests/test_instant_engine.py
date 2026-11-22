@@ -79,7 +79,7 @@ class InstantNativeTests(unittest.TestCase):
                     "feed_fresh":True,"feed_state":"CONNECTED","impact_verified":False}]}
     r=engine.evaluate("CME_MINI:NQH27",candles(),asset_class="futures",tick_size=.25,
                       now=NOW,source_identity_verified=True,news=e)
-    self.assertNotEqual(r["status"],"NEWS_CAUTION")
+    self.assertEqual(r["status"],"NEWS_CAUTION")
     self.assertEqual(r["news"]["state"],"EVENT_UNRATED")
  def test_invalid_candle_price_rejected(self):
     b=candles();x=list(b[-1]);x[2]=0;b[-1]=tuple(x)

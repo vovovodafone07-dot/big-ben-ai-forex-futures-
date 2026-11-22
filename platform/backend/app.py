@@ -1029,7 +1029,7 @@ def process_bot_update(update):
   requested=reply.get("analysis_request")
   if requested:
    plan=analyze_instant_native(requested["symbol"],requested["mode"])
-   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الدخول محظور قرب خبر مؤثر","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
+   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الدخول محظور قرب حدث اقتصادي يحتاج مراجعة","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
    reply["text"]="📈 تحليل "+requested["symbol"]+" — "+("سكالب" if requested["mode"]=="scalp" else "سوينغ")+"\n"+labels.get(plan.get("status"),"تعذر التحقق من التحليل")
    checks=(plan.get("quality_filter") or {}).get("checks",{})
    if checks:reply["text"]+="\n"+"\n".join(("✅ " if value else "❌ ")+name for name,value in checks.items())

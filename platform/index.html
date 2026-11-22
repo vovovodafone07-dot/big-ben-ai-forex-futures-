@@ -659,7 +659,7 @@ session();setInterval(session,15000);
   const status=v.status||'DATA_UNAVAILABLE',dir=v.technical_direction;
   const valid=['READY','CONDITIONAL','NEWS_CAUTION'].includes(status)
      &&v.entry!=null&&v.sl!=null&&Array.isArray(v.targets)&&v.targets.length===3;
-  const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'تحذير خبر مؤثر',
+  const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'تحذير حدث اقتصادي قريب',
                 DATA_UNAVAILABLE:'بيانات غير متاحة'};
   const box=$('ref-signal-card');if(box)box.dataset.decision=valid?(status==='READY'?(dir==='BUY'?'buy':'sell'):status==='NEWS_CAUTION'?'caution':dir==='BUY'?'conditional-buy':'conditional-sell'):'unavailable';
   put('ref-signal-title',valid?(dir==='BUY'?'↗ شراء BUY':'↘ بيع SELL')+' · '+labels[status]:(labels[status]||'بيانات غير متاحة'));

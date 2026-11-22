@@ -68,6 +68,11 @@ try:
     os.environ['DATABASE_URL']=url
     backup_app.init()
     with backup_app.history_connection() as connection:
+        bot=backup_app._telegram_interactive
+        bot.migrate(connection);bot.migrate(connection)
+        assert bot.claim(connection,'ci_bot_update',True)
+        assert not bot.claim(connection,'ci_bot_update',True)
+    with backup_app.history_connection() as connection:
         journal=backup_app._native_trade_journal
         journal.migrate(connection);journal.migrate(connection)
         connection.execute("INSERT INTO native_management_outbox(event_id,payload,delivery,created_at,updated_at,ordinal) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT(event_id) DO NOTHING",

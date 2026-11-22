@@ -7,6 +7,10 @@ the trigger. Scenarios are informational; this module has no broker APIs.
 from datetime import datetime, timezone, timedelta
 from math import isfinite, ceil, floor
 from statistics import mean
+import importlib.util
+from pathlib import Path
+_spec=importlib.util.spec_from_file_location("precision_setup",Path(__file__).with_name("precision_setup.py"))
+_precision=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(_precision)
 
 STATUS = ("READY", "CONDITIONAL", "NEWS_CAUTION", "DATA_UNAVAILABLE")
 DEFAULT_RR = (1.0, 2.0, 3.0)
@@ -173,26 +177,39 @@ def evaluate(symbol,rows,*,mode="scalp",asset_class="forex",provider=None,
     risk=(trigger-stop)*sign
     if risk<=tick_size*.9 or risk>execution_atr*8:
         return unavailable("RISK_GEOMETRY_UNSAFE",symbol,mode,provider)
-    confirmed=(curr[4]>=trigger if sign==1 else curr[4]<=trigger)
+    precision=_precision.inspect(execution,side,bias,execution_atr,tick_size)
+    confirmed=precision['confirmed']
+    if confirmed:
+        trigger=_tick(precision['entry'],tick_size,'up' if sign==1 else 'down')
+        anchor=precision['anchor'];buffer=max(2*tick_size,.25*execution_atr)
+        stop=_tick(anchor-sign*buffer,tick_size,'down' if sign==1 else 'up')
+        risk=(trigger-stop)*sign
+        if risk<=tick_size*.9 or risk>execution_atr*8:
+            return unavailable('RISK_GEOMETRY_UNSAFE',symbol,mode,provider)
+
     nr=news_filter(news,symbol,asset_class,now)
-    status="NEWS_CAUTION" if nr["state"]=="NEWS_CAUTION" else "READY" if confirmed else "CONDITIONAL"
+    status="NEWS_CAUTION" if nr["state"] in ("NEWS_CAUTION","EVENT_UNRATED") else "READY" if confirmed and nr["state"]!="NOT_VERIFIED" else "CONDITIONAL"
     targets=[{"name":f"TP{i}","price":_tick(trigger+sign*risk*i,tick_size,
              "up" if sign>0 else "down"),"rr_nominal":float(i),
               "reason":"Risk multiple benchmark; validate against actual external liquidity"} for i in (1,2,3)]
     evidence={"LIQUIDITY_SWEEP":"HIGH" if sweep_high else "LOW" if sweep_low else "NOT_DETECTED",
               "TURTLE_SOUP":"POTENTIAL" if sweep_high or sweep_low else "NOT_DETECTED",
               "FVG":fvg or "NOT_DETECTED","IFVG":"NOT_MEASURED",
-              "ORDER_BLOCK":"NOT_MEASURED","CISD":"NOT_MEASURED","SMT":"NOT_MEASURED"}
+              "ORDER_BLOCK":"NOT_MEASURED","CISD":"NOT_MEASURED","MSB":"CONFIRMED" if precision["checks"]["كسر هيكل بزخم"] else "NOT_DETECTED","SMT":"NOT_MEASURED"}
+    if confirmed:
+        evidence["LIQUIDITY_SWEEP"]="LOW" if sign==1 else "HIGH"
+        evidence["FVG"]={"type":"BULLISH" if sign==1 else "BEARISH","zone":precision["zone"]}
     return {"version":"instant-native-v2","symbol":symbol,"mode":mode,
             "status":status,"reason_code":"NEWS_RESTRICTION" if status=="NEWS_CAUTION"
                else ("M5_BREAKOUT_CONFIRMED" if mode=="scalp" else "H1_BREAKOUT_CONFIRMED") if confirmed
                else ("AWAIT_M5_CLOSE_ABOVE_OR_BELOW_TRIGGER" if mode=="scalp" else "AWAIT_H1_CLOSE_ABOVE_OR_BELOW_TRIGGER"),
             "bias":bias,"bias_reason":"Last two completed H1 and H4 candle closes; not a calibrated probability",
             "execution_timeframe":"M5" if mode=="scalp" else "H1",
+            "quality_filter":precision,"status_ar":("شروط الدخول مكتملة" if status=="READY" else "الدخول محظور قرب حدث اقتصادي يحتاج مراجعة" if status=="NEWS_CAUTION" else "شروط الدخول غير مكتملة؛ راجع قائمة التحقق"),
             "provider":provider,"source_time":stamp.isoformat(),"source_age_seconds":round(age),
-            "realtime_verified":bool(realtime_verified),"entry":trigger,"entry_zone":[trigger,trigger],
+            "realtime_verified":bool(realtime_verified),"entry":trigger,"entry_zone":precision.get("zone",[trigger,trigger]),
             "sl":stop,"targets":targets,"confirmation":{"type":"M5_CLOSE" if mode=="scalp" else "H1_CLOSE",
-                "direction":side,"level":trigger,"confirmed":confirmed},
+                "direction":side,"level":precision.get("level",trigger),"confirmed":confirmed},
             "invalidated_if":"Price breaches stop level before confirmation",
             "indicators":{"ATR_M5":round(atr,8),"PDH_UTC":pdh,"PDL_UTC":pdl,
                           "M15_close":m15[-1][4],"H1_close":h1close,"H4_close":h4close,

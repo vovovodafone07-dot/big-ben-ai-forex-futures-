@@ -90,15 +90,31 @@ class DeliveryWorkflowTests(unittest.TestCase):
             events=journal.follow(db,p['symbol'],[(NOW.isoformat(),100,135,85,105)],now=NOW+timedelta(minutes=5))
             self.assertEqual([e['state'] for e in events],['نتيجة غير محسومة'])
 
+    def test_morning_digest_is_durable_once_per_destination_and_day(self):
+        now=datetime(2026,11,22,3,0,tzinfo=timezone.utc)
+        with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(app,'send_telegram_message',return_value='sent') as send:
+            app.deliver_bot_news({},now)
+            app.init()
+            app.deliver_bot_news({},now)
+            self.assertEqual(send.call_count,1)
+            self.assertIn('2026-11-22',send.call_args.args[0])
+
     def test_new_backup_preserves_delivery_ledger_and_old_backup_still_restores(self):
         with app.history_connection() as db:telegram.claim(db,plan(),'12345678')
         with app.history_connection() as db:bundle=app._backup.snapshot(db)
-        self.assertEqual(bundle['schema'],'bigben.application-backup.v2')
+        self.assertEqual(bundle['schema'],'bigben.application-backup.v3')
         self.assertIn('native_management_outbox',bundle['tables'])
         original=app.DB
         app.DB=Path(self.temp.name)/'restore.sqlite3';app.init()
         with app.history_connection() as db:app._backup.restore_new_database(db,bundle)
         with app.history_connection() as db:self.assertIsNone(telegram.claim(db,plan(),'12345678'))
+        import copy
+        version2=copy.deepcopy(bundle)
+        version2['schema']='bigben.application-backup.v2'
+        version2['tables']={k:v for k,v in version2['tables'].items() if k in app._backup.V2_TABLES}
+        version2['row_count']=sum(len(t['rows']) for t in version2['tables'].values())
+        app.DB=Path(self.temp.name)/'version2.sqlite3';app.init()
+        with app.history_connection() as db:app._backup.restore_new_database(db,version2)
         bundle['schema']='bigben.application-backup.v1'
         bundle['tables']={k:v for k,v in bundle['tables'].items() if k in app._backup.LEGACY_TABLES}
         bundle['row_count']=sum(len(t['rows']) for t in bundle['tables'].values())

@@ -69,6 +69,12 @@ class WebhookHTTPTests(unittest.TestCase):
             result.update(entry=100, sl=102, tp=94, rr=3)
         return result
 
+    def test_telegram_updates_require_independent_secret(self):
+        with patch.dict(os.environ, {"BIGBEN_TELEGRAM_WEBHOOK_SECRET": ""}):
+            self.assertEqual(self.request('POST','/v1/telegram/updates',{'update_id':1},auth=self.auth)[0],503)
+        with patch.dict(os.environ, {"BIGBEN_TELEGRAM_WEBHOOK_SECRET": "s"*40}):
+            self.assertEqual(self.request('POST','/v1/telegram/updates',{'update_id':1},auth=self.auth)[0],401)
+
     def test_desk_news_and_replay_are_private_and_wait_without_data(self):
         for endpoint in ('/api/news','/api/integrations','/api/research/pine-runs'):
             self.assertEqual(self.request('GET',endpoint)[0],401)

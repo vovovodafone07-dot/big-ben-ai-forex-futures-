@@ -54,10 +54,7 @@ def sync(db, payload, postgres=False, now=None):
 def members(db, configured=(), postgres=False):
     value=snapshot(db,postgres)
     symbols=set(value['symbols'] if value else [s for s in configured if isinstance(s,str) and VALID.fullmatch(s)])
-    if value:
-        # The owner also authorizes symbols added to TradingView alerts. Only
-        # newly authenticated events AFTER this snapshot may add membership.
-        m='%s' if postgres else '?'
-        for (symbol,) in db.execute('SELECT symbol FROM tradingview_discovered_symbols WHERE last_seen>'+m+" AND source='TradingView Webhook'",(value['synced_at'],)).fetchall():
-            if VALID.fullmatch(symbol):symbols.add(symbol)
+    # A valid alert authenticates the sender, not watchlist membership. Keep
+    # discovered events for audit, but only a new authorized snapshot may add
+    # a displayed/managed asset. This also prevents legacy aliases reappearing.
     return symbols

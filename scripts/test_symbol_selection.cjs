@@ -39,7 +39,7 @@ function boot(savedSymbol = '') {
     } else throw Error('Unexpected fixture fetch: ' + url);
     return {ok:true,json:async () => data};
   };
-  const window = {addEventListener(type, listener) { (listeners.get(type) || (listeners.set(type, []), listeners.get(type))).push(listener); }, dispatchEvent(event) { for (const listener of listeners.get(event.type) || []) listener(event); }};
+  const window = {matchMedia() { return {matches:false}; }, addEventListener(type, listener) { (listeners.get(type) || (listeners.set(type, []), listeners.get(type))).push(listener); }, dispatchEvent(event) { for (const listener of listeners.get(event.type) || []) listener(event); }};
   const context = vm.createContext({document:{getElementById:get,createElement:tag => new Element(tag),activeElement:null},window,fetch,localStorage:{getItem:key => storage.get(key) || null,setItem:(key,value) => storage.set(key,value)},CustomEvent:class {constructor(type,options) {this.type=type;this.detail=options.detail;}},setInterval() {},Date,URL,JSON,Object,String,console});
   vm.runInContext(script('symbol-chart-controller'), context);
   vm.runInContext(script('pearl-desk-controller'), context);

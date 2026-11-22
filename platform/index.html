@@ -164,7 +164,7 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 .independent-opportunity>span{font-size:12px;color:#dce5f3}
 .independent-opportunity>div{font-size:12px;color:#eaf5ff;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .independent-opportunity>small{color:#e7bd76;line-height:1.6}
-</style><link rel="stylesheet" href="/reference_dashboard.css?v=20261121r1"></head><body data-design="pro">
+</style><link rel="stylesheet" href="/reference_dashboard.css?v=20261123mobile"></head><body data-design="pro">
 <aside class="a-sidebar" aria-label="القائمة وإعدادات الإرسال"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 45 45" width="43" height="43" fill="none" aria-label="شعار Big Ben"><rect x="4" y="26" width="7" height="15" rx="2" fill="#1bce9d"/><rect x="16" y="17" width="7" height="24" rx="2" fill="#20dfaa"/><rect x="28" y="6" width="7" height="35" rx="2" fill="#3cf1b6"/></svg></span><div><b>BIG BEN AI PRO</b><small>Native Market Intelligence</small></div></div><nav class="sidebar" aria-label="التنقل الرئيسي">
 <button type="button" data-target="overview"><span class="ref-nav-icon" aria-hidden="true">⌂</span><span>الرئيسية</span></button>
 <button type="button" data-target="analyze"><span class="ref-nav-icon" aria-hidden="true">⌁</span><span>تحليل مباشر</span></button>
@@ -179,9 +179,9 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 <div class="ref-price-card"><strong id="ref-last-price" aria-live="polite">—</strong><span id="ref-price-change">آخر شمعة M5: غير متاحة</span><small id="ref-tick-status" aria-live="off">تداولات مباشرة: غير متصلة</small></div>
 <div class="ref-market-card"><small>حالة السوق</small><strong id="ref-session-label">جارٍ التحقق</strong></div>
 <div class="ref-timeframe-tabs" role="group" aria-label="الإطار الزمني للشارت"><button type="button" data-chart-timeframe="M5" aria-pressed="true">M5</button><button type="button" data-chart-timeframe="M15" aria-pressed="false">M15</button><button type="button" data-chart-timeframe="H1" aria-pressed="false">H1</button><button type="button" data-chart-timeframe="H4" aria-pressed="false">H4</button></div>
-<div class="ref-chart-actions"><button type="button" id="ref-chart-options" aria-label="إعدادات الشارت" title="إعدادات الشارت">☷</button><button type="button" id="ref-chart-indicators" aria-label="مؤشرات الشارت" title="المؤشرات المتاحة">ƒx</button><button type="button" id="ref-chart-analysis" aria-label="تحليل سريع" title="تحليل سريع">↗</button><button type="button" id="ref-chart-expand" aria-label="تكبير الشارت" title="تكبير الشارت">⛶</button></div>
+<div class="ref-chart-actions"><button type="button" id="ref-chart-options" aria-label="إعدادات الشارت" title="إعدادات الشارت">☷</button><button type="button" id="ref-chart-indicators" aria-label="مؤشرات الشارت" title="المؤشرات المتاحة">ƒx</button><button type="button" id="ref-chart-analysis" aria-label="تحليل سريع" title="تحليل سريع">↗</button><button type="button" id="ref-chart-expand" aria-controls="desk-market-chart" aria-expanded="false" aria-label="ملء الشاشة" title="ملء الشاشة">⛶</button></div>
 <div class="desk-parameters ref-screen-reader-mode"><label for="desk-mode">نوع التحليل</label><select id="desk-mode" aria-label="نوع التحليل"><option value="scalp">Scalp</option><option value="swing">Swing</option></select><span id="desk-mode-timeframe">M5 للدخول</span><input type="checkbox" id="desk-use-ai" disabled><button type="button" id="desk-analyze">تحليل سريع</button></div>
-</div><p id="desk-instrument-identity" class="compact-identity workspace-note">اختر زوج فوركس لتحليله مباشرة من شموع السوق. عقود الفيوتشرز تحتاج موصل OHLC مرخصاً؛ لا نعرض CFD على أنه عقد حقيقي.</p><p id="desk-smt-research" class="workspace-note">قياس ارتباط SMT التاريخي يظهر عند توفر تاريخ متزامن للزوجين.</p><div class="desk-main"><div class="a-chart-column"><section class="panel chartpanel" id="desk-market-chart"><div class="reference-chart-header"><div><h2><span id="ref-chart-name">اختر رمزاً</span> · <span id="ref-chart-timeframe">M5</span></h2><small id="ref-chart-caption">شموع OHLC مغلقة · المصدر حسب الرمز</small></div><div class="ref-zoom-controls" role="group" aria-label="تكبير وتصغير الشارت"><button type="button" data-zoom="in" title="تكبير الشارت">＋</button><button type="button" data-zoom="out" title="تصغير الشارت">−</button><button type="button" data-zoom="targets" title="إظهار جميع المستويات بما فيها الأهداف البعيدة">الأهداف</button><button type="button" data-zoom="reset" title="إعادة عرض الشارت">إعادة</button></div></div><div style="height:420px;border:1px solid #344c81;border-radius:10px;overflow:hidden;margin-top:12px"><div id="desk-live-chart" style="height:100%;width:100%"><p class="muted">اختر الزوج أو العقد؛ الرسم يتبع الرمز المحدد في التحليل.</p></div></div><div class="notice ref-chart-status"><span id="desk-chart-status" role="status">شموع M5 يتم رسمها داخل المنصة من مزود OHLC عند تحليل الرمز؛ لا حاجة لمؤشر TradingView.</span> <a id="desk-chart-link" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">فتح الرسم على TradingView</a>. الرابط الخارجي اختياري؛ تحليل المنصة لا يعتمد على TradingView.</div><details class="ref-external-links"><summary>روابط شارت خارجية</summary><div class="market-chart-links" aria-label="مخططات الأسواق على TradingView"><a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AEURUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">EURUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AGBPUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">GBPUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AUSDJPY&amp;interval=5" target="_blank" rel="noopener noreferrer">USDJPY</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3ANQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">NQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMNQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MNQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">ES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CBOT_MINI%3AYM1!&amp;interval=5" target="_blank" rel="noopener noreferrer">YM</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME%3A6E1!&amp;interval=5" target="_blank" rel="noopener noreferrer">6E</a></div></details></section></div><aside class="panel analysis-dossier"><div class="dossier-heading"><h2>نتيجة التحليل <span aria-hidden="true">◎</span></h2><span class="decision-pill" id="desk-decision">انتظار</span></div>
+</div><p id="desk-instrument-identity" class="compact-identity workspace-note">اختر زوج فوركس لتحليله مباشرة من شموع السوق. عقود الفيوتشرز تحتاج موصل OHLC مرخصاً؛ لا نعرض CFD على أنه عقد حقيقي.</p><p id="desk-smt-research" class="workspace-note">قياس ارتباط SMT التاريخي يظهر عند توفر تاريخ متزامن للزوجين.</p><div class="desk-main"><div class="a-chart-column"><section class="panel chartpanel" id="desk-market-chart"><div class="reference-chart-header"><div><h2><span id="ref-chart-name">اختر رمزاً</span> · <span id="ref-chart-timeframe">M5</span></h2><small id="ref-chart-caption">شموع OHLC مغلقة · المصدر حسب الرمز</small></div><div class="ref-zoom-controls" role="group" aria-label="تكبير وتصغير الشارت"><button type="button" data-zoom="in" aria-label="تكبير الشارت" title="تكبير الشارت">＋</button><button type="button" data-zoom="out" aria-label="تصغير الشارت" title="تصغير الشارت">−</button><button type="button" data-zoom="targets" title="إظهار جميع المستويات بما فيها الأهداف البعيدة">الأهداف</button><button type="button" data-zoom="reset" title="إعادة عرض الشارت">إعادة</button><button id="ref-chart-close" type="button" aria-label="إغلاق ملء الشاشة" hidden>✕</button></div></div><div class="ref-chart-plot" style="height:420px;border:1px solid #344c81;border-radius:10px;overflow:hidden;margin-top:12px"><div id="desk-live-chart" style="height:100%;width:100%"><p class="muted">اختر الزوج أو العقد؛ الرسم يتبع الرمز المحدد في التحليل.</p></div></div><div class="notice ref-chart-status"><span id="desk-chart-status" role="status">شموع M5 يتم رسمها داخل المنصة من مزود OHLC عند تحليل الرمز؛ لا حاجة لمؤشر TradingView.</span> <a id="desk-chart-link" href="https://www.tradingview.com/chart/" target="_blank" rel="noopener noreferrer">فتح الرسم على TradingView</a>. الرابط الخارجي اختياري؛ تحليل المنصة لا يعتمد على TradingView.</div><details class="ref-external-links"><summary>روابط شارت خارجية</summary><div class="market-chart-links" aria-label="مخططات الأسواق على TradingView"><a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AEURUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">EURUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AGBPUSD&amp;interval=5" target="_blank" rel="noopener noreferrer">GBPUSD</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=OANDA%3AUSDJPY&amp;interval=5" target="_blank" rel="noopener noreferrer">USDJPY</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3ANQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">NQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMNQ1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MNQ</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">ES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME_MINI%3AMES1!&amp;interval=5" target="_blank" rel="noopener noreferrer">MES</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CBOT_MINI%3AYM1!&amp;interval=5" target="_blank" rel="noopener noreferrer">YM</a> <a class="chip" href="https://www.tradingview.com/chart/?symbol=CME%3A6E1!&amp;interval=5" target="_blank" rel="noopener noreferrer">6E</a></div></details></section></div><aside class="panel analysis-dossier"><div class="dossier-heading"><h2>نتيجة التحليل <span aria-hidden="true">◎</span></h2><span class="decision-pill" id="desk-decision">انتظار</span></div>
 <div class="ref-mode-switch" role="group" aria-label="نمط التحليل"><button type="button" data-analysis-mode="scalp" aria-pressed="true">سكالب</button><button type="button" data-analysis-mode="swing" aria-pressed="false">سوينج</button></div><small id="ref-mode-explanation" class="ref-mode-explanation">SCALP: مستويات M5 ووقف هيكل الشموع السريعة</small>
 <div class="ref-signal-card" id="ref-signal-card" data-decision="wait"><strong id="ref-signal-title">جاري التحقق من الاتجاه</strong><small id="ref-signal-reason">لا توجد صفقة مؤكدة قبل التحقق من شموع السوق</small></div>
 <div class="ref-trade-levels" aria-label="مستويات الصفقة">
@@ -222,7 +222,7 @@ window.BigBenSavedSignal={latest:events=>events.map(normalize).filter(Boolean).s
 })();</script><script>
 (()=>{const $=id=>document.getElementById(id);const mk=(tag,txt,cls)=>{const e=document.createElement(tag);e.textContent=txt;if(cls)e.className=cls;return e};
 const watch=$("watch-list");const marketBtn=$("market-fetch");if(marketBtn)marketBtn.addEventListener("click",async()=>{const out=$("market-result");out.textContent="جارٍ الاتصال بمزود الأسعار…";try{const symbol=$("market-symbol").value.trim();const r=await fetch("/api/market?symbol="+encodeURIComponent(symbol),{credentials:"same-origin",cache:"no-store"});const d=await r.json();if(!r.ok)throw Error(d.error||"HTTP "+r.status);out.textContent=d.symbol+" = "+d.price+" | Twelve Data | وقت الجلب: "+d.fetched_at+" | توقيت السعر الفعلي غير مؤكد";}catch(e){out.textContent="تعذر جلب السعر: "+e.message}});const checkDiag=$("check-diagnostics");if(checkDiag)checkDiag.addEventListener("click",async()=>{const out=$("diagnostics-result");out.textContent="جارٍ فحص الربط…";try{const r=await fetch("/api/diagnostics",{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();const hb=d.last_heartbeat;const tr=d.last_trade;out.textContent="التخزين: "+d.storage+" | Webhook: "+(d.webhook_token_configured?"مهيأ":"غير مهيأ")+" | Telegram: "+(d.telegram_configured?"مهيأ":"غير مهيأ")+" | M5: "+(hb?(hb.fresh?"حديث":"قديم")+" ("+hb.symbol+", منذ "+Math.round(hb.age_seconds/60)+" دقيقة)":"لم يُستقبل")+" | آخر صفقة: "+(tr?tr.symbol+" منذ "+Math.round(tr.age_seconds/60)+" دقيقة":"لم تُستقبل");}catch(e){out.textContent="تعذر الفحص: "+e.message}});
-const titles={analyze:"Analyze — تحليل الزوج",agents:"الأيجنت المتخصصون",backtest:"الباك تيست وسجل الشروط",lab:"مختبر تطوير المؤشر",scalping:"الصفقة الكاملة وأهداف السكالب",overview:"مساحة تحليل الأسواق",signals:"الصفقات الحية وسجل الإشارات","trade-setup":"مناطق الدخول والأهداف",analysis:"تحليل الأسواق",news:"الأخبار والتقويم الاقتصادي",strategies:"الاستراتيجيات",performance:"الأداء والمخاطر",watch:"قائمة المتابعة",alerts:"حالة التنبيهات",settings:"الإعدادات والربط"};function showPage(page){if(!titles[page])page="overview";document.querySelectorAll(".grid>[data-page]").forEach(el=>el.classList.toggle("page-visible",el.dataset.page.split(" ").includes(page)));document.querySelectorAll(".sidebar button").forEach(b=>b.classList.toggle("active",b.dataset.target===page&&!b.dataset.navMode&&!b.dataset.chartShortcut));$("page-title").textContent=titles[page];if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);window.scrollTo({top:0,behavior:"instant"})}document.querySelectorAll(".sidebar button").forEach(btn=>btn.addEventListener("click",()=>showPage(btn.dataset.target)));window.addEventListener("hashchange",()=>showPage(location.hash.slice(1)));showPage(location.hash.slice(1)||"overview");document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.go)));
+const titles={analyze:"Analyze — تحليل الزوج",agents:"الأيجنت المتخصصون",backtest:"الباك تيست وسجل الشروط",lab:"مختبر تطوير المؤشر",scalping:"الصفقة الكاملة وأهداف السكالب",overview:"مساحة تحليل الأسواق",signals:"الصفقات الحية وسجل الإشارات","trade-setup":"مناطق الدخول والأهداف",analysis:"تحليل الأسواق",news:"الأخبار والتقويم الاقتصادي",strategies:"الاستراتيجيات",performance:"الأداء والمخاطر",watch:"قائمة المتابعة",alerts:"حالة التنبيهات",settings:"الإعدادات والربط"};function showPage(page){if(!titles[page])page="overview";document.querySelectorAll(".grid>[data-page]").forEach(el=>el.classList.toggle("page-visible",el.dataset.page.split(" ").includes(page)));document.querySelectorAll(".sidebar button").forEach(b=>b.classList.toggle("active",b.dataset.target===page&&!b.dataset.navMode&&!b.dataset.chartShortcut));$("page-title").textContent=titles[page];if(location.hash!=="#"+page)history.replaceState(null,"","#"+page);window.dispatchEvent(new CustomEvent("bigben:page",{detail:page}));window.scrollTo({top:0,behavior:"instant"})}document.querySelectorAll(".sidebar button").forEach(btn=>btn.addEventListener("click",()=>showPage(btn.dataset.target)));window.addEventListener("hashchange",()=>showPage(location.hash.slice(1)));showPage(location.hash.slice(1)||"overview");document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.go)));
 function clock(){ $("clock").textContent=new Intl.DateTimeFormat("ar-OM",{dateStyle:"medium",timeStyle:"medium",timeZone:"Asia/Muscat"}).format(new Date())+" (GMT+4)"}clock();setInterval(clock,1000);
 async function refresh(){try{const res=await fetch("/api/events?type=trades",{cache:"no-store",credentials:"same-origin",headers:{"Accept":"application/json"}});if(!res.ok){if(res.status===401)throw Error("401 — انتهت جلسة الدخول أو بيانات الدخول غير صحيحة. افتح /api/events وسجّل الدخول مجددًا.");if(res.status===503)throw Error("503 — واجهة الإشارات أو التخزين غير متاحة مؤقتًا.");throw Error("HTTP "+res.status)}const d=await res.json();const events=Array.isArray(d.events)?d.events:[];
 try{const jr=await fetch('/api/trade-journal',{cache:'no-store',credentials:'same-origin'});if(jr.ok){const jd=await jr.json();for(const r of jd.records||[])events.push({event_id:r.id,symbol:r.symbol,event:r.side,time:r.announced_at,entry:r.entry,sl:r.sl,tp:r.targets?.[0],targets:r.targets,mode:r.mode,state:r.state})}}catch(_){}events.sort((a,b)=>Date.parse(b.time)-Date.parse(a.time));const sr=await fetch("/api/status",{cache:"no-store",credentials:"same-origin"});const status=sr.ok?await sr.json():{};watch.replaceChildren();const analysis=$("analysis-observed");if(analysis){analysis.replaceChildren();try{const ar=await fetch("/api/analysis",{credentials:"same-origin",cache:"no-store"});if(!ar.ok)throw Error("HTTP "+ar.status);const ad=await ar.json();const displayTime=value=>{const stamp=new Date(value);return Number.isNaN(stamp.getTime())?"غير متاح":stamp.toLocaleString("ar-OM",{timeZone:"Asia/Muscat",dateStyle:"short",timeStyle:"medium"})};const current=ad.symbols.filter(s=>s.state==="CONNECTED");if(!current.length)analysis.append(mk("p","لم تصل بيانات M5 حديثة موثقة بعد.","muted"));const names={BULLISH:"توافق صاعد",BEARISH:"توافق هابط",MIXED:"اتجاه مختلط / محايد",UNKNOWN:"غير معلوم"};for(const s of current){const card=mk("article","","settings-card");card.append(mk("h3",s.symbol),mk("p","الاتجاه المرصود: "+names[s.current_bias]),mk("p","آخر إغلاق M5: "+(s.observed_m5_close??"—")),mk("p","وقت المصدر (مسقط): "+displayTime(s.source_time)),mk("p","وقت الاستلام (مسقط): "+(s.received_at?displayTime(s.received_at):"غير مسجل تاريخيًا")));const bias=v=>v===1?"صاعد":v===-1?"هابط":v===0?"محايد":"غير معلوم";card.append(mk("p","M15: "+bias(s.htf_bias.m15)+" | H1: "+bias(s.htf_bias.h1)+" | H4: "+bias(s.htf_bias.h4),"htf-values"),mk("p","نسخة المصدر: "+(s.strategy_version||"غير مذكورة"),"muted"));for(const text of s.confirmed_information.slice(1))card.append(mk("p",text,"muted"));for(const text of s.scenarios)card.append(mk("p",text,"notice"));analysis.append(card)}}catch(error){analysis.textContent="تعذر التحقق من التحليل الحالي؛ أعد فحص الاتصال."}}for(const s of (status.symbols||[])){const age=Date.now()-Date.parse(s.last_seen),recent=age>=0&&age<12*60*1000;const row=mk("div","","signalrow");const fmt=v=>v===1?"صاعد":v===-1?"هابط":v===0?"محايد":"—";row.append(mk("b",s.symbol),mk("span",(recent?"● متصل":"● آخر تحديث قديم")+" · "+s.last_event+" · صفقات "+s.trade_count+(s.last_close!=null?" · إغلاق M5: "+s.last_close:"")+(s.m15!=null?" · M15 "+fmt(s.m15)+" / H1 "+fmt(s.h1)+" / H4 "+fmt(s.h4):""),recent?"online":"warn"));watch.append(row)}if(!(status.symbols||[]).length)watch.append(mk("p","لا توجد رموز مستلمة حتى الآن. يجب تفعيل تنبيه لكل رمز في TradingView.","muted"));const webhookState=$("webhook-state");if(webhookState)webhookState.textContent=status.last_event_time?"آخر اتصال "+status.last_event_time:"لم تصل رسالة بعد";const lastTime=status.last_event_time?Date.parse(status.last_event_time):NaN,age=Number.isFinite(lastTime)?Date.now()-lastTime:Infinity,active=age>=0&&age<12*60*1000,tradeEvents=events.filter(e=>e.event==="BUY"||e.event==="SELL");$("connection").textContent=active?"● TradingView متصل — آخر تحديث "+Math.max(0,Math.floor(age/60000))+" دقيقة — بيانات إشارات وليست أسعارًا حية":status.last_event_time?"● آخر إشارة TradingView قديمة — لا يوجد اتصال حديث مؤكد":"● بانتظار أول Webhook من TradingView — لا توجد أسعار حية مباشرة";$("total").textContent=events.length;$("count-stat").textContent=events.length;$("buys").textContent=events.filter(e=>e.event==="BUY").length;$("sells").textContent=events.filter(e=>e.event==="SELL").length;
@@ -273,6 +273,11 @@ let last=null,seq=0,currentSymbol='',latestTrade=null,currentFrame='M5',lastClos
 let visibleBars=90,scrollBack=0,rafId=0,pointerStart=null,requestPending=false,fitAllTargets=false;
 const clamp=(v,low,high)=>Math.max(low,Math.min(high,v));
 const price=v=>Number(v).toFixed(Number(v)>20?3:5);
+const compact=window.matchMedia('(max-width: 780px)');
+const candleTimeFormat=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Muscat'});
+function frameBars(){
+ return currentFrame==='M5'?last.candles:last.aggregates?.[currentFrame]||[];
+}
 function aggregateBars(rows,minutes){
  if(!Array.isArray(rows)||minutes<=5)return rows||[];
  const step=minutes/5,period=minutes*60000,group=new Map();
@@ -292,36 +297,40 @@ function draw(){if(rafId)return;if(typeof requestAnimationFrame!=='function'){pa
 function paint(){
  if(!ctx||!last)return;
  const rect=host.getBoundingClientRect();if(!rect.width)return;
- const w=Math.max(320,Math.floor(rect.width)),h=Math.max(260,Math.floor(rect.height));
+ const w=Math.floor(rect.width),h=Math.floor(rect.height);
+ if(w<1||h<1)return;
+ const light=compact.matches;
  const dpr=Math.min(2,window.devicePixelRatio||1);
  if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
- ctx.fillStyle='#031820';ctx.fillRect(0,0,w,h);
- const allBars=currentFrame==='M5'?last.candles:(last.aggregates?.[currentFrame]||aggregateBars(last.candles,{M15:15,H1:60,H4:240}[currentFrame]||5));
+ ctx.fillStyle=light?'#ffffff':'#031820';ctx.fillRect(0,0,w,h);
+ const allBars=frameBars();
  const count=clamp(visibleBars,12,Math.max(12,allBars.length));scrollBack=clamp(scrollBack,0,Math.max(0,allBars.length-count));
  const bars=allBars.slice(Math.max(0,allBars.length-count-scrollBack),allBars.length-scrollBack);
- if(!bars.length){ctx.fillStyle='#b5c6df';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('لا تتوفر شموع '+currentFrame+' مكتملة وموثقة لهذا الرمز',w/2,h/2);return}
+ if(!bars.length){ctx.fillStyle=light?'#405579':'#b5c6df';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('لا تتوفر شموع '+currentFrame+' مكتملة وموثقة لهذا الرمز',w/2,h/2,Math.max(1,w-20));return}
  const barMin=Math.min(...bars.map(x=>+x.low)),barMax=Math.max(...bars.map(x=>+x.high));
  const saneLevels=last.fresh&&last.trade?[last.trade.entry,last.trade.sl,...(last.trade.targets||[last.trade.tp])].map(Number).filter(x=>Number.isFinite(x)&&x>0&&(fitAllTargets||Math.abs(x-(barMax+barMin)/2)<=Math.max(barMax-barMin,barMax*.001)*2)):[];
  const levels=saneLevels;
  let min=Math.min(...bars.map(x=>+x.low),...levels),max=Math.max(...bars.map(x=>+x.high),...levels);
  if(!Number.isFinite(min)||!Number.isFinite(max)||max<=0)return;
  const padding=Math.max((max-min)*.09,Math.abs(max)*.00003);min-=padding;max+=padding;
- const left=10,right=65,top=18,bottom=34,cw=w-left-right,ch=h-top-bottom;
+ ctx.font='11px sans-serif';
+ const left=10,right=Math.max(60,Math.ceil(ctx.measureText(price(max)).width)+15),top=18,bottom=light?25:34,cw=w-left-right,ch=h-top-bottom;
+ if(cw<1||ch<1)return;
  const y=v=>top+(max-v)/(max-min)*ch;
  const bw=cw/Math.max(30,bars.length);
  const candleBodyWidth=Math.max(2,Math.min(14,bw*.64));
- ctx.strokeStyle='#153b47';ctx.lineWidth=.65;for(let i=0;i<9;i++){const x=left+cw*i/8;ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,top+ch);ctx.stroke()}
+ ctx.strokeStyle=light?'#e3ebf5':'#153b47';ctx.lineWidth=.65;for(let i=0;i<9;i++){const x=left+cw*i/8;ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,top+ch);ctx.stroke()}
  ctx.lineWidth=1;ctx.font='11px sans-serif';ctx.textAlign='left';
  for(let j=0;j<5;j++){
   const tick=min+(max-min)*j/4,Y=y(tick);
-  ctx.strokeStyle='#194450';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
-  ctx.fillStyle='#d5e0e6';ctx.fillText(price(tick),w-right+7,Y+4);
+  ctx.strokeStyle=light?'#e3ebf5':'#194450';ctx.beginPath();ctx.moveTo(left,Y);ctx.lineTo(w-right+4,Y);ctx.stroke();
+  ctx.fillStyle=light?'#405579':'#d5e0e6';ctx.fillText(price(tick),w-right+7,Y+4);
  }
  for(let i=0;i<bars.length;i++){
   const b=bars[i],x=left+(i+.5)*bw;
   const up=+b.close>=+b.open;
-  ctx.strokeStyle=up?'#10c99a':'#fb5264';ctx.fillStyle=ctx.strokeStyle;
+  ctx.strokeStyle=up?(light?'#07845f':'#10c99a'):(light?'#c43f53':'#fb5264');ctx.fillStyle=ctx.strokeStyle;
   ctx.beginPath();ctx.moveTo(x,y(+b.high));ctx.lineTo(x,y(+b.low));ctx.stroke();
   const y1=y(Math.max(+b.open,+b.close)),y2=y(Math.min(+b.open,+b.close));
   ctx.fillRect(x-candleBodyWidth/2,y1,candleBodyWidth,Math.max(1,y2-y1));
@@ -349,17 +358,18 @@ function paint(){
   }
  }
  ctx.fillStyle='#96bab6';ctx.textAlign='left';ctx.font='11px sans-serif';
- ctx.fillText((last.symbol||'')+' · '+currentFrame+' · '+bars.length+' شموع · تكبير بالعجلة وتحريك بالسحب',left+4,h-8);
+ if(!light)ctx.fillText((last.symbol||'')+' · '+currentFrame+' · '+bars.length+' شموع · تكبير بالعجلة وتحريك بالسحب',left+4,h-8);
  // Actual UTC candle timestamps, not evenly spaced synthetic time labels.
- ctx.fillStyle='#8ba1bb';ctx.font='10px sans-serif';ctx.textAlign='center';
- for(const ix of [0,Math.floor((bars.length-1)/2),bars.length-1]){
+ ctx.fillStyle=light?'#405579':'#8ba1bb';ctx.font='10px sans-serif';ctx.textAlign='center';
+ const timeIndices=bars.length<12?[bars.length-1]:[0,Math.floor((bars.length-1)/2),bars.length-1];
+ for(const ix of timeIndices){
   const dt=new Date(bars[ix].time);
   if(!Number.isNaN(dt.getTime())){
    const x=left+(ix+.5)*bw;
-   ctx.fillText(new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Muscat'}).format(dt),x,h-19);
+   ctx.fillText(candleTimeFormat.format(dt),Math.max(22,x),h-(light?8:19));
   }
  }
- ctx.textAlign='right';ctx.fillText((last.provider||'OHLC source')+' · OHLC',w-right,h-8);
+ if(!light){ctx.textAlign='right';ctx.fillText((last.provider||'OHLC source')+' · OHLC',w-right,h-8)}
 }
 async function load(data){
  if(!data||typeof data.symbol!=='string'||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(data.symbol))return;
@@ -385,14 +395,25 @@ async function load(data){
  }catch(err){if(n!==seq)return;requestPending=false;last={candles:[],symbol:data.symbol,fresh:false};status.textContent='تعذر قراءة شموع OHLC الأصلية. لا توجد أسعار اصطناعية.';draw()}
 }
 window.addEventListener('bigben:native-analysis',ev=>{if(ev.detail&&ev.detail.symbol&&(!last||last.symbol!==ev.detail.symbol))load({symbol:ev.detail.symbol})});
-const setZoom=(next)=>{visibleBars=clamp(Math.round(next),12,240);scrollBack=clamp(scrollBack,0,Math.max(0,(last?.candles?.length||0)-visibleBars));draw()};
+const setZoom=(next)=>{visibleBars=clamp(Math.round(next),12,240);scrollBack=clamp(scrollBack,0,Math.max(0,(last?frameBars().length:0)-visibleBars));draw()};
 function zoomIn(){setZoom(visibleBars*.76)}
 function zoomOut(){setZoom(visibleBars*1.3)}
 function resetView(){visibleBars=90;scrollBack=0;fitAllTargets=false;draw()}
 host.addEventListener('wheel',event=>{if(!last?.candles?.length)return;event.preventDefault();event.deltaY<0?zoomIn():zoomOut()},{passive:false});
-host.addEventListener('pointerdown',event=>{if(event.button!==0)return;pointerStart={x:event.clientX,offset:scrollBack};host.setPointerCapture?.(event.pointerId)});
-host.addEventListener('pointermove',event=>{if(!pointerStart||!last)return;const barWidth=Math.max(3,host.clientWidth/Math.max(12,visibleBars));scrollBack=clamp(pointerStart.offset+Math.round((event.clientX-pointerStart.x)/barWidth),0,Math.max(0,last.candles.length-visibleBars));draw()});
-host.addEventListener('pointerup',()=>{pointerStart=null});host.addEventListener('pointercancel',()=>{pointerStart=null});
+host.addEventListener('pointerdown',event=>{
+ if(event.button!==0||!event.isPrimary||!last)return;
+ pointerStart={id:event.pointerId,x:event.clientX,offset:scrollBack};
+ host.setPointerCapture?.(event.pointerId);
+});
+host.addEventListener('pointermove',event=>{
+ if(!last||event.pointerId!==pointerStart?.id)return;
+ const barWidth=Math.max(3,host.clientWidth/Math.max(12,visibleBars));
+ scrollBack=clamp(pointerStart.offset+Math.round((event.clientX-pointerStart.x)/barWidth),0,Math.max(0,frameBars().length-visibleBars));
+ draw();
+});
+for(const eventName of ['pointerup','pointercancel','lostpointercapture']){
+ host.addEventListener(eventName,event=>{if(event.pointerId===pointerStart?.id)pointerStart=null});
+}
 window.addEventListener('bigben:chart-zoom',event=>{const type=event.detail?.action;if(type==='in')zoomIn();else if(type==='out')zoomOut();else if(type==='reset')resetView();else if(type==='targets'){fitAllTargets=!fitAllTargets;draw()}});
 window.addEventListener('resize',draw);
 window.addEventListener('bigben:chart-timeframe',ev=>{const tf=ev.detail?.timeframe;if(['M5','M15','H1','H4'].includes(tf)){currentFrame=tf;draw()}});
@@ -639,12 +660,22 @@ byId('ref-chart-indicators')?.addEventListener('click',()=>{const details=docume
 byId('ref-chart-options')?.addEventListener('click',()=>{const details=document.querySelector('.ref-external-links');if(details){details.open=!details.open;details.scrollIntoView({block:'nearest'})}});
 function resizeChart(){window.dispatchEvent(new Event('resize'))}
 document.querySelectorAll('[data-zoom]').forEach(button=>button.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('bigben:chart-zoom',{detail:{action:button.dataset.zoom}}))));
-byId('ref-chart-expand')?.addEventListener('click',()=>{
- const expanded=chart.classList.toggle('ref-chart-expanded');
- byId('ref-chart-expand').setAttribute('aria-label',expanded?'إغلاق ملء الشاشة':'تكبير الشارت');
+const expandChart=byId('ref-chart-expand'),closeChart=byId('ref-chart-close');
+function setChartExpanded(expanded,restoreFocus=true){
+ chart.classList.toggle('ref-chart-expanded',expanded);
+ document.body.classList.toggle('ref-chart-open',expanded);
+ expandChart.setAttribute('aria-expanded',String(expanded));
+ closeChart.hidden=!expanded;
+ if(expanded)closeChart.focus({preventScroll:true});
+ else if(restoreFocus)expandChart.focus({preventScroll:true});
  resizeChart();
+}
+expandChart.addEventListener('click',()=>setChartExpanded(true));
+closeChart.addEventListener('click',()=>setChartExpanded(false));
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!closeChart.hidden)setChartExpanded(false);
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&chart.classList.contains('ref-chart-expanded')){chart.classList.remove('ref-chart-expanded');resizeChart()}});
+window.addEventListener('bigben:page',()=>{if(!closeChart.hidden)setChartExpanded(false,false)});
 function session(){
  const source=byId('market-session-state')?.textContent||'';
  const state=byId('ref-session-label'),card=document.querySelector('.ref-market-card');

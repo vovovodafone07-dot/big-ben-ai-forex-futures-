@@ -5,6 +5,7 @@ on:
       - 'platform/index.html'
       - 'platform/reference_dashboard.css'
       - 'platform/backend/app.py'
+      - 'scripts/check_mobile_dashboard.py'
       - '.github/workflows/reference-dashboard-visual.yml'
   workflow_dispatch:
 jobs:
@@ -13,6 +14,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test mobile dashboard layout and gestures
+        run: |
+          python -m pip install playwright==1.62.0
+          python -m playwright install --with-deps chromium webkit
+          python scripts/check_mobile_dashboard.py chromium
+          python scripts/check_mobile_dashboard.py webkit
       - name: Render reference dashboard in headless Chrome
         shell: bash
         run: |

@@ -104,7 +104,6 @@ def check_dashboard(browser, origin, width, height):
     asset_switch_ms = round((perf_counter() - started) * 1000)
     require_fit(page)
 
-    canvas = page.locator("#bigben-native-candles")
     page.wait_for_function("""() => {
       const canvas = document.getElementById('bigben-native-candles');
       return Math.abs(canvas.width - canvas.clientWidth * 2) <= 2
@@ -118,9 +117,10 @@ def check_dashboard(browser, origin, width, height):
     m15.tap()
     expect(m15).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#ref-chart-timeframe")).to_have_text("M15")
-    before = canvas.evaluate("(canvas) => canvas.toDataURL()")
+    displayed = page.locator("#ref-chart-window")
+    expect(displayed).to_contain_text("90")
     page.locator("[data-zoom=in]").tap()
-    page.wait_for_function("before => document.querySelector('canvas').toDataURL() !== before", arg=before)
+    expect(displayed).to_contain_text("68")
     page.locator("[data-chart-timeframe=M5]").tap()
 
     expand = page.locator("#ref-chart-expand")

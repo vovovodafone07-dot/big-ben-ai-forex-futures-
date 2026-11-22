@@ -5,6 +5,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from time import perf_counter
 from urllib.parse import parse_qs, urlsplit
 
 from playwright.sync_api import expect, sync_playwright
@@ -90,12 +91,17 @@ def check_dashboard(browser, origin, width, height):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     install_fixtures(page, origin)
+    started = perf_counter()
     page.goto(origin + "/#analyze", wait_until="domcontentloaded")
     picker = page.locator("#desk-symbol")
     expect(picker.locator("option")).to_have_count(2)
+    expect(page.locator("#desk-chart-status")).to_contain_text("400")
+    first_chart_ms = round((perf_counter() - started) * 1000)
+    started = perf_counter()
     picker.select_option(SYMBOLS[1])
     expect(page.locator("#desk-chart-status")).to_contain_text(SYMBOLS[1])
     expect(page.locator("#desk-chart-status")).to_contain_text("400")
+    asset_switch_ms = round((perf_counter() - started) * 1000)
     require_fit(page)
 
     canvas = page.locator("#bigben-native-candles")
@@ -144,7 +150,8 @@ def check_dashboard(browser, origin, width, height):
     expect(page.locator('.ref-more button[data-target="trade-setup"]')).to_be_visible()
     require_fit(page)
     assert not errors, errors
-    print(f"PASS {browser.browser_type.name}: {width}×{height}")
+    print(f"PASS {browser.browser_type.name}: {width}×{height}; "
+          f"initial fixture chart {first_chart_ms} ms, asset switch {asset_switch_ms} ms")
     page.close()
 
 

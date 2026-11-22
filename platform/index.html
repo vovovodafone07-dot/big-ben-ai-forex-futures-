@@ -433,7 +433,16 @@ window.addEventListener('bigben:instant-v2',ev=>{
 window.addEventListener('bigben:instrument',ev=>{
  const symbol=ev.detail?.symbol;
  if(typeof symbol!=='string'||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(symbol))return;
- if(symbol!==currentSymbol){last=null;latestTrade=null;latestLiveTrade=null;requestPending=false;scrollBack=0;load({symbol,selected_trade:null});}
+ if(symbol!==currentSymbol){
+  last=null;latestTrade=null;latestLiveTrade=null;requestPending=false;scrollBack=0;
+  ctx?.clearRect(0,0,canvas.width,canvas.height);
+  load({symbol,selected_trade:null});
+ }
+});
+const symbolPicker=document.getElementById('desk-symbol');
+symbolPicker?.addEventListener('change',()=>{
+ const symbol=symbolPicker.value.trim().toUpperCase();
+ window.dispatchEvent(new CustomEvent('bigben:instrument',{detail:{symbol}}));
 });
 // Update candle close on a bounded interval without relying on TradingView.
 setInterval(()=>{if(currentSymbol&&document.visibilityState!=='hidden'&&!requestPending)load({symbol:currentSymbol})},30000);
@@ -743,6 +752,11 @@ session();setInterval(session,15000);
   if(latestPlan?.symbol===latestChart?.symbol&&latestPlan?.reason_code==='NOT_ENOUGH_M5_HISTORY')show(latestPlan);
  });
  window.addEventListener('bigben:instant-v2',e=>{if(e.detail)show(e.detail)});
+ window.addEventListener('bigben:instrument',e=>{
+  const symbol=e.detail?.symbol;
+  if(!latestPlan||symbol===latestPlan.symbol||!/^[A-Z0-9_.-]+:[A-Z0-9_!./-]+$/.test(symbol||''))return;
+  show({symbol,mode:$('desk-mode').value,status:'DATA_UNAVAILABLE',status_ar:'جارٍ فحص الأصل المختار'});
+ });
  let deliveryCheck=0;
  window.addEventListener('bigben:instant-telegram',e=>{
   const info=e.detail||{status:'unavailable'};

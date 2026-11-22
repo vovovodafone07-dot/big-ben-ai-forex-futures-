@@ -65,6 +65,8 @@ const chartSymbol = app => decodeURIComponent((app.get('desk-chart-link').href||
   assert.ok(app.calls.every(call => call.mode === 'scalp'));
   app.setDefer(true);
   app.get('desk-symbol').value = 'CME_MINI:ES1!'; const old = app.get('desk-symbol').emit('change');
+  await flush();
+  assert.equal(chartSymbol(app), 'CME_MINI:ES1!', 'the chart must switch while analysis is pending');
   app.get('desk-symbol').value = 'OANDA:GBPUSD'; const latest = app.get('desk-symbol').emit('change');
   await flush();
   app.pending.get('OANDA:GBPUSD')(); await latest;

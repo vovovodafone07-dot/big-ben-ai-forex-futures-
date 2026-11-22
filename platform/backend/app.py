@@ -30,7 +30,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture","live_candle_adapter","tv_watchlist","tradingview_candles","pattern_audit"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture","live_candle_adapter","tv_watchlist","tradingview_candles","pattern_audit","massive_history"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -1327,6 +1327,15 @@ def process_bot_update(update):
     req=urllib.request.Request("https://api.telegram.org/bot"+token+"/answerCallbackQuery",data=json.dumps({"callback_query_id":callback}).encode(),headers={"Content-Type":"application/json"},method="POST")
     with urllib.request.urlopen(req,timeout=3):pass
    except Exception:pass
+  massive_requested=reply.get("massive_request")
+  if massive_requested:
+   try:
+    data=_massive_history.read(*massive_requested,{a["symbol"] for a in catalog},os.getenv("MASSIVE_FUTURES_API_KEY","").strip())
+    closed=datetime.fromisoformat(data["last_closed_at"]).astimezone(_telegram_interactive.ZONE)
+    reply["text"]="شموع تاريخية من Massive\n"+data["ticker"]+" · "+data["exchange"]+" · "+data["frame"]
+    reply["text"]+="\nعدد الشموع: "+str(len(data["candles"]))+"\nآخر إغلاق بتوقيت عُمان: "+closed.strftime("%Y-%m-%d %H:%M")
+   except _massive_history.HistoryError as error:
+    reply["text"]=_massive_history.MESSAGES[str(error)]
   requested=reply.get("analysis_request")
   news_requested=reply.get("news_request")
   if news_requested:
@@ -1471,7 +1480,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/v1/connected-symbols","/api/tradingview/discovered-symbols","/api/tracked-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/massive/history","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/v1/connected-symbols","/api/tradingview/discovered-symbols","/api/tracked-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1624,6 +1633,17 @@ class Handler(BaseHTTPRequestHandler):
      "tradingview":{"role":"primary_authenticated_chart_candles","url":"/v1/tradingview/candles","history_required":300,"configured_alerts_do_not_prove_candle_delivery":True},
      "yfinance":{"role":"free_reference_fallback","daily_attempt_limit":144,"live_verified":False,"broker_cfd_equivalence":False},
      "data_policy":"Never use unsupported futures quotes, stale candles, or fabricated backtests"})
+  if path=="/api/massive/history":
+   query=parse_qs(urlsplit(self.path).query)
+   with history_connection() as db:watched=owner_watchlist(db)
+   try:
+    result=_massive_history.read(query.get("ticker",[""])[0],query.get("frame",["M5"])[0],
+                                 watched,os.getenv("MASSIVE_FUTURES_API_KEY","").strip())
+   except _massive_history.HistoryError as error:
+    code=str(error)
+    status={"invalid":400,"not_tracked":403,"identity":422,"entitlement":403,"no_data":404,"rate_limit":429}.get(code,503)
+    return self.reply(status,{"error":code,"message":_massive_history.MESSAGES[code]})
+   return self.reply(200,result)
   if path=="/api/chart/candles":
    # Native canvas uses exactly the stored, provider-verified closed OHLC bars.
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})

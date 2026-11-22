@@ -192,6 +192,11 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnos
     ident=update.get('update_id')
     if type(ident) is not int or ident<0:raise ValueError('تحديث غير صالح')
     if not claim(db,'update:'+str(ident),postgres,now):return None
+    parts = str(msg.get('text', '')).split()
+    if not callback and parts and parts[0] == '/massive':
+        if len(parts) not in (2, 3):
+            return {'chat_id': str(chat['id']), 'text': 'تاريخ عقد محدد من Massive: /massive MNQZ6 M5'}
+        return {'chat_id': str(chat['id']), 'massive_request': (parts[1], parts[2] if len(parts) == 3 else 'M5')}
     m='%s' if postgres else '?';chat_id=str(chat['id'])
     db.execute('INSERT INTO telegram_bot_state(chat,mode,news_enabled) VALUES ('+m+",'scalp',0) ON CONFLICT(chat) DO NOTHING",(chat_id,))
     mode,symbol,enabled=db.execute('SELECT mode,symbol,news_enabled FROM telegram_bot_state WHERE chat='+m,(chat_id,)).fetchone()

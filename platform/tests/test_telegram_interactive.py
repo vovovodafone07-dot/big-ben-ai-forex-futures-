@@ -20,12 +20,18 @@ class BotTests(unittest.TestCase):
   return bot.handle(self.db,update,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:[],now=NOW)
  def test_all_main_actions_present_and_callback_size_bounded(self):
   buttons=[b for row in bot.home()['inline_keyboard'] for b in row]
-  self.assertEqual(len(buttons),10)
+  self.assertEqual(len(buttons),12)
   self.assertTrue(all(len(b['callback_data'].encode())<=64 for b in buttons))
  def test_private_allowlist_rejects_groups_and_others(self):
   with self.assertRaises(PermissionError):self.run_update(uid=99)
   with self.assertRaises(PermissionError):self.run_update(chat_type='group')
   self.assertEqual(self.db.execute('SELECT COUNT(*) FROM telegram_bot_receipts').fetchone()[0],0)
+ def test_risk_calculator_does_not_guess_cfd_specs_or_round_futures_up(self):
+  self.assertIn('5 عقد',bot.risk_helper('/risk MNQ 100 10'))
+  self.assertIn('5 عقد',bot.risk_helper('/riskp MNQ 10000 1 10'))
+  self.assertIn('0 عقد',bot.risk_helper('/risk MGC 5 10'))
+  self.assertIn('لا نخمن',bot.risk_helper('/risk XAUUSD 100 10'))
+  self.assertIn('لا نخمن',bot.risk_helper('/risk MNQ nan 10'))
  def test_replay_ignored_and_swing_remembered(self):
   r=self.run_update('mode:swing');self.assertIn('السوينغ',r['text'])
   self.assertIsNone(self.run_update('mode:swing'))

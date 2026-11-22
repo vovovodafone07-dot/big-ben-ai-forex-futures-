@@ -97,6 +97,13 @@ class DeliveryWorkflowTests(unittest.TestCase):
             app.scan_arabic_market_once(NOW)
         fetch.assert_called_once_with('BITSTAMP:BTCUSD',NOW)
 
+    def test_closed_forex_never_enters_analysis_or_trade_delivery(self):
+        sunday=datetime(2026,11,22,18,0,tzinfo=timezone.utc)
+        with patch.object(app,'refresh_tracked_crypto_once'),patch.object(app,'refresh_tracked_candles_once'),patch.object(app,'owner_connected_assets',return_value=[{'symbol':'OANDA:GBPUSD'}]),patch.object(app,'analyze_instant_native') as analyze,patch.object(app,'trigger_instant_telegram') as send,patch.object(app,'deliver_bot_news'):
+            result=app.scan_arabic_market_once(sunday)
+        analyze.assert_not_called();send.assert_not_called()
+        self.assertEqual(result['symbols']['OANDA:GBPUSD'],'السوق مغلق أسبوعياً')
+
     def test_future_cache_timestamp_cannot_block_refresh_and_fresh_cache_is_reused(self):
         import json
         stamp=(NOW-timedelta(minutes=5)).isoformat()

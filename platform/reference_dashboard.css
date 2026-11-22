@@ -305,8 +305,18 @@ body[data-design="pro"] .ref-chart-expanded .ref-chart-status{max-height:4em;ove
   color:var(--mobile-ink)!important;
   box-shadow:none!important;
  }
- body[data-design="pro"] .workspace{background:#edf3fb!important;padding:10px 10px 24px!important}
+ body[data-design="pro"] > .workspace{
+  display:block!important;width:100%!important;max-width:100%!important;
+  margin:0!important;background:#edf3fb!important;padding:10px 10px 24px!important;
+ }
+ body[data-design="pro"] .workspace > .main,
+ body[data-design="pro"] .main > .grid{
+  width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;
+ }
  body[data-design="pro"] .main{padding-bottom:0!important}
+ body[data-design="pro"] .desk-workspace > .ref-trading-toolbar{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+ }
  body[data-design="pro"] :is(.a-sidebar .brand b,.a-workspace-title strong,.page-heading h1,.panel h2,.reference-chart-header h2,.dossier-heading h2,.dossier-heading h2 span,#clock){
   color:var(--mobile-ink)!important;
  }
@@ -345,9 +355,10 @@ body[data-design="pro"] .ref-chart-expanded .ref-chart-status{max-height:4em;ove
  }
  body[data-design="pro"] .a-sidebar :is(.a-delivery-details,.ref-health-sidebar){margin-top:5px!important;border-color:var(--mobile-line)!important}
  body[data-design="pro"] .a-sidebar :is(.a-delivery-details,.ref-health-sidebar)>summary{padding:8px 3px}
- body[data-design="pro"] .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
- body[data-design="pro"] .grid>[data-page]{grid-column:1/-1!important;min-width:0!important}
- body[data-design="pro"] .grid>.kpi{grid-column:span 1!important}
+ body[data-design="pro"] .main > .grid{display:flex!important;flex-direction:column;gap:8px!important}
+ body[data-design="pro"] .main > .grid > [data-page]{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+ }
  body[data-design="pro"] .grid>.overview-focus{order:-2}
  body[data-design="pro"] .grid>#multiasset-trades{order:-1}
  body[data-design="pro"] :is(.overview-levels,.ref-trade-levels){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px}

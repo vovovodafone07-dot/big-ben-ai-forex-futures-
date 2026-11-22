@@ -85,9 +85,11 @@ def require_fit(page):
     assert not overflowing, f"Page overflow on {page.url}: {overflowing}"
 
 
-def check_dashboard(browser, origin, width, height):
-    page = browser.new_page(viewport={"width": width, "height": height},
-                            is_mobile=True, has_touch=True, device_scale_factor=2)
+def check_dashboard(browser, origin, width, height, device=None):
+    options = dict(device or {}, viewport={"width": width, "height": height},
+                   is_mobile=True, has_touch=True, device_scale_factor=2)
+    options.pop("default_browser_type", None)
+    page = browser.new_page(**options)
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     install_fixtures(page, origin)
@@ -103,6 +105,11 @@ def check_dashboard(browser, origin, width, height):
     expect(page.locator("#desk-chart-status")).to_contain_text("400")
     asset_switch_ms = round((perf_counter() - started) * 1000)
     require_fit(page)
+    for selector in (".workspace", ".main", ".main > .grid", ".desk-workspace",
+                     ".ref-trading-toolbar", "#desk-market-chart", ".analysis-dossier"):
+        box = page.locator(selector).bounding_box()
+        assert box and box["width"] >= width * 0.85, (selector, box, width)
+        assert box["x"] >= -1 and box["x"] + box["width"] <= width + 1, (selector, box, width)
 
     page.wait_for_function("""() => {
       const canvas = document.getElementById('bigben-native-candles');
@@ -168,7 +175,8 @@ def main():
         try:
             origin = f"http://127.0.0.1:{server.server_port}"
             for width, height in ((320, 667), (390, 844), (430, 932)):
-                check_dashboard(browser, origin, width, height)
+                device = playwright.devices["iPhone 13"] if args.engine == "webkit" else None
+                check_dashboard(browser, origin, width, height, device)
         finally:
             browser.close()
             server.shutdown()

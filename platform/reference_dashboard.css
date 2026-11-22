@@ -305,8 +305,18 @@ body[data-design="pro"] .ref-chart-expanded .ref-chart-status{max-height:4em;ove
   color:var(--mobile-ink)!important;
   box-shadow:none!important;
  }
- body[data-design="pro"] .workspace{background:#edf3fb!important;padding:10px 10px 24px!important}
+ body[data-design="pro"] > .workspace{
+  display:block!important;width:100%!important;max-width:100%!important;
+  margin:0!important;background:#edf3fb!important;padding:10px 10px 24px!important;
+ }
+ body[data-design="pro"] .workspace > .main,
+ body[data-design="pro"] .main > .grid{
+  width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;
+ }
  body[data-design="pro"] .main{padding-bottom:0!important}
+ body[data-design="pro"] .desk-workspace > .ref-trading-toolbar{
+  width:100%!important;min-width:0!important;max-width:100%!important;
+ }
  body[data-design="pro"] :is(.a-sidebar .brand b,.a-workspace-title strong,.page-heading h1,.panel h2,.reference-chart-header h2,.dossier-heading h2,.dossier-heading h2 span,#clock){
   color:var(--mobile-ink)!important;
  }

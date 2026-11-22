@@ -78,31 +78,16 @@ def today_events(snapshot,now):
             if dt.tzinfo is None:continue
             dt=dt.astimezone(ZONE)
         except (ValueError,TypeError,KeyError):continue
-        if dt.date()==now.astimezone(ZONE).date():events.append((dt,e))
+        if dt>=now and dt.date()==now.astimezone(ZONE).date():events.append((dt,e))
     return sorted(events,key=lambda item:item[0])
 
 def verified_news_bulletin(snapshot,now):
-    """One genuine dated official release, never a fabricated market direction."""
-    from urllib.parse import urlsplit
-    names={'Federal Reserve':('مجلس الاحتياطي الفيدرالي',{'www.federalreserve.gov','federalreserve.gov'}),
-           'ECB':('البنك المركزي الأوروبي',{'www.ecb.europa.eu','ecb.europa.eu'})}
-    for item in (snapshot or {}).get('news',[]):
-        if item.get('feed_fresh') is not True or item.get('feed_state')!='CONNECTED':continue
-        source=names.get(item.get('source'))
-        try:
-            published=datetime.fromisoformat(item['published_at'].replace('Z','+00:00'))
-            link=urlsplit(item['url'])
-            if not source or published.tzinfo is None or not 0<=(now-published).total_seconds()<=7*86400:continue
-            if link.scheme!='https' or link.hostname not in source[1] or link.username or link.password:continue
-        except (ValueError,TypeError,KeyError):continue
-        headline={'Christine Lagarde: Acting in time':'كريستين لاغارد: التحرك في الوقت المناسب'}.get(item.get('title'),'بيان رسمي منشور لدى المصدر؛ العنوان الأصلي متاح في الرابط')
-        return {'source_id':item['id'],'published_at':published.isoformat(),
-                'text':'📰 نشرة مستقلة | بيان اقتصادي رسمي\n━━━━━━━━━━━━━━━━━━\nالمصدر: '+source[0]+
-                '\nالعنوان: '+headline+
-                '\nتاريخ نشر المصدر بتوقيت عُمان: '+published.astimezone(ZONE).strftime('%Y-%m-%d %H:%M')+
-                '\nرابط البيان: '+item['url']+
-                '\nهذا بيان منشور بالتاريخ الموضح، وليس بالضرورة خبراً صدر اليوم.\n🔵 سيناريو الصعود / 🔴 سيناريو الهبوط: لا يُحسم اتجاه الأصل من وجود البيان وحده؛ يلزم مضمون الخبر ونتيجته مقابل التوقعات وتأكيد السعر.\nرسالة أخبار مستقلة؛ ليست بطاقة صفقة.'}
-    return None
+    """Only a current/upcoming verified calendar event; never replay RSS releases."""
+    events=today_events(snapshot,now)
+    if not events:return None
+    when,event=events[0]
+    return {'source_id':str(event.get('id') or when.isoformat()),'published_at':when.isoformat(),
+            'text':'📰 نشرة مستقلة | حدث اقتصادي قادم\n'+digest({'calendar':[event]},now)}
 
 def digest(snapshot,now=None):
     now=now or datetime.now(timezone.utc)

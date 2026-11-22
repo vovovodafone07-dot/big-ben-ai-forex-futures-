@@ -53,6 +53,10 @@ class ArabicEventTests(unittest.TestCase):
     self.assertIn("سيناريوهات مشروطة",m)
     self.assertIn("الناسداك",m)
     self.assertNotIn("نتيجة فعلية: شراء مؤكد",m)
+ def test_past_release_rejected_even_with_verified_numbers(self):
+    item={'time':(NOW-timedelta(seconds=1)).isoformat(),'title':'CPI','feed_fresh':True,'feed_state':'CONNECTED','actual_verified':True,'consensus_verified':True,'actual':3,'consensus':2}
+    self.assertEqual(engine.news_scenarios({'calendar':[item]},NOW),[])
+    with self.assertRaises(ValueError):engine.news_message({'kind':'news','source_time':item['time']},NOW)
  def test_dont_notify_stale_official_calendar(self):
     calendar={"calendar":[{"time":(NOW+timedelta(minutes=10)).isoformat(),
                            "title":"CPI","currency":"USD","feed_fresh":False,

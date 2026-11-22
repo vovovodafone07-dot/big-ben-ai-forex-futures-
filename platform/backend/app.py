@@ -1130,6 +1130,10 @@ def process_bot_update(update):
     with urllib.request.urlopen(req,timeout=3):pass
    except Exception:pass
   requested=reply.get("analysis_request")
+  news_requested=reply.get("news_request")
+  if news_requested:
+   news_plan=analyze_instant_native(news_requested["symbol"],news_requested["mode"])
+   reply["text"]=_telegram_interactive.important_news_analysis(news_requested["symbol"],news,news_plan)
   if requested:
    plan=analyze_instant_native(requested["symbol"],requested["mode"])
    labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الإرسال محجوب بسبب قيد سلامة؛ راجع قسم التنبيهات","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}

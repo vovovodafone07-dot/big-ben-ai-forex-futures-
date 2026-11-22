@@ -99,6 +99,16 @@ class DeliveryWorkflowTests(unittest.TestCase):
             self.assertEqual(send.call_count,1)
             self.assertIn('2026-11-22',send.call_args.args[0])
 
+    def test_news_callback_uses_platform_engine_without_trade_dispatch(self):
+        asset={'symbol':'COMEX_MINI:MGCZ26','asset_class':'futures'}
+        update={'update_id':902,'callback_query':{'from':{'id':12345678},'message':{'chat':{'id':12345678,'type':'private'}},'data':'news_pick:'+app._telegram_interactive.token(asset['symbol'])}}
+        with patch.dict(os.environ,{'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._connected_market,'connected',return_value=[asset]),patch.object(app,'tracked_asset_catalog',return_value=[]),patch.object(app._news,'snapshot',return_value={}),patch.object(app,'analyze_instant_native',return_value={'symbol':asset['symbol'],'status':'DATA_UNAVAILABLE'}) as engine,patch.object(app,'trigger_instant_telegram') as trade,patch.object(app,'send_bot_payload',return_value='sent') as send:
+            app.process_bot_update(update)
+            engine.assert_called_once_with(asset['symbol'],'scalp');trade.assert_not_called()
+            self.assertIn('تحليل تداول الأخبار المهمة',send.call_args.args[0]['text'])
+            app.process_bot_update(update)
+            self.assertEqual(send.call_count,1)
+
     def test_new_backup_preserves_delivery_ledger_and_old_backup_still_restores(self):
         with app.history_connection() as db:telegram.claim(db,plan(),'12345678')
         with app.history_connection() as db:bundle=app._backup.snapshot(db)

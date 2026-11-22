@@ -11,6 +11,13 @@ SPEC.loader.exec_module(module)
 
 
 class ConnectedSymbolsTests(unittest.TestCase):
+    def test_contract_venue_cannot_be_substituted(self):
+        for symbol in ("NYMEX:NQZ26", "COMEX:ESZ26", "CME_MINI:GCZ26", "COMEX:MCLZ26"):
+            with self.subTest(symbol=symbol), self.assertRaises(ValueError):
+                module.normalize_future(symbol)
+        self.assertEqual(module.normalize_future("CME_MINI:MNQ1!")["exchange"], "CME_MINI")
+        self.assertEqual(module.normalize_future("CME_MINI:MES1!")["exchange"], "CME_MINI")
+
     def test_all_supported_contract_roots(self):
         for root in ("NQ", "MNQ", "ES", "MES", "GC", "MGC", "CL", "MCL"):
             with self.subTest(root=root):

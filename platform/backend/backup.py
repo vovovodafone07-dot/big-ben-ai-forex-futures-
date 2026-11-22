@@ -3,10 +3,12 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
-TABLES=('events','schema_migrations','market_candles','market_history_checks','external_feeds',
+LEGACY_TABLES=('events','schema_migrations','market_candles','market_history_checks','external_feeds',
         'ai_daily_budget','ai_reviews','analysis_runs','notification_preferences',
         'notification_deliveries','job_runs','daily_reports','strategy_drafts',
         'analysis_notes','research_runs','agent_runs','pine_replay_runs')
+TABLES=LEGACY_TABLES+('native_telegram_alerts','native_trade_journal','native_market_open_state',
+                     'tradingview_discovered_symbols','native_management_outbox')
 MAX_BYTES=32*1024*1024
 MAX_ROWS=100000
 
@@ -32,7 +34,7 @@ def snapshot(c,postgres=False):
                 rows.append(value)
         data={'columns':columns,'rows':rows}
         tables[name]={**data,'sha256':hashlib.sha256(canonical(data)).hexdigest()}
-    bundle={'schema':'bigben.application-backup.v1','created_at':datetime.now(timezone.utc).isoformat(),
+    bundle={'schema':'bigben.application-backup.v2','created_at':datetime.now(timezone.utc).isoformat(),
             'tables':tables,'row_count':total,'complete':True,
             'excluded':['environment secrets','broker credentials','job leases','Render infrastructure and database roles'],
             'restore_scope':'application rows into a new local database; not a PostgreSQL infrastructure backup'}
@@ -41,10 +43,11 @@ def snapshot(c,postgres=False):
 
 
 def verify(bundle):
-    if not isinstance(bundle,dict) or bundle.get('schema')!='bigben.application-backup.v1' or bundle.get('complete') is not True:
+    if not isinstance(bundle,dict) or bundle.get('schema') not in ('bigben.application-backup.v1','bigben.application-backup.v2') or bundle.get('complete') is not True:
         raise ValueError('backup_schema')
     tables=bundle.get('tables')
-    if not isinstance(tables,dict) or set(tables)!=set(TABLES):raise ValueError('backup_tables')
+    expected=TABLES if bundle['schema'].endswith('.v2') else LEGACY_TABLES
+    if not isinstance(tables,dict) or set(tables)!=set(expected):raise ValueError('backup_tables')
     total=0
     for name,data in tables.items():
         if not isinstance(data,dict) or set(data)!={'columns','rows','sha256'}:raise ValueError('backup_table')
@@ -62,7 +65,7 @@ def restore_new_database(c,bundle):
     """Only used by the offline tool and tests; no HTTP restore endpoint exists."""
     verify(bundle)
     # Validate ALL destinations before writing any source row.
-    for name in TABLES:
+    for name in bundle['tables']:
         expected=[d[0] for d in c.execute('SELECT * FROM '+name+' LIMIT 0').description]
         if expected!=bundle['tables'][name]['columns']:raise ValueError('restore_schema_mismatch')
         count=c.execute('SELECT COUNT(*) FROM '+name).fetchone()[0]
@@ -72,7 +75,7 @@ def restore_new_database(c,bundle):
             existing={tuple(row) for row in c.execute('SELECT * FROM schema_migrations').fetchall()}
             source={tuple(row) for row in bundle['tables'][name]['rows']}
             if not existing.issubset(source):raise ValueError('restore_migrations')
-    for name in TABLES:
+    for name in bundle['tables']:
         rows=bundle['tables'][name]['rows']
         if not rows:continue
         count=len(bundle['tables'][name]['columns'])

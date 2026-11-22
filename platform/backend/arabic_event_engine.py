@@ -170,8 +170,8 @@ def news_message(event,now=None):
                     "النتيجة أقل من المتوقع" if actual<forecast else "مطابقة للتوقع")
         except (TypeError,ValueError,KeyError):
             effect="تعذر التحقق من الفرق العددي"
-        scenarios=("📊 الفعلي: "+str(event["actual"])+" | المتوقع: "+str(event["consensus"])+"\\n"
-                   +effect+"\\n⚠️ الاتجاه النهائي للذهب أو الناسداك لا يثبت من المفاجأة وحدها؛ يلزم تأكيد حركة السعر.")
+        scenarios=("📊 الفعلي: "+str(event["actual"])+" | المتوقع: "+str(event["consensus"])+"\n"
+                   +effect+"\n⚠️ الاتجاه النهائي للذهب أو الناسداك لا يثبت من المفاجأة وحدها؛ يلزم تأكيد حركة السعر.")
     when=_stamp(event["source_time"]).astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M")
     forecast=str(event["consensus"]) if event.get("consensus") is not None else "غير متوفر من مصدر موثق"
     previous=str(event["previous"]) if event.get("previous") is not None else "غير متوفر"

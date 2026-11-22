@@ -31,6 +31,8 @@ def migrate(connection):
 def eligible(plan):
     if not isinstance(plan,dict) or plan.get("status") not in SENDABLE:
         return False
+    if plan.get("status")=="READY" and (plan.get("confirmation") or {}).get("confirmed") is not True:
+        return False
     if not SYMBOL.fullmatch(str(plan.get("symbol",""))):
         return False
     if plan.get("mode") not in ("scalp","swing") or plan.get("provider") not in ("Twelve Data","Bitstamp"):
@@ -98,7 +100,7 @@ def trade_only_message(plan, now=None):
           "🎯 الدخول: "+_f(plan["entry"]),
           "🛑 وقف الخسارة: "+_f(plan["sl"]),
           "✅ الأهداف:"]
-    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+": "+_f(t["price"]))
+    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+" (TP"+str(i)+"): "+_f(t["price"]))
     body+=["📋 شروط الدخول:",
             "• تأكيد إغلاق "+("ساعة" if plan["mode"]=="swing" else "خمس دقائق")+" عند "+_f(c.get("level",plan["entry"])),
             "• إبطال الفكرة عند تجاوز وقف الخسارة",
@@ -167,20 +169,60 @@ def claim(connection,plan,chat,postgres=False,now=None):
     return key if retry.rowcount==1 else None
 
 def finish(connection,key,result,postgres=False):
-    if result not in ("sent","failed","not_configured"):
+    if result not in ("sent","failed","not_configured","uncertain"):
         raise ValueError("invalid_delivery_state")
     mark="%s" if postgres else "?"
     connection.execute("UPDATE native_telegram_alerts SET delivery="+mark+",updated_at="+mark+
                        " WHERE fingerprint="+mark+" AND delivery='sending'",
                        (result,datetime.now(timezone.utc).isoformat(),key))
 
-def send(plan,token,chat,opener=None,timeout=5,topic_id=None):
+def analysis_message(plan, now=None):
+    """Second card: technical evidence only, distinct from entry/SL/targets."""
+    if not eligible(plan):raise ValueError("not_sendable")
+    now=now or datetime.now(timezone.utc)
+    evidence=plan.get("evidence") or {}
+    bias={"BULLISH":"صاعد","BEARISH":"هابط","RANGING":"عرضي"}.get(plan.get("bias"),"غير محسوم")
+    sweep={"LOW":"سحب سيولة قاع","HIGH":"سحب سيولة قمة"}.get(evidence.get("LIQUIDITY_SWEEP"),"سحب السيولة غير مؤكد")
+    zone=plan.get("entry_zone") or [plan["entry"],plan["entry"]]
+    zone_text=" — ".join(_f(value) for value in zone)
+    scenario=("استمرار الصعود نحو الأهداف المحددة ما دام وقف الخسارة محفوظاً" if plan["technical_direction"]=="BUY" else
+              "استمرار الهبوط نحو الأهداف المحددة ما دام وقف الخسارة محفوظاً")
+    return "\n".join([
+      "📈 تحليل فني | "+_esc(plan["symbol"]),"━━━━━━━━━━━━━━━━━━",
+      "🧭 الاتجاه العام: "+bias,"💧 السيولة: "+sweep,
+      "📍 منطقة الدخول المعتمدة: "+zone_text,"🎯 السيناريو المتوقع: "+scenario,
+      "📋 التأكيد: "+("متحقق بإغلاق فريم الدخول" if (plan.get("confirmation") or {}).get("confirmed") else "مشروط؛ لم يتأكد الدخول"),
+      "📡 مصدر الشموع: "+_esc(plan["provider"]),"شمعة المصدر: "+_esc(plan["source_time"]),
+      "⏱️ الوقت: "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" مسقط",
+      "تحليل بحثي مستقل عن تنفيذ الوسيط."])
+
+def claim_companion(connection,plan,trade_chat,analysis_chat,postgres=False,now=None):
+    """A separate receipt, only after the original trade was accepted by Telegram.
+
+    Uncertain sends are not automatically retried: Telegram has no idempotency key.
+    Legacy trade fingerprints remain unchanged across this additive rollout.
+    """
+    if not eligible(plan) or plan.get("status")!="READY":return None
+    if not re.fullmatch(r"-?[0-9]{5,20}",str(analysis_chat)):return None
+    parent=fingerprint(plan,trade_chat)
+    mark="%s" if postgres else "?"
+    row=connection.execute("SELECT delivery FROM native_telegram_alerts WHERE fingerprint="+mark,(parent,)).fetchone()
+    if not row or row[0]!="sent":return None
+    key=hashlib.sha256((parent+":technical:"+str(analysis_chat)).encode()).hexdigest()
+    stamp=(now or datetime.now(timezone.utc)).isoformat()
+    result=connection.execute("INSERT INTO native_telegram_alerts(fingerprint,symbol,mode,status,delivery,created_at,updated_at) VALUES ("+
+          ",".join([mark]*7)+") ON CONFLICT(fingerprint) DO NOTHING",
+          (key,plan["symbol"],plan["mode"],"ANALYSIS","sending",stamp,stamp))
+    return key if result.rowcount==1 else None
+
+def send(plan,token,chat,opener=None,timeout=5,topic_id=None,category=None):
     if not eligible(plan):
         return "not_eligible"
     if not token or not re.fullmatch(r"-?[0-9]{5,20}",str(chat)):
         return "not_configured"
     opener=opener or urllib.request.urlopen
-    body={"chat_id":chat,"text":(trade_only_message(plan) if plan["status"]=="READY" else message(plan)),"parse_mode":"HTML",
+    content=analysis_message(plan) if category=="analysis" else trade_only_message(plan) if plan["status"]=="READY" else message(plan)
+    body={"chat_id":chat,"text":content,"parse_mode":"HTML",
                         "disable_web_page_preview":True}
     if isinstance(topic_id,int) and topic_id>0:body["message_thread_id"]=topic_id
     payload=json.dumps(body,ensure_ascii=False).encode("utf-8")
@@ -204,7 +246,7 @@ def send(plan,token,chat,opener=None,timeout=5,topic_id=None):
                 "MESSAGE_FORBIDDEN" if "not enough rights" in details or "forbidden" in details else
                 "UNCLASSIFIED")
         print("native_telegram_error status="+str(error.code)+" category="+reason,flush=True)
-        return "failed"
+        return "failed" if 400<=error.code<500 else "uncertain"
     except (ValueError,KeyError,TypeError,TimeoutError,OSError,urllib.error.URLError):
         print("native_telegram_error status=CONNECTION_OR_RESPONSE",flush=True)
-        return "failed"
+        return "uncertain"

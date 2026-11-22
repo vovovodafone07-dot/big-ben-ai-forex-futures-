@@ -247,7 +247,8 @@ def scan_arabic_market_once(now=None):
  No price feed means no price event; licensed futures source never substituted.
  """
  now=now or datetime.now(timezone.utc)
- from_market=("BITSTAMP:BTCUSD","OANDA:EURUSD","OANDA:GBPUSD","OANDA:USDJPY")
+ with history_connection() as db:
+  from_market=tuple(item["symbol"] for item in _connected_market.connected(db,now,postgres_enabled()))[:100]
  results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
  for symbol in from_market:
   try:
@@ -257,7 +258,7 @@ def scan_arabic_market_once(now=None):
    with history_connection() as db:
     newly_opened=_connected_market.record_open_state(db,symbol,live["open"],postgres_enabled(),now)
    if newly_opened=="opened":
-    notification="🟢 افتتاح السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nتم استئناف وصول شموع مغلقة حديثة من المصدر المطابق.\nالتحليل والتنبيهات تعمل وفق شروطها، وليس إعلاناً عن صفقة."
+    notification="🟢 استئناف بيانات السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nعادت شموع مغلقة حديثة من المصدر المطابق.\nهذا تحديث اتصال؛ لا يثبت افتتاح جلسة البورصة أو وجود صفقة."
     send_telegram_message(notification,category="market")
    if analysis["status"]=="DATA_UNAVAILABLE":continue
    if symbol.startswith("BITSTAMP:"):
@@ -270,9 +271,6 @@ def scan_arabic_market_once(now=None):
      rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
    with history_connection() as db:
     movements=_native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now)
-   for movement in movements:
-    delivery=send_telegram_message(_native_trade_journal.management_message(movement,now),category="management")
-    print("إدارة_صفقة الرمز="+symbol+" الحالة="+movement["state"]+" تسليم="+delivery,flush=True)
    for event in _arabic_event_engine.technical_events(symbol,rows,now):
     status=send_arabic_market_event(event)
     if status=="sent":results["events"]+=1
@@ -281,6 +279,16 @@ def scan_arabic_market_once(now=None):
    results["symbols"][symbol]=analysis["status"]+" / "+alert.get("status","none")
   except Exception:
    print("arabic_scanner symbol="+symbol+" status=failed",flush=True)
+ try:
+  # Journal transitions and their pending outbox rows commit atomically above.
+  with history_connection() as db:movements=_native_trade_journal.claim_notifications(db,postgres_enabled())
+  for movement in movements:
+   try:delivery=send_telegram_message(_native_trade_journal.management_message(movement,now),category="management")
+   except Exception:delivery="uncertain"
+   # Generic sender cannot distinguish rejection from an accepted response lost in transit.
+   if delivery=="failed":delivery="uncertain"
+   with history_connection() as db:_native_trade_journal.finish_notification(db,movement["event_id"],delivery,postgres_enabled())
+ except Exception:print("إدارة_الصفقات حالة=تعذر_تأكيد_التسليم",flush=True)
  try:
   with history_connection() as db:
    news=_news.snapshot(db,now)
@@ -424,6 +432,19 @@ def analyze_instant_native(symbol,mode):
  out["scalp_ready"]=out["status"]=="READY" and mode=="scalp"
  return out
 
+def deliver_native_companion(plan,trade_chat):
+ """One separate technical card, after the durable trade acceptance receipt."""
+ if plan.get("status")!="READY" or not _connected_market.gate(plan)["open"]:return
+ chat=telegram_destination("analysis")
+ with history_connection() as c:
+  key=_instant_telegram.claim_companion(c,plan,trade_chat,chat,postgres_enabled())
+ if not key:return
+ try:
+  result=_instant_telegram.send(plan,os.getenv("TELEGRAM_BOT_TOKEN","").strip(),chat,
+       topic_id=telegram_topic_id("analysis"),category="analysis")
+ except Exception:result="uncertain"
+ with history_connection() as c:_instant_telegram.finish(c,key,result,postgres_enabled())
+
 def trigger_instant_telegram(plan):
  """Start a private, promptly dispatched native research alert if it is NEW.
 
@@ -446,16 +467,22 @@ def trigger_instant_telegram(plan):
    key=_instant_telegram.claim(c,plan,chat,postgres_enabled())
  except Exception:
   return {"status":"storage_unavailable"}
- if not key:return {"status":"duplicate"}
+ if not key:
+  if plan.get("status")=="READY":
+   threading.Thread(target=deliver_native_companion,args=(plan,chat),daemon=True).start()
+  return {"status":"duplicate"}
  def deliver():
-  try:result=_instant_telegram.send(plan,token,chat,topic_id=telegram_topic_id("trade" if plan.get("status")=="READY" else "analysis"))
-  except Exception:result="failed"
+  try:
+   result=(_instant_telegram.send(plan,token,chat,topic_id=telegram_topic_id("trade" if plan.get("status")=="READY" else "analysis"))
+           if _connected_market.gate(plan)["open"] else "failed")
+  except Exception:result="uncertain"
   try:
    with history_connection() as c:
     _instant_telegram.finish(c,key,result,postgres_enabled())
     if result=="sent" and plan.get("status")=="READY":
      _native_trade_journal.store(c,plan,postgres_enabled())
    print("native_telegram symbol="+plan["symbol"]+" status="+result,flush=True)
+   if result=="sent":deliver_native_companion(plan,chat)
   except Exception:print("native_telegram status=receipt_storage_unavailable",flush=True)
  try:
   threading.Thread(target=deliver,name="native-telegram",daemon=True).start()

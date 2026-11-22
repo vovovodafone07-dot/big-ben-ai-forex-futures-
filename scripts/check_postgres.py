@@ -68,6 +68,16 @@ try:
     os.environ['DATABASE_URL']=url
     backup_app.init()
     with backup_app.history_connection() as connection:
+        journal=backup_app._native_trade_journal
+        journal.migrate(connection);journal.migrate(connection)
+        connection.execute("INSERT INTO native_management_outbox(event_id,payload,delivery,created_at,updated_at,ordinal) VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT(event_id) DO NOTHING",
+            ('ci_delivery', '{"event_id":"ci_delivery","state":"الهدف الأول تحقق"}', 'pending', now.isoformat(), now.isoformat(),1))
+        claimed=journal.claim_notifications(connection,True)
+        assert len(claimed)==1 and claimed[0]['event_id']=='ci_delivery'
+        assert journal.claim_notifications(connection,True)==[]
+        journal.finish_notification(connection,'ci_delivery','uncertain',True)
+        assert journal.claim_notifications(connection,True)==[]
+    with backup_app.history_connection() as connection:
         backup_app._workspace.save_note(connection,{'symbol':'EURUSD','text':'PostgreSQL portable snapshot fixture'},instruments.normalize,True)
     with backup_app.history_connection() as connection:
         bundle=backup_app._backup.snapshot(connection,True)

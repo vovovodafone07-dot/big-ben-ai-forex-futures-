@@ -13,9 +13,9 @@ from decimal import Decimal, ROUND_HALF_UP
 # (exchange, minimum tick, USD value per tick). Outright futures only.
 CONTRACTS = {
     "NQ": ("CME_MINI", "0.25", "5"),
-    "MNQ": ("CME", "0.25", "0.5"),
+    "MNQ": ("CME_MINI", "0.25", "0.5"),
     "ES": ("CME_MINI", "0.25", "12.5"),
-    "MES": ("CME", "0.25", "1.25"),
+    "MES": ("CME_MINI", "0.25", "1.25"),
     "GC": ("COMEX", "0.1", "10"),
     "MGC": ("COMEX_MINI", "0.1", "1"),
     "CL": ("NYMEX", "0.01", "10"),
@@ -48,7 +48,8 @@ def normalize_future(value):
     if ":" in raw:
         prefix = raw.split(":", 1)[0]
         # Vendor symbols differ. Do not declare one provider's exchange alias valid for another.
-        allowed = {exchange, "CME", "CME_MINI", "COMEX", "COMEX_MINI", "NYMEX"}
+        allowed = ({"CME", "CME_MINI"} if root in ("NQ", "MNQ", "ES", "MES") else
+                   {"COMEX", "COMEX_MINI"} if root in ("GC", "MGC") else {"NYMEX"})
         if prefix not in allowed:
             raise ValueError("رمز البورصة غير معروف")
     return {"root": root, "requested": raw, "contract": symbol, "kind": kind,

@@ -994,6 +994,16 @@ def send_telegram_message(message,category="analysis"):
    return "sent" if response.status==200 else "failed"
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
+def tracked_asset_catalog(db,connected=None):
+ if connected is None:connected=_connected_market.connected(db,postgres=postgres_enabled())
+ watched=list(_destinations.read(db).get("watchlist",[]))
+ watched.extend(row[0] for row in db.execute("SELECT DISTINCT symbol FROM events LIMIT 1000").fetchall())
+ try:
+  configured=json.loads(os.getenv("BIGBEN_TRACKED_SYMBOLS_JSON","[]"))
+  if isinstance(configured,list):watched.extend(configured[:1000])
+ except (ValueError,TypeError):pass
+ return _tradingview_dynamic_sync.tracked_catalog(db,watched,connected,postgres_enabled())
+
 def send_bot_payload(payload):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
  if not token:return "not_configured"
@@ -1015,9 +1025,10 @@ def process_bot_update(update):
   allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
   with history_connection() as c:
    assets=_connected_market.connected(c,postgres=postgres_enabled())
+   catalog=tracked_asset_catalog(c,assets)
    news=_news.snapshot(c);trades=_native_trade_journal.recent(c)
    reply=_telegram_interactive.handle(c,update,allowed_users=allowed,connected=lambda:assets,
-       news=lambda:news,journal=lambda:trades,postgres=postgres_enabled())
+       news=lambda:news,journal=lambda:trades,tracked=lambda:catalog,postgres=postgres_enabled())
   if not reply:return
   callback=reply.get("callback_id")
   if callback:
@@ -1134,7 +1145,7 @@ class Handler(BaseHTTPRequestHandler):
    return self.reply(200,{"status":"ok","storage":storage_kind()})
   if path=="/api/market/sessions":
    return self.reply(200,_market_sessions.status())
-  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/v1/connected-symbols","/api/tradingview/discovered-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
+  if path not in ("/","/dashboard","/reference_dashboard.css","/api/events","/api/events.csv","/api/status","/api/diagnostics","/api/market","/api/chart/candles","/api/outcomes","/api/research","/api/agent","/api/learning","/api/data-sources","/api/pine/current","/api/analysis","/api/scalping","/api/market/coverage","/api/research/runs","/api/news","/api/integrations","/api/research/pine-runs","/api/instruments","/api/connected-symbols","/v1/connected-symbols","/api/tradingview/discovered-symbols","/api/tracked-symbols","/api/trade-journal","/api/destinations","/api/analysis/runs","/api/workspace/drafts","/api/workspace/notes","/api/operations","/api/backup/export","/api/research/walk-forward","/api/market/pulses"):return self.reply(404,{"error":"not_found"})
   password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
   if len(password)<20:return self.reply(503,{"error":"dashboard_not_configured"})
   supplied=self.headers.get("Authorization","")
@@ -1205,6 +1216,11 @@ class Handler(BaseHTTPRequestHandler):
     with history_connection() as db:records=_native_trade_journal.recent(db)
     return self.reply(200,{"records":records,"count":len(records),"execution":"متابعة بحثية افتراضية دون تنفيذ أوامر"})
    except Exception:return self.reply(503,{"error":"journal_unavailable"})
+  if path=="/api/tracked-symbols":
+   try:
+    with history_connection() as c:items=tracked_asset_catalog(c)
+    return self.reply(200,{"symbols":items,"count":len(items),"note":"أصول المتابعة ليست كلها متصلة بالأسعار؛ تحقّق من حالة كل أصل."})
+   except Exception:return self.reply(503,{"message":"تعذر قراءة أصول المتابعة"})
   if path=="/api/tradingview/discovered-symbols":
    try:
     with history_connection() as c:items=_tradingview_dynamic_sync.discovered(c)

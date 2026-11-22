@@ -2,6 +2,7 @@
 from datetime import datetime,timezone
 from zoneinfo import ZoneInfo
 import json
+import re
 
 def forex_weekly_closed(now):
     """Conservative weekly closure; an open weekly window is not venue-open proof."""
@@ -10,7 +11,6 @@ def forex_weekly_closed(now):
             (local.weekday()==4 and local.hour>=17) or
             (local.weekday()==6 and local.hour<17))
 
-SUPPORTED_FOREX={"EUR/USD":"OANDA:EURUSD","GBP/USD":"OANDA:GBPUSD","USD/JPY":"OANDA:USDJPY"}
 SUPPORTED_CRYPTO=("BITSTAMP:BTCUSD","BITSTAMP:ETHUSD","BITSTAMP:XRPUSD",
                   "BITSTAMP:SOLUSD","BITSTAMP:LTCUSD","BITSTAMP:ADAUSD",
                   "BITSTAMP:DOGEUSD","BITSTAMP:BTCEUR","BITSTAMP:ETHEUR")
@@ -35,7 +35,11 @@ def connected(connection,now=None,postgres=False):
     now=now or datetime.now(timezone.utc)
     result=[]
     marker="%s" if postgres else "?"
-    for pair,symbol in SUPPORTED_FOREX.items():
+    # Discover all verified FX records, rather than restricting the picker to probe defaults.
+    pairs={row[0] for row in connection.execute("SELECT symbol FROM market_history_checks").fetchall()
+           if isinstance(row[0],str) and re.fullmatch(r"[A-Z]{3}/[A-Z]{3}",row[0])}
+    for pair in sorted(pairs):
+        symbol="OANDA:"+pair.replace("/","")
         try:
             check=connection.execute("SELECT payload FROM market_history_checks WHERE symbol="+marker,(pair,)).fetchone()
             data=json.loads(check[0]) if check else {}

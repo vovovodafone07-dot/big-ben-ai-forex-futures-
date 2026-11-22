@@ -37,6 +37,16 @@ class ConnectedMarketJournalTests(unittest.TestCase):
   self.assertEqual(len(symbols),1)
   self.assertEqual(symbols[0]["symbol"],"OANDA:EURUSD")
   self.assertFalse(symbols[0]["fresh"])
+ def test_verified_forex_is_not_limited_to_three_probe_pairs(self):
+  pair='AUD/CAD'
+  source={'symbol':pair,'interval':'5min','adapter_version':'v1','state':'CONNECTED'}
+  self.db.execute('INSERT INTO market_history_checks VALUES (?,?)',(pair,json.dumps(source)))
+  self.db.executemany('INSERT INTO market_candles VALUES (?,?,?)',
+      [('Twelve Data',pair,(NOW-timedelta(minutes=5*(i+1))).isoformat()) for i in range(110)])
+  result=connected.connected(self.db,NOW)
+  self.assertEqual([r['symbol'] for r in result],['OANDA:AUDCAD'])
+  self.assertFalse(connected.gate(dict(plan(),symbol='OANDA:AUDCAD',provider='Twelve Data'),NOW)['open'])
+
  def test_gate_prevents_closed_market_and_allows_recent_spot(self):
   p=plan()
   self.assertTrue(connected.gate(p,NOW)["open"])

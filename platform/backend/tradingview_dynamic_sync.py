@@ -116,3 +116,19 @@ def analysis_card(event, now=None):
         f"🎯 السيناريو المتوقع: {_clean(event.get('scenario')) or 'لا توجد شروط كافية لتحديد مسار مرجح'}",
         f"⏱️ الوقت: {when}",
     ])
+
+
+def tracked_catalog(db,watched,connected,postgres=False):
+    """Owner-selected/discovered metadata, never a claim of live feed access."""
+    verified={row['symbol']:row for row in connected}
+    symbols={symbol for symbol in watched if isinstance(symbol,str) and SYMBOL_RE.fullmatch(symbol)}
+    symbols.update(row['symbol'] for row in discovered(db,1000))
+    symbols.update(verified)
+    rows=[]
+    for symbol in sorted(symbols):
+        if symbol in verified:
+            rows.append(dict(verified[symbol]));continue
+        rows.append({'symbol':symbol,'label':symbol,'connected':False,'fresh':False,
+            'market_state':'مضاف للمتابعة؛ مصدر الأسعار غير متصل أو غير موثق',
+            'asset_class':'other','source':'قائمة المالك أو تنبيه موثق'})
+    return rows

@@ -23,7 +23,38 @@ def home():
         [('📰 تداول الأخبار المهمة','news_symbols:0')],
         [('🔔 تنبيه الأخبار','news'),('📌 اختيار الزوج','symbols:0')],
         [('🟢 حالة السوق','market'),('🎯 الصفقات النشطة','active')], [('🔄 تحديث التحليل','refresh')],
-        [('🔕 كتم / تفعيل الإشعارات','notifications')], [('🔎 تشخيص اتصال المتابعة','diagnostics')]])
+        [('🔕 كتم / تفعيل الإشعارات','notifications')], [('🔎 تشخيص اتصال المتابعة','diagnostics')],
+        [('🧮 حاسبة المخاطرة','risk'),('📒 صفقات اليوم','today')]])
+
+def risk_helper(command):
+    """Arithmetic only. Never infer a broker CFD contract specification."""
+    parts=command.split()
+    try:
+        percentage=parts[0]=='/riskp'
+        if parts[0] not in ('/risk','/riskp'):raise ValueError()
+        symbol=parts[1].upper()
+        if percentage:
+            balance,percent,distance=map(float,parts[2:5]);risk=balance*percent/100
+            if not 0<percent<=100:raise ValueError()
+            unit_index=5
+        else:
+            risk,distance=map(float,parts[2:4]);unit_index=4
+        specs={'MNQ':2.,'MGC':10.,'NQ':20.,'GC':100.,'MES':5.,'ES':50.}
+        per_point=specs.get(symbol)
+        if per_point is None:
+            if len(parts)!=unit_index+1:raise ValueError()
+            per_point=float(parts[unit_index])
+        elif len(parts)!=unit_index:raise ValueError()
+        if not all(math.isfinite(v) and v>0 for v in (risk,distance,per_point)):raise ValueError()
+        raw=risk/(distance*per_point)
+        quantity=math.floor(raw) if symbol in specs else math.floor(raw*100)/100
+        return ('🧮 حساب مخاطرة تقديري | '+symbol+'\nميزانية المخاطرة: '+format(risk,'.2f')+' دولار\nمسافة الوقف: '+format(distance,'.6g')+
+                '\nالحجم المحسوب: '+format(quantity,'.6g')+(' عقد' if symbol in specs else ' وحدة بالمواصفات المدخلة')+
+                '\nالمخاطرة السعرية المقدرة: '+format(quantity*distance*per_point,'.2f')+' دولار\n'+
+                ('الميزانية لا تكفي لأصغر حجم وفق هذه المواصفات.\n' if quantity==0 else '')+
+                'لا يشمل الرسوم والانزلاق؛ راجع الحد الأدنى وخطوة الحجم لدى الوسيط. هذا حساب فقط ولا يرسل أوامر.')
+    except (ValueError,IndexError,OverflowError):
+        return '🧮 حاسبة المخاطرة\nبالدولار: /risk MNQ 100 10\nبالنسبة: /riskp MNQ 10000 1 10\nالترتيب: الرمز ثم المخاطرة بالدولار ثم مسافة الوقف بوحدات السعر.\nللنسبة: الرمز ثم الرصيد ثم النسبة ثم مسافة الوقف.\nللفوركس وCFD أضف أخيراً قيمة حركة سعرية مقدارها واحد بالدولار لكل لوت حسب وسيطك؛ لا نخمن مواصفات العقد.'
 
 def muted(db,chat,postgres=False):
     row=db.execute('SELECT status FROM telegram_bot_receipts WHERE id='+('%s' if postgres else '?'),('mute:'+str(chat),)).fetchone()
@@ -157,13 +188,28 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,diagnos
     db.execute('INSERT INTO telegram_bot_state(chat,mode,news_enabled) VALUES ('+m+",'scalp',0) ON CONFLICT(chat) DO NOTHING",(chat_id,))
     mode,symbol,enabled=db.execute('SELECT mode,symbol,news_enabled FROM telegram_bot_state WHERE chat='+m,(chat_id,)).fetchone()
     action=callback.get('data') or 'home'
+    if not callback and str(msg.get('text','')).split(' ',1)[0] in ('/risk','/riskp'):
+        action='risk_command'
     text='اختر نوع التحليل أو الخدمة المطلوبة.';markup=home();request=None;news_request=None
     assets=list(connected())
     if action.startswith('mode:'):
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
         db.execute('UPDATE telegram_bot_state SET mode='+m+' WHERE chat='+m,(mode,chat_id));action='symbols:0'
-    if action=='diagnostics':
+    if action in ('risk','risk_command'):
+        text=risk_helper(msg.get('text','') if action=='risk_command' else '')
+    elif action=='today':
+        records=[]
+        for record in journal():
+            try:
+                when=datetime.fromisoformat(str(record['announced_at']).replace('Z','+00:00'))
+                if when.tzinfo is None or when.astimezone(ZONE).date()!=now.astimezone(ZONE).date():continue
+            except (ValueError,TypeError,KeyError):continue
+            records.append(record)
+        text='📒 صفقات اليوم بتوقيت عُمان\n'+'\n'.join(r['symbol']+' — '+str(r['state']) for r in records[:30])
+        if not records:text+='لا توجد صفقات مرسلة مسجلة اليوم ضمن السجل المتاح.'
+        text+='\nمتابعة تحليلية؛ ليست نتائج تنفيذ وسيط.'
+    elif action=='diagnostics':
         rows=diagnostics() if diagnostics else []
         text='🔎 تشخيص اتصال أصول المتابعة\n━━━━━━━━━━━━━━━━━━\n'+'\n'.join(r['الرمز']+' — '+('بيانات حديثة: ' if r['متصل_حديث'] else 'غير متصل بسعر حديث: ')+r['التشخيص'] for r in rows[:20])
         if not rows:text+='لا توجد متابعة مصرح بها لفحصها.'

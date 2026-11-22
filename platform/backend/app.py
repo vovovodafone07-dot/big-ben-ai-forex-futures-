@@ -243,7 +243,13 @@ def scan_arabic_market_once(now=None):
   from_market=tuple(item["symbol"] for item in owner_connected_assets(db,now))[:100]
  results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
  for symbol in from_market:
+  stage='فحص الجلسة'
   try:
+   if _instruments.describe(symbol)['asset_class']=='forex' and _connected_market.forex_weekly_closed(now):
+    results['symbols'][symbol]='السوق مغلق أسبوعياً'
+    with history_connection() as db:_connected_market.record_open_state(db,symbol,False,postgres_enabled(),now)
+    continue
+   stage='تحليل الشموع'
    analysis=analyze_instant_native(symbol,"scalp")
    results["symbols"][symbol]=analysis["status"]
    live=_connected_market.gate(analysis,now)
@@ -263,16 +269,19 @@ def scan_arabic_market_once(now=None):
     mark="%s" if postgres_enabled() else "?"
     with history_connection() as db:
      rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+   stage='متابعة سجل الصفقة'
    with history_connection() as db:
     movements=_native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now)
+   stage='كشف الحدث الفني'
    for event in _arabic_event_engine.technical_events(symbol,rows,now):
     status=send_arabic_market_event(event)
     if status=="sent":results["events"]+=1
    # Previously eligible plans follow same dedup as interactive Analyze.
    alert=trigger_instant_telegram(analysis)
    results["symbols"][symbol]=analysis["status"]+" / "+alert.get("status","none")
-  except Exception:
-   print("arabic_scanner symbol="+symbol+" status=failed",flush=True)
+  except Exception as error:
+   reason={KeyError:'حقل مطلوب غير متاح',TypeError:'نوع بيانات غير متوافق',ValueError:'قيمة بيانات غير صالحة'}.get(type(error),'تعذر إكمال المعالجة')
+   print('تشخيص_الماسح الرمز='+symbol+' المرحلة='+stage+' السبب='+reason,flush=True)
  try:
   # Journal transitions and their pending outbox rows commit atomically above.
   with history_connection() as db:movements=_native_trade_journal.claim_notifications(db,postgres_enabled())

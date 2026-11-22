@@ -424,7 +424,7 @@ const starting=(localStorage.getItem('bigben-desk-symbol')||document.getElementB
   independent_setup:{state:ready?'CANDIDATE_RESEARCH_ONLY':i.status,candidate:levels,bias:i.bias},
   selected_trade:levels,full_trade:levels,scalp:levels,source_time:i.source_time,
   strategy_version:i.version,mode_note:i.status_ar||'تحليل بحثي؛ لم يثبت التنفيذ أو الربح',
-  reasons:[i.status_ar||'بيانات الأصل أو شروط التحليل غير مكتملة',({NEWS_CAUTION:'خبر قريب يمنع الدخول',EVENT_UNRATED:'يوجد حدث اقتصادي يحتاج مراجعة',NO_VERIFIED_EVENT:'لا يوجد حدث قريب في التقويم المتاح',NOT_VERIFIED:'تعذر توثيق تقويم الأخبار'}[i.news?.state]||'تعذر توثيق الأخبار'),
+  reasons:[i.status_ar||'بيانات الأصل أو شروط التحليل غير مكتملة','يلزم تحقق حداثة الشموع وشروط الإرسال قبل اعتماد الدخول',
     'السيناريو مشروط ببيانات موثقة؛ لا تنفيذ أوامر'],
   checks:[],news:[],news_scenarios:[],agent_tasks:[],
   ai:{state:'not_requested',reason:'instant_native'},instant:i
@@ -659,7 +659,7 @@ session();setInterval(session,15000);
   const status=v.status||'DATA_UNAVAILABLE',dir=v.technical_direction;
   const valid=['READY','CONDITIONAL','NEWS_CAUTION'].includes(status)
      &&v.entry!=null&&v.sl!=null&&Array.isArray(v.targets)&&v.targets.length===3;
-  const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'تحذير حدث اقتصادي قريب',
+  const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'الإرسال محجوب بقيد سلامة',
                 DATA_UNAVAILABLE:'بيانات غير متاحة'};
   const box=$('ref-signal-card');if(box)box.dataset.decision=valid?(status==='READY'?(dir==='BUY'?'buy':'sell'):status==='NEWS_CAUTION'?'caution':dir==='BUY'?'conditional-buy':'conditional-sell'):'unavailable';
   put('ref-signal-title',valid?(dir==='BUY'?'↗ شراء BUY':'↘ بيع SELL')+' · '+labels[status]:(labels[status]||'بيانات غير متاحة'));
@@ -683,7 +683,7 @@ session();setInterval(session,15000);
   put('ref-check-liquidity','السيولة · '+({LOW:'سحب سيولة قاع',HIGH:'سحب سيولة قمة',NOT_DETECTED:'غير مؤكدة'}[v.evidence?.LIQUIDITY_SWEEP]||'غير مقاسة'));
   put('ref-signal-quality-label',Object.entries(v.quality_filter?.checks||{}).map(([name,ok])=>(ok?'✅ ':'❌ ')+name).join(' · ')||'جودة الإعداد: غير معايرة');
   const notes={NEWS_CAUTION:'خبر قريب يمنع الدخول',EVENT_UNRATED:'حدث يحتاج مراجعة',NO_VERIFIED_EVENT:'لا يوجد حدث قريب في التقويم المتاح',NOT_VERIFIED:'التقويم غير موثق'}[v.news?.state]||'التقويم غير موثق';
-  put('ref-signal-quality-help','الأخبار: '+notes+' · الاحتمال غير معاير');
+  put('ref-signal-quality-help','خطة بحثية؛ لا تثبت التنفيذ أو النتيجة، والاحتمال غير معاير');
   if(v.extra?.preflight){
    const details=v.extra.preflight;
    put('desk-independent-levels','بيانات NQ غير مرخصة/غير مثبتة: '+(details.issues||[]).join('، ')

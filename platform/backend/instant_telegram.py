@@ -14,7 +14,7 @@ import urllib.error
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-SENDABLE = frozenset(("READY", "CONDITIONAL", "NEWS_CAUTION"))
+SENDABLE = frozenset(("READY", "CONDITIONAL"))
 SYMBOL = re.compile(r"^[A-Z0-9_.-]{2,24}:[A-Z0-9_!./-]{2,28}$")
 
 def migrate(connection):
@@ -125,10 +125,6 @@ def message(plan, now=None):
     direction="شراء" if buy else "بيع"
     c=plan.get("confirmation") or {}
     evidence=plan.get("evidence") or {}
-    news=plan.get("news") or {}
-    related=news.get("related_events") or []
-    upcoming=related[0] if isinstance(related,list) and related and isinstance(related[0],dict) else None
-    news_detail=(" | "+str(upcoming.get("title",""))[:100]+" | خلال "+str(upcoming.get("minutes_until","?"))+" دقيقة") if upcoming else ""
     translations={"NO_VERIFIED_EVENT":"لا يوجد خبر مؤثر موثق حالياً","NOT_VERIFIED":"لم يتم التحقق من التقويم","NEWS_CAUTION":"تنبيه خبر قوي","EVENT_UNRATED":"الحدث غير مصنف","NOT_DETECTED":"غير مرصود","NOT_MEASURED":"غير مقاس","LOW":"قاع","HIGH":"قمة","M5_CLOSE":"إغلاق شمعة 5 دقائق","H1_CLOSE":"إغلاق شمعة ساعة"}
     parts=[
       ("🔵" if buy else "🔴")+" <b>"+direction+" | "+_esc(symbol)+" ("+_esc(asset_label)+")</b>",
@@ -147,7 +143,6 @@ def message(plan, now=None):
           (" · متحقق" if c.get("confirmed") else " · غير متحقق بعد"),
       "• السيولة: "+_esc(translations.get(evidence.get("LIQUIDITY_SWEEP"),evidence.get("LIQUIDITY_SWEEP","غير مثبت")))+" | FVG: "+_esc((evidence.get("FVG") or {}).get("type","غير مثبت") if isinstance(evidence.get("FVG"),dict) else evidence.get("FVG","غير مثبت")),
       "• <b>الإبطال:</b> "+("هبوط" if buy else "صعود")+" السعر إلى "+_f(plan["sl"])+" قبل تحقق الدخول",
-      "📰 <b>الأخبار:</b> "+_esc(translations.get(news.get("state"),"لم يتم التحقق من الأخبار")+news_detail)+" — لا يصنّف اتجاه الخبر دون بيانات ونتائج موثقة",
       "📡 <b>المصدر:</b> "+_esc(plan["provider"])+" | شمعة المصدر: "+_esc(plan["source_time"]),
       "⏱️ <b>وقت الإرسال:</b> "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" (مسقط)",
       "⚠️ بحث وتحليل فقط؛ لا تنفيذ أوامر ولا ضمان للنتائج."

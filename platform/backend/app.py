@@ -1,5 +1,8 @@
 """Big Ben AI Pro: read-only webhook receiver. No broker/order endpoints."""
-import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading
+import os,json,hmac,math,re,sqlite3,time,base64,csv,io,urllib.request,urllib.error,hashlib,threading,sys
+# Arabic operational logs must also work on Windows pipes with a legacy code page.
+for _stream in (sys.stdout,sys.stderr):
+ if callable(getattr(_stream,"reconfigure",None)):_stream.reconfigure(encoding="utf-8",errors="backslashreplace")
 from contextlib import contextmanager
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
@@ -27,7 +30,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -609,6 +612,36 @@ def analyze_instrument(symbol,include_ai=False):
  with history_connection() as c:_desk.record(c,result,postgres_enabled())
  return result
 
+def process_bbb_event(event):
+ key="bbb-job:"+event["event_id"];now=datetime.now(timezone.utc);m="%s" if postgres_enabled() else "?"
+ with history_connection() as c:
+  claimed=c.execute("INSERT INTO telegram_bot_receipts(id,status,created_at) VALUES ("+m+",'processing',"+m+") ON CONFLICT(id) DO NOTHING",(key,now.isoformat())).rowcount==1
+  if not claimed:
+   claimed=c.execute("UPDATE telegram_bot_receipts SET created_at="+m+" WHERE id="+m+" AND status='processing' AND created_at<"+m,(now.isoformat(),key,(now-timedelta(seconds=120)).isoformat())).rowcount==1
+ if not claimed:return
+ state="تعذر التحليل"
+ try:
+  sent=datetime.fromisoformat(event["time"].replace("Z","+00:00"))
+  if not 0<=(now-sent).total_seconds()<=180:state="محفوظ؛ انتهت حداثة التنبيه"
+  else:
+   plan=analyze_instant_native(event["symbol"],"scalp")
+   if not _connected_market.gate(plan)["open"]:state="محفوظ؛ مصدر الأسعار أو الجلسة غير موثق"
+   else:
+    outcome=trigger_instant_telegram(plan)
+    state="اكتملت المعالجة؛ "+{"sending":"حجز الإرسال","duplicate":"حجب التكرار","not_eligible":"شروط الدخول غير مكتملة","not_configured":"التسليم غير مهيأ","market_closed":"السوق مغلق"}.get(outcome.get("status"),"حالة التسليم تحتاج مراجعة")
+ except Exception:state="تعذر التحليل؛ التنبيه محفوظ للمراجعة"
+ with history_connection() as c:c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(state,key))
+ print("تنبيه_BBB الحالة="+state,flush=True)
+
+def bbb_recovery_worker():
+ while True:
+  try:
+   with history_connection() as c:
+    rows=c.execute("SELECT e.payload FROM events e LEFT JOIN telegram_bot_receipts r ON r.id='bbb-job:' || e.id WHERE e.id LIKE 'bbb:%' AND (r.id IS NULL OR r.status='processing') ORDER BY e.time LIMIT 100").fetchall()
+   for row in rows:process_bbb_event(json.loads(row[0]))
+  except Exception:print("استرجاع_التنبيهات الحالة=تعذر_الفحص",flush=True)
+  time.sleep(15)
+
 def run_signal_analysis(symbol):
  # This runs in a per-symbol worker, never in the webhook HTTP request.
  if not SIGNAL_ANALYSIS_SLOTS.acquire(timeout=10):
@@ -906,7 +939,7 @@ def trade_notification_text(d):
  from zoneinfo import ZoneInfo
  try:stamp=datetime.fromisoformat(d["time"].replace("Z","+00:00")).astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M")
  except (KeyError,ValueError,TypeError):stamp="غير متاح"
- lines=["📊 BIG BEN AI PRO",side+" | "+kind,"الاسم: "+instrument["name"],"الرمز: "+instrument["symbol"],"الفريم: M5 | مسقط: "+stamp,
+ lines=["📊 BIG BEN AI PRO",side+" | "+kind,"الاسم: "+instrument["name"],"الرمز: "+instrument["symbol"],"الفريم: "+str(d.get("timeframe","5"))+" دقائق | مسقط: "+stamp,
   "", "① الصفقة الكاملة — الهدف الأصلي", "الدخول Entry: "+str(full["entry"]),"الوقف SL: "+str(full["sl"]),"الهدف TP: "+str(full["tp"])+" | RR: "+str(round(full["rr"],4)),
   "", "② خيار السكالب — هدف حسابي بديل", "الدخول Entry: "+str(scalp["entry"]),"الوقف SL: "+str(scalp["sl"]),"الهدف TP: "+str(scalp["tp"])+" | RR: "+str(round(scalp["rr"],4))]
  checks=_desk.condition_checks(d.get("analysis",{}) if isinstance(d.get("analysis"),dict) else {})
@@ -942,21 +975,15 @@ def telegram_topic_id(kind):
  return int(raw) if raw.isdigit() and int(raw)>0 else None
 
 def telegram_notify(d):
- # Explicit chat allowlist avoids accidentally sending private trade data to strangers.
- token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination()
- if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
-  return "not_configured"
- if d.get("event") not in ("BUY","SELL"):
-  return "skipped"
- message=trade_notification_text(d)
- payload=json.dumps({"chat_id":chat,"text":message}).encode()
- req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=payload,headers={"Content-Type":"application/json"},method="POST")
+ # Legacy events must use the same native market/source/dedup pipeline as the new bridge.
+ if d.get("event") not in ("BUY","SELL"):return "skipped"
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip();chat=telegram_destination()
+ if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):return "not_configured"
  try:
-  with urllib.request.urlopen(req,timeout=6) as response:
-   return "sent" if response.status==200 else "failed"
- except (urllib.error.URLError,TimeoutError,ValueError):
-  return "failed"
+  plan=analyze_instant_native(_instruments.normalize(d["symbol"]),"scalp")
+  if not _connected_market.gate(plan)["open"]:return "market_closed"
+  return trigger_instant_telegram(plan).get("status","not_eligible")
+ except Exception:return "source_unverified"
 def audit_telegram_connection():
  """Read-only Telegram bot/chat checks; no test messages, tokens or chat ids in logs."""
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -1013,6 +1040,71 @@ def send_bot_payload(payload):
   with urllib.request.urlopen(request,timeout=8) as response:return "sent" if response.status==200 else "uncertain"
  except Exception:return "uncertain"
 
+def transport_proofs():
+ with history_connection() as c:
+  rows=c.execute("SELECT id,status FROM telegram_bot_receipts WHERE id LIKE 'transport:%' ORDER BY created_at DESC LIMIT 10").fetchall()
+ return [{"معرف_الاختبار":r[0],"الإثبات":r[1]} for r in rows]
+
+def send_transport_card(message):
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ chat=os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").split(",")[0].strip()
+ if not token or not re.fullmatch(r"[0-9]{5,20}",chat):return {"الحالة":"غير مهيأ"}
+ req=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=json.dumps({"chat_id":chat,"text":message},ensure_ascii=False).encode(),headers={"Content-Type":"application/json"},method="POST")
+ try:
+  with urllib.request.urlopen(req,timeout=8) as response:
+   raw=response.read(65537)
+   if response.status!=200 or len(raw)>65536:raise ValueError()
+   data=json.loads(raw)
+   ident=(data.get("result") or {}).get("message_id")
+   if data.get("ok") is not True or type(ident) is not int:raise ValueError()
+  return {"الحالة":"قبله Telegram","معرف_الرسالة":ident}
+ except Exception:return {"الحالة":"تسليم غير مؤكد؛ لا إعادة تلقائية"}
+
+def execute_transport_fixture(test_id,case):
+ key="transport:"+test_id+":"+case
+ with history_connection() as c:
+  claimed=_telegram_interactive.claim(c,key,postgres_enabled())
+  if not claimed:
+   m="%s" if postgres_enabled() else "?"
+   row=c.execute("SELECT status FROM telegram_bot_receipts WHERE id="+m,(key,)).fetchone()
+   return {"مكرر":True,"النتيجة_المحفوظة":row[0] if row else "غير متاحة"}
+ event=_transport_fixture.payload(_bridge_validation.normalize)
+ result={"نوع_الإثبات":"اختبار اصطناعي؛ ليس تنبيهاً صادراً من TradingView أو إثبات أسعار حية","التحقق_من_JSON":"ناجح","إضافة_صفقة_حقيقية":False,"الرسائل":[]}
+ if case=="closed":
+  stamp=datetime(2026,11,21,15,0,tzinfo=timezone.utc)
+  gate=_connected_market.gate({"symbol":"OANDA:EURUSD","provider":"Twelve Data","status":"READY","source_time":(stamp-timedelta(minutes=5)).isoformat()},stamp)
+  result["بوابة_السوق_المغلق"]="حجبت الإرسال" if not gate["open"] else "فشل الاختبار"
+ else:
+  for message in _transport_fixture.cards(event,_tradingview_dynamic_sync.trade_card,_tradingview_dynamic_sync.analysis_card):
+   receipt=send_transport_card(message);result["الرسائل"].append(receipt)
+   if "معرف_الرسالة" not in receipt:break
+  result["فصل_الأخبار"]="رسالتان مستقلتان بلا محتوى أخبار"
+ with history_connection() as c:
+  m="%s" if postgres_enabled() else "?"
+  c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(json.dumps(result,ensure_ascii=False),key))
+ print("اختبار_النقل الحالة="+("حجب_سوق_مغلق" if case=="closed" else "إيصالات_"+str(len([r for r in result["الرسائل"] if "معرف_الرسالة" in r]))),flush=True)
+ return result
+
+def run_local_transport_check():
+ test_id=os.getenv("BIGBEN_TRANSPORT_SELF_TEST_ID","")
+ secret=os.getenv("BIGBEN_TRANSPORT_TEST_TOKEN","")
+ if not re.fullmatch(r"[A-Za-z0-9_-]{8,60}",test_id) or len(secret)<32:return
+ time.sleep(2)
+ try:
+  port=int(os.getenv("PORT","10000"))
+  for case in ("closed","open","open"):
+   req=urllib.request.Request("http://127.0.0.1:"+str(port)+"/v1/tradingview/transport-test",data=json.dumps({"test_id":test_id,"case":case}).encode(),headers={"Content-Type":"application/json","X-BigBen-Test-Token":secret},method="POST")
+   with urllib.request.urlopen(req,timeout=25) as response:result=json.loads(response.read(65536))
+   print("اختبار_HTTP الحالة="+("منع_تكرار_مؤكد" if result.get("مكرر") else "فحص_سوق_مغلق" if case=="closed" else "فحص_نقل_اصطناعي"),flush=True)
+   for item in result.get("الرسائل",[]):
+    if "معرف_الرسالة" in item:print("إثبات_Telegram معرف_الرسالة="+str(item["معرف_الرسالة"]),flush=True)
+  audit=os.getenv("BIGBEN_AUDIT_TOKEN","")
+  if len(audit)>=32:
+   req=urllib.request.Request("http://127.0.0.1:"+str(port)+"/v1/audit/state",headers={"X-BigBen-Audit-Token":audit})
+   with urllib.request.urlopen(req,timeout=10) as response:state=json.loads(response.read(131072))
+   print("فحص_الحالة المصادقة=ناجحة عدد_الأصول="+str(len(state.get("الأصول",[]))),flush=True)
+ except Exception:print("اختبار_HTTP الحالة=تعذر_إكمال_الاختبار",flush=True)
+
 def configure_interactive_bot():
  if os.getenv("BIGBEN_TELEGRAM_INTERACTIVE_ENABLED","0")!="1":return
  allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
@@ -1040,7 +1132,7 @@ def process_bot_update(update):
   requested=reply.get("analysis_request")
   if requested:
    plan=analyze_instant_native(requested["symbol"],requested["mode"])
-   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الدخول محظور قرب حدث اقتصادي يحتاج مراجعة","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
+   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الإرسال محجوب بسبب قيد سلامة؛ راجع قسم التنبيهات","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
    reply["text"]="📈 تحليل "+requested["symbol"]+" — "+("سكالب" if requested["mode"]=="scalp" else "سوينغ")+"\n"+labels.get(plan.get("status"),"تعذر التحقق من التحليل")
    checks=(plan.get("quality_filter") or {}).get("checks",{})
    if checks:reply["text"]+="\n"+"\n".join(("✅ " if value else "❌ ")+name for name,value in checks.items())
@@ -1124,6 +1216,16 @@ class Handler(BaseHTTPRequestHandler):
     return self.reply(200,{"status":record[0],"updated_at":record[1]} if record else {"status":"not_found"})
    except Exception:return self.reply(503,{"error":"delivery_status_unavailable"})
 
+  if path=="/v1/audit/state":
+   secret=os.getenv("BIGBEN_AUDIT_TOKEN","")
+   if len(secret)<32 or not secure_equal(self.headers.get("X-BigBen-Audit-Token",""),secret):return self.reply(401,{"message":"فحص غير مصرح"})
+   try:
+    with history_connection() as c:
+     assets=tracked_asset_catalog(c)
+     events=c.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+     deliveries=c.execute("SELECT delivery,COUNT(*) FROM native_telegram_alerts GROUP BY delivery").fetchall()
+    return self.reply(200,{"الحالة":"الخادم وقاعدة البيانات يعملان","التخزين":storage_kind(),"النسخة":os.getenv("RENDER_GIT_COMMIT","نسخة محلية"),"عدد_الأحداث":events,"الأصول":assets,"إيصالات_التسليم":[{"الحالة":r[0],"العدد":r[1]} for r in deliveries],"تنفيذ_الأوامر":"معطل","الأخبار":"مسار مستقل عن بطاقات الصفقة والتحليل والمتابعة","تغطية_الأسعار":{"مفتاح_العقود_مهيأ":bool(os.getenv("BARCHART_API_KEY")),"ترخيص_وتغطية_Futures_CFD_موثقان":False},"اختبارات_النقل":transport_proofs()})
+   except Exception:return self.reply(503,{"message":"تعذر إكمال الفحص"})
   if path=="/healthz":return self.reply(200,{"status":"ok","release":"symbol-sync-demo-readonly-v2","mode":"live-analysis-alerts-only","runtime_mode":"live_analysis","broker_execution":"disabled","agents":"enabled","resident_watchdog":os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1","learning":"evidence_only_no_automatic_code_or_strategy_edits"})
   if path=="/healthz/integrations":
    token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -1421,6 +1523,36 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self' wss://ws.bitstamp.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/v1/tradingview/transport-test":
+   secret=os.getenv("BIGBEN_TRANSPORT_TEST_TOKEN","")
+   if os.getenv("BIGBEN_TRANSPORT_TEST_ENABLED","0")!="1":return self.reply(503,{"message":"الاختبار معطل"})
+   if len(secret)<32 or not secure_equal(self.headers.get("X-BigBen-Test-Token",""),secret):return self.reply(401,{"message":"اختبار غير مصرح"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=1024:raise ValueError()
+    data=json.loads(self.rfile.read(size));test_id=data.get("test_id");case=data.get("case")
+    if not isinstance(test_id,str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,60}",test_id) or case not in ("closed","open"):raise ValueError()
+    if test_id!=os.getenv("BIGBEN_TRANSPORT_SELF_TEST_ID",""):raise ValueError()
+   except (ValueError,TypeError,AttributeError):return self.reply(400,{"message":"طلب اختبار غير صالح"})
+   try:return self.reply(200,execute_transport_fixture(test_id,case))
+   except Exception:return self.reply(503,{"message":"تعذر إكمال اختبار النقل"})
+  if urlsplit(self.path).path=="/v1/tradingview/bbb":
+   secret=os.getenv("BIGBEN_BBB_WEBHOOK_TOKEN","")
+   if len(secret)<32:return self.reply(503,{"message":"مستقبل BBB غير مهيأ"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=8192:return self.reply(413,{"message":"حجم غير مقبول"})
+    data=json.loads(self.rfile.read(size))
+    if not isinstance(data,dict):raise ValueError('حمولة غير صالحة')
+    token=data.pop("token","")
+    if not secure_equal(token,secret):return self.reply(401,{"message":"تنبيه غير مصرح"})
+    event=_bridge_validation.normalize(data)
+    duplicate=save_event(event)
+   except (ValueError,TypeError,UnicodeDecodeError) as error:return self.reply(422,{"message":"حمولة التنبيه غير صالحة؛ تحقق من الرمز والتوقيت ومستويات الأسعار"})
+   except Exception:return self.reply(503,{"message":"تعذر حفظ التنبيه"})
+   self.reply(200 if duplicate else 202,{"مقبول":True,"مكرر":duplicate,"معرف_الحدث":event["event_id"],"حالة":"تم الحفظ؛ لا يثبت استلام التنبيه اتصال الأسعار أو افتتاح السوق"})
+   if not duplicate:threading.Thread(target=process_bbb_event,args=(event,),daemon=True).start()
+   return
   if urlsplit(self.path).path=="/v1/telegram/updates":
    secret=os.getenv("BIGBEN_TELEGRAM_WEBHOOK_SECRET","")
    if len(secret)<32:return self.reply(503,{"message":"لم يهيأ استقبال البوت بعد"})
@@ -1540,6 +1672,7 @@ if __name__=="__main__":
  threading.Thread(target=crypto_startup_probe,daemon=True).start()
  threading.Thread(target=audit_telegram_connection,daemon=True).start()
  threading.Thread(target=configure_interactive_bot,daemon=True).start()
+ threading.Thread(target=bbb_recovery_worker,daemon=True).start()
  if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
   threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()
@@ -1549,5 +1682,7 @@ if __name__=="__main__":
  if os.getenv("BIGBEN_ARABIC_SCANNER_ENABLED","1")=="1":threading.Thread(target=arabic_market_scanner_worker,daemon=True).start()
  port=int(os.getenv("PORT","10000"))
  print("http_server bind=0.0.0.0 port="+str(port),flush=True)
- ThreadingHTTPServer(("0.0.0.0",port),Handler).serve_forever()
+ server=ThreadingHTTPServer(("0.0.0.0",port),Handler)
+ threading.Thread(target=run_local_transport_check,daemon=True).start()
+ server.serve_forever()
 

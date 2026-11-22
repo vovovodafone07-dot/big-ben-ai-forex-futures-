@@ -36,6 +36,15 @@ class TelegramNativeTests(unittest.TestCase):
                "BITSTAMP" if False else "Bitstamp","مسقط","ليس دخولاً الآن"):
    self.assertIn(word,m)
   self.assertLess(len(m),4000)
+ def test_news_is_absent_from_trade_and_technical_messages(self):
+  p=plan();p['news']={'state':'NEWS_CAUTION','related_events':[{'title':'PRIVATE_NEWS_SENTINEL','minutes_until':3}]}
+  text=telegram.message(p)
+  self.assertNotIn('PRIVATE_NEWS_SENTINEL',text);self.assertNotIn('الأخبار',text)
+  p['status']='READY';p['confirmation']['confirmed']=True
+  for text in (telegram.trade_only_message(p),telegram.analysis_message(p)):
+   self.assertNotIn('PRIVATE_NEWS_SENTINEL',text);self.assertNotIn('الأخبار',text)
+  p['status']='NEWS_CAUTION';self.assertFalse(telegram.eligible(p))
+
  def test_sell_red_and_labels(self):
   p=plan(status="READY");p.update(technical_direction="SELL",entry=60000,sl=60100,
             targets=[{"name":"TP1","price":59900},{"name":"TP2","price":59800},{"name":"TP3","price":59700}])

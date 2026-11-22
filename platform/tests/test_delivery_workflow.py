@@ -73,6 +73,29 @@ class DeliveryWorkflowTests(unittest.TestCase):
         with patch.object(telegram,'send') as send:
             self.assertEqual(app.trigger_instant_telegram(p)['status'],'not_eligible');send.assert_not_called()
 
+    def test_background_refresh_precedes_fresh_picker_and_only_watched_source(self):
+        stamp=(NOW-timedelta(minutes=5)).isoformat()
+        meta={'last_candle':stamp,'state':'CONNECTED'}
+        def picker(*args):
+            self.assertEqual(fetch.call_count,1)
+            return []
+        with patch.object(app,'bitstamp_native_candles',return_value=([],meta)) as fetch,patch.object(app,'owner_connected_assets',side_effect=picker),patch.object(app,'deliver_bot_news'):
+            app.scan_arabic_market_once(NOW)
+        fetch.assert_called_once_with('BITSTAMP:BTCUSD',NOW)
+
+    def test_future_cache_timestamp_cannot_block_refresh_and_fresh_cache_is_reused(self):
+        import json
+        stamp=(NOW-timedelta(minutes=5)).isoformat()
+        prior={'checked_at':(NOW+timedelta(days=1)).isoformat(),'last_candle':stamp,'state':'CONNECTED'}
+        with app.history_connection() as db:
+            db.execute('INSERT INTO market_history_checks(symbol,checked_at,payload) VALUES (?,?,?)',('BITSTAMP:BTCUSD',prior['checked_at'],json.dumps(prior)))
+        meta={'provider':'Bitstamp','symbol':'BITSTAMP:BTCUSD','state':'CONNECTED','checked_at':NOW.isoformat(),'last_candle':stamp}
+        bars=[{'time':stamp,'open':100,'high':101,'low':99,'close':100}]
+        with patch.object(app,'NATIVE_FETCH_TIMES',[]),patch.object(app._crypto_history,'fetch_m5',return_value=(bars,meta)) as fetch:
+            app.bitstamp_native_candles('BITSTAMP:BTCUSD',NOW)
+            app.bitstamp_native_candles('BITSTAMP:BTCUSD',NOW+timedelta(seconds=10))
+            self.assertEqual(fetch.call_count,1)
+
     def test_muted_destination_keeps_analysis_running_without_dispatch(self):
         with app.history_connection() as db:
             db.execute("INSERT INTO telegram_bot_receipts(id,status,created_at) VALUES (?,?,?)",('mute:12345678','muted',NOW.isoformat()))

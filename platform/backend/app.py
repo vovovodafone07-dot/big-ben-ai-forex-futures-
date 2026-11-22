@@ -252,6 +252,9 @@ def scan_arabic_market_once(now=None):
  No price feed means no price event; licensed futures source never substituted.
  """
  now=now or datetime.now(timezone.utc)
+ # Refresh watched supported sources BEFORE filtering by freshness. Otherwise a
+ # stale asset is excluded from the very scan that could restore its data.
+ refresh_tracked_crypto_once(now)
  with history_connection() as db:
   from_market=tuple(item["symbol"] for item in owner_connected_assets(db,now))[:100]
  results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
@@ -334,6 +337,24 @@ BACKUP_SLOT=threading.BoundedSemaphore(1)
 NATIVE_FETCH_TIMES=[]
 NATIVE_FETCH_LOCK=threading.Lock()
 
+def refresh_tracked_crypto_once(now=None):
+ now=now or datetime.now(timezone.utc)
+ with history_connection() as c:symbols=sorted(owner_watchlist(c))
+ result={}
+ for symbol in symbols:
+  if symbol not in _connected_market.SUPPORTED_CRYPTO:continue
+  try:
+   rows,meta=bitstamp_native_candles(symbol,now)
+   stamp=datetime.fromisoformat(str(meta.get('last_candle','')).replace('Z','+00:00'))
+   age=(now-stamp).total_seconds()
+   fresh=meta.get('state')=='CONNECTED' and 300<=age<=630
+   result[symbol]=fresh
+   print('تحديث_المتابعة الرمز='+symbol+' شمعة='+stamp.isoformat()+' العمر_بالثواني='+str(round(age))+' حديث='+('نعم' if fresh else 'لا'),flush=True)
+  except Exception:
+   result[symbol]=False
+   print('تحديث_المتابعة الرمز='+symbol+' الحالة=تعذر_التحقق',flush=True)
+ return result
+
 def bitstamp_native_candles(symbol,now=None):
  """Bounded crypto OHLC ingestion shared by chart and Analyze, never a proxy feed."""
  _crypto_history.pair_from_symbol(symbol)
@@ -343,8 +364,11 @@ def bitstamp_native_candles(symbol,now=None):
   with history_connection() as c:
    prev=c.execute("SELECT payload FROM market_history_checks WHERE symbol="+mark,(symbol,)).fetchone()
   prior=json.loads(prev[0]) if prev else {}
-  checked=datetime.fromisoformat(prior["checked_at"].replace("Z","+00:00")) if prior.get("checked_at") else None
-  needs_refresh=checked is None or (now-checked).total_seconds()>=90
+  try:
+   checked=datetime.fromisoformat(prior["checked_at"].replace("Z","+00:00")) if prior.get("checked_at") else None
+   stamp=datetime.fromisoformat(prior['last_candle'].replace('Z','+00:00')) if prior.get('last_candle') else None
+   needs_refresh=checked is None or not 0<=(now-checked).total_seconds()<90 or stamp is None or not 300<=(now-stamp).total_seconds()<=630
+  except (ValueError,TypeError,AttributeError):needs_refresh=True
   if needs_refresh:
    allowed=False
    with NATIVE_FETCH_LOCK:

@@ -81,12 +81,14 @@ def fetch_m5(symbol, now=None, opener=None):
         seen.add(bar["time"]);out.append(bar)
     if not out:
         raise CryptoHistoryError("no_closed_candles")
+    age=(now-datetime.fromisoformat(out[-1]['time'])).total_seconds()
+    fresh=300<=age<=630
     return out,{"provider":PROVIDER,"symbol":symbol,"interval":"5min","adapter_version":ADAPTER_VERSION,
       "timezone_basis":"bitstamp_epoch_UTC","checked_at":now.isoformat(),
       "realtime_verified":False,"candles_received":len(out),
       "incomplete_candles_excluded":incomplete,"duplicate_candles_excluded":duplicate,
-      "last_candle":out[-1]["time"],"synthetic_bars_created":0,"state":"CONNECTED",
-      "reason":"bitstamp_closed_m5_public_spot"}
+      "last_candle":out[-1]["time"],"source_age_seconds":round(age),"fresh":fresh,"synthetic_bars_created":0,"state":"CONNECTED" if fresh else "STALE",
+      "reason":"bitstamp_closed_m5_public_spot" if fresh else "bitstamp_closed_m5_stale"}
 
 def store_check(connection,symbol,meta,rows=(),postgres=False):
     pair_from_symbol(symbol)

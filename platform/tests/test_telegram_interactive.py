@@ -20,7 +20,7 @@ class BotTests(unittest.TestCase):
   return bot.handle(self.db,update,allowed_users={'12345678'},connected=lambda:self.assets,news=lambda:{},journal=lambda:[],now=NOW)
  def test_all_main_actions_present_and_callback_size_bounded(self):
   buttons=[b for row in bot.home()['inline_keyboard'] for b in row]
-  self.assertEqual(len(buttons),7)
+  self.assertEqual(len(buttons),8)
   self.assertTrue(all(len(b['callback_data'].encode())<=64 for b in buttons))
  def test_private_allowlist_rejects_groups_and_others(self):
   with self.assertRaises(PermissionError):self.run_update(uid=99)
@@ -50,6 +50,27 @@ class BotTests(unittest.TestCase):
  def test_news_opt_in_and_out_persist(self):
   self.run_update('news:on');self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],1)
   self.run_update('news:off',2);self.assertEqual(self.db.execute('SELECT news_enabled FROM telegram_bot_state').fetchone()[0],0)
+ def test_news_picker_separate_from_trade_and_rechecks_connection(self):
+  self.assets.append({'symbol':'BITSTAMP:BTCUSD','asset_class':'crypto'})
+  reply=self.run_update('news_symbols:0')
+  data=[b['callback_data'] for row in reply['reply_markup']['inline_keyboard'] for b in row]
+  self.assertNotIn('news_pick:'+bot.token('BITSTAMP:BTCUSD'),data)
+  reply=self.run_update('news_pick:'+bot.token(self.assets[0]['symbol']),2)
+  self.assertIsNone(reply['analysis_request']);self.assertEqual(reply['news_request']['symbol'],self.assets[0]['symbol'])
+  self.assets=[]
+  reply=self.run_update('news_pick:'+bot.token('COMEX_MINI:MGCZ26'),3)
+  self.assertIsNone(reply['news_request'])
+ def test_news_view_excludes_stale_foreign_events_and_unverified_prices(self):
+  event={'time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI','currency':'USD'}
+  snapshot={'calendar':[event,dict(event,currency='EUR',title_ar='خبر أجنبي'),dict(event,feed_fresh=False,title_ar='خبر قديم')]}
+  plan={'symbol':'COMEX_MINI:MGCZ26','status':'READY','realtime_verified':False,'source_age_seconds':0,'indicators':{'PDH_UTC':987654}}
+  text=bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW)
+  self.assertNotIn('987654',text);self.assertNotIn('خبر أجنبي',text);self.assertNotIn('خبر قديم',text)
+  self.assertIn('🔵',text);self.assertIn('🔴',text);self.assertIn('غير موثق',text)
+  plan.update(realtime_verified=True,source_age_seconds=30)
+  self.assertIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
+  plan['source_age_seconds']=181
+  self.assertNotIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
  def test_digest_local_date_freshness_and_missing_numbers(self):
   event={'time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI'}
   snapshot={'calendar':[event,dict(event,time=(NOW+timedelta(days=1)).isoformat()),dict(event,feed_fresh=False)]}

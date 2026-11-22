@@ -1,6 +1,7 @@
 """Arabic private Telegram interactions; no polling, broker orders, or fabricated news."""
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -19,6 +20,7 @@ def keyboard(rows):
 
 def home():
     return keyboard([[('⚡ سكالب','mode:scalp'),('🌊 سوينغ','mode:swing')],
+        [('📰 تداول الأخبار المهمة','news_symbols:0')],
         [('🔔 تنبيه الأخبار','news'),('📌 اختيار الزوج','symbols:0')],
         [('🟢 حالة السوق','market'),('🎯 الصفقات النشطة','active')], [('🔄 تحديث التحليل','refresh')]])
 
@@ -45,8 +47,9 @@ def today_events(snapshot,now):
 
 def digest(snapshot,now=None):
     now=now or datetime.now(timezone.utc)
-    lines=['📰 نشرة الأخبار الصباحية وتوقعات السعر | التاريخ: '+now.astimezone(ZONE).date().isoformat(), '━━━━━━━━━━━━━━━━━━']
+    lines=['📰 نشرة الأخبار اليومية والنظرة العامة | التاريخ: '+now.astimezone(ZONE).date().isoformat(), '━━━━━━━━━━━━━━━━━━']
     events=today_events(snapshot,now)
+    lines.append('🧭 النظرة العامة: '+('توجد إصدارات مجدولة؛ قد ترتفع التقلبات حول مواعيدها، ولا يُحسم اتجاه اليوم منها وحدها.' if events else 'لا يمكن تقييم هدوء اليوم أو تقلبه دون تقويم حديث موثق.'))
     if not events:lines.append('لا تتوفر قائمة موثقة ومحدثة لأخبار اليوم؛ هذا لا يعني خلو اليوم من الأخبار.')
     for dt,e in events:
         title=str(e.get('title_ar') or 'إصدار اقتصادي مجدول')[:100]
@@ -60,6 +63,43 @@ def digest(snapshot,now=None):
     if len(text)>3900:
         return '\n'.join(lines[:2])+ '\nعدد الأخبار يتجاوز حجم رسالة واحدة؛ افتح التقويم في المنصة للاطلاع على القائمة كاملة.\nلم تُرسل قائمة مبتورة على أنها كاملة.'
     return text
+
+def important_news_analysis(symbol,snapshot,plan,now=None):
+    """Independent conditional news view; never a trade or a delivery request."""
+    now=now or datetime.now(timezone.utc)
+    code=symbol.split(':')[-1].upper()
+    currencies={code[:3],code[3:6]} if len(code)==6 and code.isalpha() else {'USD'}
+    events=[(dt,e) for dt,e in today_events(snapshot,now) if e.get('currency') in currencies]
+    lines=['⚡ تحليل تداول الأخبار المهمة: '+symbol,'━━━━━━━━━━━━━━━━━━']
+    if not events:
+        lines.append('لا تتوفر أخبار اليوم المرتبطة بهذا الأصل من مصدر حديث موثق؛ لا يُستنتج غياب الأخبار أو اتجاه السعر.')
+    for dt,e in events[:8]:
+        kind=str(e.get('classification') or e.get('title') or '').upper()
+        title=e.get('title_ar') or ('تضخم أسعار المستهلك' if 'CPI' in kind or 'CONSUMER PRICE' in kind else 'تقرير الوظائف' if 'EMPLOYMENT' in kind or 'NFP' in kind else 'إصدار اقتصادي مجدول')
+        lines.append('📰 '+str(title)[:100]+' — '+dt.strftime('%H:%M')+' بتوقيت عُمان')
+        if e.get('consensus') is None:lines.append('التوقع الرقمي غير موثق؛ لا تجري مقارنة رقم فعلي بتوقع مختلق.')
+        lines.extend(['🔵 سيناريو الشراء: بعد اتضاح نتيجة الخبر، يلزم سياق صاعد وسحب سيولة قاع وكسر هيكل صاعد وإعادة اختبار منطقة مثبتة.',
+                      '🔴 سيناريو البيع: بعد اتضاح نتيجة الخبر، يلزم سياق هابط وسحب سيولة قمة وكسر هيكل هابط وإعادة اختبار منطقة مثبتة.'])
+        if e.get('currency')=='USD' and ('CPI' in kind or 'CONSUMER PRICE' in kind):
+            lines.append('التضخم الأعلى من التوقع قد يدعم الدولار ويضغط على الذهب؛ الأقل قد يعكس ذلك. استجابة المؤشرات والعملات تعتمد أيضاً على التسعير والسياق، ولا تُعمّم آلياً على الأصل المختار.')
+    lines.append('📍 المناطق الفنية والسيولة:')
+    verified=(plan.get('symbol')==symbol and plan.get('status')!='DATA_UNAVAILABLE' and plan.get('realtime_verified') is True
+              and isinstance(plan.get('source_age_seconds'),(int,float)) and 0<=plan['source_age_seconds']<=180)
+    found=False
+    if verified:
+        indicators=plan.get('indicators') or {}
+        for key,label in (('PDH_UTC','قمة اليوم السابق بتوقيت UTC'),('PDL_UTC','قاع اليوم السابق بتوقيت UTC')):
+            value=indicators.get(key)
+            if type(value) in (int,float) and math.isfinite(value) and value>0:lines.append(label+': '+str(value));found=True
+        fvg=(plan.get('evidence') or {}).get('FVG')
+        zone=fvg.get('zone') if isinstance(fvg,dict) else None
+        if isinstance(zone,list) and len(zone)==2 and all(type(v) in (int,float) and math.isfinite(v) and v>0 for v in zone):
+            lines.append('منطقة فجوة القيمة العادلة: '+str(min(zone))+' — '+str(max(zone)));found=True
+    if not found:lines.append('لا توجد مستويات حديثة موثقة قابلة للعرض؛ لم تُختلق مناطق دخول.')
+    lines.extend(['فجوة القيمة المعكوسة ومنطقة الأوامر: لا تُعرضان دون قياس مثبت.',
+                  '⚠️ تنبيه التذبذب: قد يتسع السبريد ويحدث انزلاق وانعكاس سريع وقت الإصدار؛ هذه سيناريوهات مستقلة وليست توصية دخول.',
+                  '⏱️ '+now.astimezone(ZONE).strftime('%Y-%m-%d %H:%M')+' بتوقيت عُمان'])
+    return '\n'.join(lines)[:3900]
 
 def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgres=False,now=None):
     now=now or datetime.now(timezone.utc)
@@ -77,13 +117,26 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgre
     db.execute('INSERT INTO telegram_bot_state(chat,mode,news_enabled) VALUES ('+m+",'scalp',0) ON CONFLICT(chat) DO NOTHING",(chat_id,))
     mode,symbol,enabled=db.execute('SELECT mode,symbol,news_enabled FROM telegram_bot_state WHERE chat='+m,(chat_id,)).fetchone()
     action=callback.get('data') or 'home'
-    text='اختر نوع التحليل أو الخدمة المطلوبة.';markup=home();request=None
+    text='اختر نوع التحليل أو الخدمة المطلوبة.';markup=home();request=None;news_request=None
     assets=[a for a in connected() if a.get('asset_class') in ('forex','cfd','futures','crypto')]
     if action.startswith('mode:'):
         mode=action.split(':',1)[1]
         if mode not in ('scalp','swing'):raise ValueError('نمط غير صالح')
         db.execute('UPDATE telegram_bot_state SET mode='+m+' WHERE chat='+m,(mode,chat_id));action='symbols:0'
-    if action.startswith('symbols:'):
+    if action.startswith('news_symbols:'):
+        try:page=max(0,int(action.split(':',1)[1]))
+        except ValueError:raise ValueError('صفحة غير صالحة')
+        news_assets=[a for a in assets if a.get('asset_class') in ('forex','cfd','futures')]
+        rows=[[(a.get('label') or a['symbol'],'news_pick:'+token(a['symbol']))] for a in news_assets[page*12:(page+1)*12]]
+        if page:rows.append([('السابق','news_symbols:'+str(page-1))])
+        if (page+1)*12<len(news_assets):rows.append([('التالي','news_symbols:'+str(page+1))])
+        rows.append([('القائمة الرئيسية','home')]);markup=keyboard(rows)
+        text='اختر الأصل المتصل لتحليل الأخبار؛ هذا المسار لا يرسل صفقة.' if news_assets else 'لا توجد أصول مؤهلة ذات بيانات موثقة لتحليل الأخبار حالياً.'
+    elif action.startswith('news_pick:'):
+        selected=next((a['symbol'] for a in assets if a.get('asset_class') in ('forex','cfd','futures') and token(a['symbol'])==action[10:]),None)
+        if selected:news_request={'symbol':selected,'mode':mode};text='جار فحص أخبار الأصل وبياناته الفنية.'
+        else:text='الأصل غير متصل حالياً؛ اختر من القائمة الموثقة.'
+    elif action.startswith('symbols:'):
         try:page=max(0,int(action.split(':',1)[1]))
         except ValueError:raise ValueError('صفحة غير صالحة')
         rows=[[(a.get('label') or a['symbol'],'pick:'+token(a['symbol']))] for a in assets[page*12:(page+1)*12]]
@@ -127,7 +180,7 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgre
     elif action=='active':
         active=[e for e in journal() if e.get('state') not in ('الهدف الثالث تحقق','وقف الخسارة تحقق','نتيجة غير محسومة')]
         text='🎯 متابعة الصفقات البحثية النشطة\n'+ ('\n'.join(str(e['symbol'])+' — '+str(e['state']) for e in active[:20]) or 'لا توجد صفقات نشطة مسجلة.')
-    return {'chat_id':chat_id,'text':text,'reply_markup':markup,'callback_id':callback.get('id'),'analysis_request':request}
+    return {'chat_id':chat_id,'text':text,'reply_markup':markup,'callback_id':callback.get('id'),'analysis_request':request,'news_request':news_request}
 
 def configure_webhook(token,secret,base_url,allowed_users,opener=None):
     """Register only an unused webhook or this exact endpoint; preserve another receiver."""

@@ -65,17 +65,30 @@ class ConnectedMarketJournalTests(unittest.TestCase):
   p=plan();ident=journal.store(self.db,p,now=NOW)
   self.assertIsNotNone(ident)
   self.assertIsNone(journal.store(self.db,p,now=NOW))
-  btime=NOW-timedelta(minutes=5)
+  btime=NOW
   events=journal.follow(self.db,"BITSTAMP:BTCUSD",
-     [(btime.isoformat(),59990,60120,59980,60105)],now=NOW)
+     [(btime.isoformat(),59990,60120,59980,60105)],now=NOW+timedelta(minutes=5),provider="Bitstamp")
   self.assertTrue(any(e["state"]=="الهدف الأول تحقق" for e in events))
   self.assertEqual(journal.follow(self.db,"BITSTAMP:BTCUSD",
-     [(btime.isoformat(),59990,60120,59980,60105)],now=NOW),[])
+     [(btime.isoformat(),59990,60120,59980,60105)],now=NOW+timedelta(minutes=5),provider="Bitstamp"),[])
   self.assertEqual(journal.recent(self.db)[0]["tp_count"],1)
  def test_simultaneous_tp_and_sl_marks_ambiguous(self):
   p=plan();journal.store(self.db,p,now=NOW)
-  btime=NOW-timedelta(minutes=5)
+  btime=NOW
   events=journal.follow(self.db,"BITSTAMP:BTCUSD",
-     [(btime.isoformat(),60000,60150,59850,60001)],now=NOW)
+     [(btime.isoformat(),60000,60150,59850,60001)],now=NOW+timedelta(minutes=5),provider="Bitstamp")
   self.assertTrue(any(e["state"]=="نتيجة غير محسومة" for e in events))
+
+ def test_journal_ignores_prepublication_and_other_provider_bars(self):
+  p=plan()
+  journal.store(self.db,p,now=NOW+timedelta(seconds=20))
+  bar=(NOW.isoformat(),60000,60150,59990,60120)
+  later=NOW+timedelta(minutes=10)
+  self.assertEqual(journal.follow(self.db,p["symbol"],[bar],now=later,provider="Bitstamp"),[])
+  next_bar=((NOW+timedelta(minutes=5)).isoformat(),*bar[1:])
+  self.assertEqual(journal.follow(self.db,p["symbol"],[next_bar],now=later,provider="TradingView Webhook"),[])
+  self.assertEqual(journal.recent(self.db)[0]["tp_count"],0)
+  self.assertEqual(journal.claim_notifications(self.db),[])
+  events=journal.follow(self.db,p["symbol"],[next_bar],now=later,provider="Bitstamp")
+  self.assertEqual([event["state"] for event in events],["الهدف الأول تحقق"])
 if __name__=="__main__":unittest.main()

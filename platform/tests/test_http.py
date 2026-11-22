@@ -439,6 +439,20 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(audit['candles'],35);self.assertEqual(len(audit['checks']),7)
         self.assertNotIn('entry',audit)
 
+    def test_agent_patterns_read_forex_history_under_provider_symbol(self):
+        now=datetime.now(timezone.utc).replace(second=0,microsecond=0)
+        now=now-timedelta(minutes=now.minute%5)
+        with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'["OANDA:EURUSD"]'}):
+            with app.history_connection() as db:
+                for pair,provider in [('EUR/USD','Twelve Data'),('EUR/USD','Other Source'),('GBP/USD','Twelve Data')]:
+                    for i in range(32):
+                        stamp=(now-timedelta(minutes=5*(32-i))).isoformat()
+                        db.execute('INSERT INTO market_candles VALUES (?,?,?,?,?,?,?,?)',(provider,pair,stamp,100,102,98,100,now.isoformat()))
+            code,data=self.request('GET','/api/agent',auth=self.auth)
+        self.assertEqual(code,200)
+        self.assertEqual([(a['symbol'],a['provider'],a['candles']) for a in data['pattern_audits']],
+                         [('OANDA:EURUSD','Twelve Data',32)])
+
     def test_integration_status_reports_agent_activation_and_recent_delivery(self):
         with patch.dict(os.environ, {"BIGBEN_SIGNAL_ANALYSIS_ENABLED":"1","TELEGRAM_BOT_TOKEN":"configured","TELEGRAM_CHAT_ID":"123456789"}):
             with app.history_connection() as c:

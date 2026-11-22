@@ -157,6 +157,74 @@ class DeliveryWorkflowTests(unittest.TestCase):
             events=journal.follow(db,p['symbol'],[(NOW.isoformat(),100,135,85,105)],now=NOW+timedelta(minutes=5),provider=p['provider'])
             self.assertEqual([e['state'] for e in events],['نتيجة غير محسومة'])
 
+    def test_near_stop_is_once_per_trade_after_entry_for_both_directions(self):
+        for side in ('BUY','SELL'):
+            with self.subTest(side=side),app.history_connection() as db:
+                p=plan()
+                if side=='SELL':
+                    p.update(technical_direction='SELL',sl=110,targets=[{'price':90},{'price':80},{'price':70}])
+                ident=journal.store(db,p,now=NOW)
+                first=(NOW.isoformat(),100,104,96,100)
+                self.assertNotIn(journal.STOP_NEAR,[e['state'] for e in journal.follow(
+                    db,p['symbol'],[first],now=NOW+timedelta(minutes=5),provider=p['provider'])])
+                values=(95,96,91,92) if side=='BUY' else (105,109,104,108)
+                near=((NOW+timedelta(minutes=5)).isoformat(),*values)
+                events=journal.follow(db,p['symbol'],[near],now=NOW+timedelta(minutes=10),provider=p['provider'])
+                notice=next(e for e in events if e['id']==ident)
+                self.assertEqual(notice['state'],journal.STOP_NEAR)
+                self.assertEqual(notice['remaining_risk_fraction'],0.2)
+                self.assertIn('0.20R',journal.management_message(notice))
+                self.assertEqual(db.execute('SELECT state FROM native_trade_journal WHERE id=?',(ident,)).fetchone()[0],'دخل النطاق افتراضياً')
+                repeated=((NOW+timedelta(minutes=10)).isoformat(),*values)
+                self.assertEqual(journal.follow(db,p['symbol'],[repeated],now=NOW+timedelta(minutes=15),provider=p['provider']),[])
+
+    def test_expired_near_stop_is_not_claimed(self):
+        p=plan()
+        with app.history_connection() as db:
+            journal.store(db,p,now=NOW)
+            entry=(NOW.isoformat(),100,103,96,100)
+            near=((NOW+timedelta(minutes=5)).isoformat(),95,96,91,92)
+            journal.follow(db,p['symbol'],[entry,near],now=NOW+timedelta(minutes=10),provider=p['provider'])
+            claimed=journal.claim_notifications(db,now=NOW+timedelta(minutes=17))
+            self.assertNotIn(journal.STOP_NEAR,[e['state'] for e in claimed])
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM native_management_outbox WHERE delivery='expired'").fetchone()[0],1)
+
+    def test_trade_summary_uses_full_previous_oman_day_and_deduplicates_after_restart(self):
+        boundary=datetime(2026,11,22,20,0,tzinfo=timezone.utc)
+        with app.history_connection() as db:
+            for index in range(55):
+                p=dict(plan(),entry=100+index)
+                stamp=boundary-timedelta(minutes=index+1)
+                journal.store(db,p,now=stamp)
+            journal.store(db,dict(plan(),entry=200),now=boundary)
+        with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(app,'send_telegram_message',return_value='sent') as send:
+            app.deliver_trade_digest(boundary+timedelta(minutes=4))
+            send.assert_not_called()
+            app.deliver_trade_digest(boundary+timedelta(minutes=5))
+            app.init()
+            app.deliver_trade_digest(boundary+timedelta(hours=2))
+            send.assert_called_once()
+            self.assertEqual(send.call_args.kwargs,{'category':'management','destination':'12345678'})
+            self.assertIn('2026-11-22',send.call_args.args[0])
+            self.assertIn('إشارات اليوم: 55',send.call_args.args[0])
+            self.assertIn('إشارات إضافية ضمن الإجمالي: 47',send.call_args.args[0])
+        with app.history_connection() as db:
+            self.assertEqual(db.execute("SELECT status FROM telegram_bot_receipts WHERE id LIKE 'trade-digest:%'").fetchone()[0],'sent')
+
+    def test_trade_summary_honors_muted_destination_and_skips_empty_days(self):
+        boundary=datetime(2026,11,22,20,5,tzinfo=timezone.utc)
+        with app.history_connection() as db:
+            db.execute("INSERT INTO telegram_bot_receipts VALUES (?,?,?)",('mute:12345678','muted',boundary.isoformat()))
+        with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(app.urllib.request,'urlopen') as transport:
+            app.deliver_trade_digest(boundary)
+            with app.history_connection() as db:
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM telegram_bot_receipts WHERE id LIKE 'trade-digest:%'").fetchone()[0],0)
+                journal.store(db,plan(),now=boundary-timedelta(hours=1))
+            app.deliver_trade_digest(boundary)
+            transport.assert_not_called()
+            with app.history_connection() as db:
+                self.assertEqual(db.execute("SELECT status FROM telegram_bot_receipts WHERE id LIKE 'trade-digest:%'").fetchone()[0],'not_configured')
+
     def test_morning_digest_is_durable_once_per_destination_and_day(self):
         now=datetime(2026,11,22,3,0,tzinfo=timezone.utc)
         with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(app,'send_telegram_message',return_value='sent') as send:

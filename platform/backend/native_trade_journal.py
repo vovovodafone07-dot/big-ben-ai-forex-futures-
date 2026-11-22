@@ -4,8 +4,12 @@ Monitors closed matching-provider M5 bars strictly AFTER a published setup.
 Ambiguous intrabar TP/SL collisions never resolve into fake profitable fills.
 """
 import hashlib,json,math
-from datetime import datetime,timezone
+from datetime import datetime,time,timedelta,timezone
 from zoneinfo import ZoneInfo
+
+ZONE = ZoneInfo("Asia/Muscat")
+STOP_NEAR = "اقترب إغلاق الشمعة من وقف الخسارة"
+TERMINAL_STATES = ("الهدف الثالث تحقق", "وقف الخسارة تحقق", "نتيجة غير محسومة")
 
 def migrate(db):
     db.execute("""CREATE TABLE IF NOT EXISTS native_management_outbox (
@@ -21,6 +25,7 @@ def migrate(db):
       last_bar TEXT, tp_count INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL, evidence_json TEXT NOT NULL
     )""")
+    db.execute("CREATE INDEX IF NOT EXISTS native_trade_journal_announced_at ON native_trade_journal(announced_at)")
 
 def key(plan):
     # Deliberately omit current candle timestamp, superficial status, confidence and
@@ -36,7 +41,7 @@ def store(db,plan,postgres=False,now=None):
         return None
     if not isinstance(plan.get("source_time"),str):return None
     marker="%s" if postgres else "?"
-    now=(now or datetime.now(timezone.utc)).isoformat()
+    now=(now or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat()
     ident=key(plan)
     args=(ident,plan["symbol"],plan["mode"],plan["technical_direction"],
           float(plan["entry"]),float(plan["sl"]),
@@ -92,6 +97,10 @@ def follow(db,symbol,rows,postgres=False,now=None,*,provider):
             if not stop_hit and hit>previous:
                 labels=["الهدف "+["الأول","الثاني","الثالث"][i]+" تحقق" for i in range(previous,hit)]
             elif label!=prior_state:labels=[label]
+            distance = close - sl if side == "BUY" else sl - close
+            if (not labels and 300 <= age <= 630
+                    and 0 < distance <= abs(entry - sl) * 0.25):
+                labels.append(STOP_NEAR)
             updated=db.execute("UPDATE native_trade_journal SET state="+m+",last_bar="+m+",tp_count="+m+",updated_at="+m+
                 " WHERE id="+m+" AND state="+m+" AND (last_bar="+m+" OR (last_bar IS NULL AND "+m+" IS NULL))",
                 (label,stamp.isoformat(),hit,now.isoformat(),ident,prior_state,last_seen,last_seen))
@@ -100,27 +109,38 @@ def follow(db,symbol,rows,postgres=False,now=None,*,provider):
                 event={"kind":"management","id":ident,"symbol":symbol,"state":transition,
                     "close":close,"source_time":stamp.isoformat(),
                     "note":"رصد من شمعة مغلقة؛ ترتيب الأحداث داخل الشمعة غير مؤكد ولا يثبت تنفيذ وسيط"}
+                if transition == STOP_NEAR:
+                    event["stop"] = sl
+                    event["remaining_risk_fraction"] = distance / abs(entry - sl)
                 event_id=hashlib.sha256((ident+":"+transition).encode()).hexdigest()
                 event["event_id"]=event_id
                 ordinal={"الهدف الأول تحقق":1,"الهدف الثاني تحقق":2,"الهدف الثالث تحقق":3}.get(transition,0)
-                db.execute("INSERT INTO native_management_outbox(event_id,payload,delivery,created_at,updated_at,ordinal) VALUES ("+
+                queued=db.execute("INSERT INTO native_management_outbox(event_id,payload,delivery,created_at,updated_at,ordinal) VALUES ("+
                     ",".join([m]*6)+") ON CONFLICT(event_id) DO NOTHING",
                     (event_id,json.dumps(event,ensure_ascii=False),"pending",now.isoformat(),now.isoformat(),ordinal))
-                events.append(event)
+                if queued.rowcount == 1:events.append(event)
             state=label;previous=hit;start=stamp
             last_seen=stamp.isoformat()
-            if label in ("الهدف الثالث تحقق","وقف الخسارة تحقق","نتيجة غير محسومة"):break
+            if label in TERMINAL_STATES:break
     return events
 
-def claim_notifications(db,postgres=False,limit=100):
+def claim_notifications(db,postgres=False,limit=100,now=None):
     """Persist a claim before network IO; uncertain sends need reconciliation, not retries."""
     m="%s" if postgres else "?"
+    now=now or datetime.now(timezone.utc)
     rows=db.execute("SELECT event_id,payload FROM native_management_outbox WHERE delivery='pending' ORDER BY created_at,ordinal,event_id LIMIT "+str(max(1,min(100,int(limit))))).fetchall()
     claimed=[]
     for ident,payload in rows:
-        result=db.execute("UPDATE native_management_outbox SET delivery='sending',updated_at="+m+
-            " WHERE event_id="+m+" AND delivery='pending'",(datetime.now(timezone.utc).isoformat(),ident))
-        if result.rowcount==1:claimed.append(json.loads(payload))
+        event=json.loads(payload)
+        delivery='sending'
+        if event.get('state')==STOP_NEAR:
+            state=db.execute("SELECT state FROM native_trade_journal WHERE id="+m,(event['id'],)).fetchone()
+            age=(now-_dt(event['source_time'])).total_seconds()
+            if not state or state[0] in TERMINAL_STATES or not 300<=age<=630:
+                delivery='expired'
+        result=db.execute("UPDATE native_management_outbox SET delivery="+m+",updated_at="+m+
+            " WHERE event_id="+m+" AND delivery='pending'",(delivery,now.isoformat(),ident))
+        if result.rowcount==1 and delivery=='sending':claimed.append(event)
     return claimed
 
 def finish_notification(db,event_id,delivery,postgres=False):
@@ -130,12 +150,44 @@ def finish_notification(db,event_id,delivery,postgres=False):
         " WHERE event_id="+m+" AND delivery='sending'",(delivery,datetime.now(timezone.utc).isoformat(),event_id))
 
 def management_message(e,now=None):
-    now=(now or datetime.now(timezone.utc)).astimezone(ZoneInfo("Asia/Muscat"))
+    now=(now or datetime.now(timezone.utc)).astimezone(ZONE)
+    if e["state"] == STOP_NEAR:
+        candle_close=(_dt(e["source_time"])+timedelta(minutes=5)).astimezone(ZONE)
+        return ("⚠️ اقتراب من وقف الخسارة | "+e["symbol"]+"\n━━━━━━━━━━━━━━━━━━\n"
+                "آخر إغلاق M5: "+str(e["close"])+"\n"
+                "مستوى الوقف: "+str(e["stop"])+"\n"
+                "المسافة المتبقية: "+format(e["remaining_risk_fraction"],".2f")+"R\n"
+                "وقت إغلاق الشمعة: "+candle_close.strftime("%Y-%m-%d %H:%M")+" مسقط\n"
+                "الصفقة متابعة بحثية. مستوى الوقف ثابت.")
     return ("🎯 تحديث إدارة صفقة بحثية | "+e["symbol"]+"\n━━━━━━━━━━━━━━━━━━\n"
             "📌 الحالة: "+e["state"]+"\n"
             "💰 سعر إغلاق الشمعة: "+str(e["close"])+"\n"
             "⏱️ الوقت: "+now.strftime("%Y-%m-%d %H:%M:%S")+" مسقط\n"
             "⚠️ متابعة افتراضية؛ لا يوجد تنفيذ وسيط مؤكد")
+
+def daily_summary(db,day,postgres=False):
+    """Count all setups published on this Oman calendar day; cap only the preview."""
+    start=datetime.combine(day,time.min,tzinfo=ZONE)
+    end=start+timedelta(days=1)
+    bounds=tuple(stamp.astimezone(timezone.utc).isoformat() for stamp in (start,end))
+    m="%s" if postgres else "?"
+    active,goal,stop,ambiguous=(0,0,0,0)
+    predicate=" WHERE announced_at >= "+m+" AND announced_at < "+m
+    for state,count in db.execute("SELECT state,COUNT(*) FROM native_trade_journal"+predicate+" GROUP BY state",bounds).fetchall():
+        if state==TERMINAL_STATES[0]:goal+=count
+        elif state==TERMINAL_STATES[1]:stop+=count
+        elif state==TERMINAL_STATES[2]:ambiguous+=count
+        else:active+=count
+    total=active+goal+stop+ambiguous
+    if not total:return None
+    details=db.execute("SELECT symbol,state FROM native_trade_journal"+predicate+
+                       " ORDER BY announced_at DESC,id LIMIT 8",bounds).fetchall()
+    return ("📒 ملخص الصفقات البحثية | "+day.isoformat()+" بتوقيت عُمان\n━━━━━━━━━━━━━━━━━━\n"
+            f"إشارات اليوم: {total} | قيد المتابعة: {active}\n"
+            f"الهدف الثالث: {goal} | وقف الخسارة: {stop} | غير محسومة: {ambiguous}\n\n"
+            +"\n".join(symbol+" — "+state for symbol,state in details)
+            +(f"\nإشارات إضافية ضمن الإجمالي: {total-len(details)}" if total>len(details) else "")
+            +"\nحالة السجل وقت إعداد الملخص. المتابعة افتراضية.")
 
 def recent(db,limit=50):
     rows=db.execute("SELECT id,symbol,mode,side,entry,sl,targets_json,state,tp_count,announced_at,updated_at FROM native_trade_journal ORDER BY announced_at DESC LIMIT "+str(min(100,max(1,int(limit))))).fetchall()

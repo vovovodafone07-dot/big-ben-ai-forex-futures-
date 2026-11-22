@@ -287,7 +287,7 @@ def scan_arabic_market_once(now=None):
    print('تشخيص_الماسح الرمز='+symbol+' المرحلة='+stage+' السبب='+reason,flush=True)
  try:
   # Journal transitions and their pending outbox rows commit atomically above.
-  with history_connection() as db:movements=_native_trade_journal.claim_notifications(db,postgres_enabled())
+  with history_connection() as db:movements=_native_trade_journal.claim_notifications(db,postgres_enabled(),now=now)
   for movement in movements:
    try:delivery=send_telegram_message(_native_trade_journal.management_message(movement,now),category="management")
    except Exception:delivery="uncertain"
@@ -295,6 +295,8 @@ def scan_arabic_market_once(now=None):
    if delivery=="failed":delivery="uncertain"
    with history_connection() as db:_native_trade_journal.finish_notification(db,movement["event_id"],delivery,postgres_enabled())
  except Exception:print("إدارة_الصفقات حالة=تعذر_تأكيد_التسليم",flush=True)
+ try:deliver_trade_digest(now)
+ except Exception:print("ملخص_الصفقات حالة=تعذر_المعالجة",flush=True)
  try:
   with history_connection() as db:
    news=_news.snapshot(db,now)
@@ -1145,9 +1147,9 @@ def notifications_muted(chat):
   with history_connection() as c:return _telegram_interactive.muted(c,chat,postgres_enabled())
  except Exception:return True
 
-def send_telegram_message(message,category="analysis"):
+def send_telegram_message(message,category="analysis",*,destination=None):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
- chat=telegram_destination(category)
+ chat=telegram_destination(category) if destination is None else destination
  if notifications_muted(chat):return 'not_configured'
  if not token or not re.fullmatch(r"-?[0-9]{5,20}",chat):
   return "not_configured"
@@ -1344,6 +1346,26 @@ def process_bot_update(update):
    c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(delivery,"update:"+str(update["update_id"])))
  except PermissionError:print("البوت_التفاعلي حالة=حساب_غير_مصرح",flush=True)
  except Exception:print("البوت_التفاعلي حالة=تعذر_معالجة_الطلب",flush=True)
+
+def deliver_trade_digest(now):
+ """Send the prior Oman calendar-day summary once to the management destination."""
+ local=now.astimezone(_native_trade_journal.ZONE)
+ if local.hour==0 and local.minute<5:return
+ chat=telegram_destination("management")
+ if not re.fullmatch(r"-?[0-9]{5,20}",chat):return
+ day=local.date()-timedelta(days=1)
+ key="trade-digest:"+hashlib.sha256(chat.encode()).hexdigest()[:16]+":"+day.isoformat()
+ postgres=postgres_enabled()
+ m="%s" if postgres else "?"
+ with history_connection() as c:
+  if c.execute("SELECT 1 FROM telegram_bot_receipts WHERE id="+m,(key,)).fetchone():return
+  summary=_native_trade_journal.daily_summary(c,day,postgres)
+  if not summary or not _telegram_interactive.claim(c,key,postgres,now):return
+ try:status=send_telegram_message(summary,category="management",destination=chat)
+ except Exception:status="uncertain"
+ if status=="failed":status="uncertain"
+ with history_connection() as c:
+  c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(status,key))
 
 def deliver_bot_news(snapshot,now):
  local=now.astimezone(_telegram_interactive.ZONE)

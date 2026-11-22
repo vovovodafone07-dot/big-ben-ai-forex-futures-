@@ -168,9 +168,6 @@ body[data-design="pro"] #walk-forward-panel summary,body[data-design="pro"] #spe
 <aside class="a-sidebar" aria-label="القائمة وإعدادات الإرسال"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 45 45" width="43" height="43" fill="none" aria-label="شعار Big Ben"><rect x="4" y="26" width="7" height="15" rx="2" fill="#1bce9d"/><rect x="16" y="17" width="7" height="24" rx="2" fill="#20dfaa"/><rect x="28" y="6" width="7" height="35" rx="2" fill="#3cf1b6"/></svg></span><div><b>BIG BEN AI PRO</b><small>Native Market Intelligence</small></div></div><nav class="sidebar" aria-label="التنقل الرئيسي">
 <button type="button" data-target="overview"><span class="ref-nav-icon" aria-hidden="true">⌂</span><span>الرئيسية</span></button>
 <button type="button" data-target="analyze"><span class="ref-nav-icon" aria-hidden="true">⌁</span><span>تحليل مباشر</span></button>
-<button type="button" data-target="analyze" data-nav-mode="scalp"><span class="ref-nav-icon" aria-hidden="true">ϟ</span><span>سكالب</span></button>
-<button type="button" data-target="analyze" data-nav-mode="swing"><span class="ref-nav-icon" aria-hidden="true">▥</span><span>سوينج</span></button>
-<button type="button" data-target="analyze" data-chart-shortcut="true"><span class="ref-nav-icon" aria-hidden="true">♜</span><span>الشارت</span></button>
 <button type="button" data-target="signals"><span class="ref-nav-icon" aria-hidden="true">▤</span><span>الصفقات</span></button>
 <button type="button" data-target="news"><span class="ref-nav-icon" aria-hidden="true">▣</span><span>الأخبار</span></button>
 <button type="button" data-target="agents"><span class="ref-nav-icon" aria-hidden="true">♧</span><span>الوكلاء</span></button>
@@ -306,7 +303,8 @@ function paint(){
  const padding=Math.max((max-min)*.09,Math.abs(max)*.00003);min-=padding;max+=padding;
  const left=10,right=65,top=18,bottom=34,cw=w-left-right,ch=h-top-bottom;
  const y=v=>top+(max-v)/(max-min)*ch;
- const bw=cw/bars.length;
+ const bw=cw/Math.max(30,bars.length);
+ const candleBodyWidth=Math.max(2,Math.min(14,bw*.64));
  ctx.strokeStyle='#153b47';ctx.lineWidth=.65;for(let i=0;i<9;i++){const x=left+cw*i/8;ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,top+ch);ctx.stroke()}
  ctx.lineWidth=1;ctx.font='11px sans-serif';ctx.textAlign='left';
  for(let j=0;j<5;j++){
@@ -320,7 +318,7 @@ function paint(){
   ctx.strokeStyle=up?'#10c99a':'#fb5264';ctx.fillStyle=ctx.strokeStyle;
   ctx.beginPath();ctx.moveTo(x,y(+b.high));ctx.lineTo(x,y(+b.low));ctx.stroke();
   const y1=y(Math.max(+b.open,+b.close)),y2=y(Math.min(+b.open,+b.close));
-  ctx.fillRect(x-Math.max(1,bw*.32),y1,Math.max(2,bw*.64),Math.max(1,y2-y1));
+  ctx.fillRect(x-candleBodyWidth/2,y1,candleBodyWidth,Math.max(1,y2-y1));
  }
  const tradeTick=last.liveTrade;
  if(tradeTick&&Date.now()-tradeTick.receivedAt<16000&&tradeTick.price>0){
@@ -654,13 +652,15 @@ session();setInterval(session,15000);
 })();</script><script id="instant-v2-dashboard">(()=>{
  const $=id=>document.getElementById(id);
  const put=(id,value)=>{const e=$(id);if(e)e.textContent=value};
+ let latestPlan=null,latestChart=null;
  function show(v){
+  latestPlan=v;
   const safeNumber=x=>Number.isFinite(Number(x))?Number(x).toLocaleString('en-US',{maximumFractionDigits:8}):'—';
   const status=v.status||'DATA_UNAVAILABLE',dir=v.technical_direction;
   const valid=['READY','CONDITIONAL','NEWS_CAUTION'].includes(status)
      &&v.entry!=null&&v.sl!=null&&Array.isArray(v.targets)&&v.targets.length===3;
   const labels={READY:'فرصة بحثية مكتملة',CONDITIONAL:'سيناريو مشروط بسعر',NEWS_CAUTION:'الإرسال محجوب بقيد سلامة',
-                DATA_UNAVAILABLE:'بيانات غير متاحة'};
+                DATA_UNAVAILABLE:'فحص سجل الشموع'};
   const box=$('ref-signal-card');if(box)box.dataset.decision=valid?(status==='READY'?(dir==='BUY'?'buy':'sell'):status==='NEWS_CAUTION'?'caution':dir==='BUY'?'conditional-buy':'conditional-sell'):'unavailable';
   put('ref-signal-title',valid?(dir==='BUY'?'↗ شراء BUY':'↘ بيع SELL')+' · '+labels[status]:(labels[status]||'بيانات غير متاحة'));
   put('ref-signal-reason',(v.mode==='swing'?'سوينغ · ساعة':'سكالب · خمس دقائق')+' · '+(v.status_ar||labels[status]||'تعذر التحقق من الشروط'));
@@ -689,7 +689,22 @@ session();setInterval(session,15000);
    put('desk-independent-levels','بيانات NQ غير مرخصة/غير مثبتة: '+(details.issues||[]).join('، ')
       +' · يلزم تحديد عقد انتهاء وتفعيل مزود OHLC قبل الأهداف.');
   }
+  if(v.reason_code==='NOT_ENOUGH_M5_HISTORY'){
+   const chart=latestChart?.symbol===v.symbol?latestChart:null;
+   const bars=chart?.candles||[],last=bars.at(-1);
+   const count=bars.length||v.extra?.received||0;
+   put('ref-signal-title','📊 قراءة الشموع المتاحة');
+   put('ref-signal-reason',(v.mode==='swing'?'سوينغ':'سكالب')+' · سجل M5 يتراكم تلقائياً: '+count+' شمعة');
+   put('desk-mode-selected',last?'آخر إغلاق: '+safeNumber(last.close)+' · نطاق مرصود: '+safeNumber(Math.min(...bars.map(b=>Number(b.low))))+' — '+safeNumber(Math.max(...bars.map(b=>Number(b.high)))):'وصل مصدر الشارت؛ جار قراءة الشموع المحفوظة.');
+   put('desk-independent-state','بناء السياق الزمني من الشموع المحفوظة');
+   put('desk-independent-levels','الشموع محفوظة وتتراكم مع كل إغلاق. يلزم 300 شمعة M5 على الأقل لبناء السياق؛ لا توجد بعد مستويات دخول ووقف وثلاثة أهداف مقاسة قابلة للإرسال.');
+   put('ref-signal-quality-label',last?'آخر شمعة: '+new Date(last.time).toLocaleString('ar-OM',{timeZone:'Asia/Muscat'}):'لا تُنشأ شموع اصطناعية لتوسيع السجل');
+  }
  }
+ window.addEventListener('bigben:chart-data',e=>{
+  latestChart=e.detail||null;
+  if(latestPlan?.symbol===latestChart?.symbol&&latestPlan?.reason_code==='NOT_ENOUGH_M5_HISTORY')show(latestPlan);
+ });
  window.addEventListener('bigben:instant-v2',e=>{if(e.detail)show(e.detail)});
  let deliveryCheck=0;
  window.addEventListener('bigben:instant-telegram',e=>{

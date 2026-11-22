@@ -84,6 +84,13 @@ class ReferenceLayoutContracts(unittest.TestCase):
         self.assertEqual(self.tags.ids.get("ref-journal-status"),1)
         self.assertIn("market_closed:'Telegram",self.html)
 
+    def test_analysis_modes_are_not_duplicate_navigation_destinations(self):
+        sidebar=self.html.split('<aside',1)[1].split('</aside>',1)[0]
+        self.assertEqual(sidebar.count('data-target="analyze"'),1)
+        self.assertIn('data-analysis-mode="scalp"',self.html)
+        self.assertIn('data-analysis-mode="swing"',self.html)
+        self.assertNotIn('data-nav-mode="scalp"',sidebar)
+
     def test_no_fake_market_values_or_broker_orders(self):
         for text in ("1.0874","1.0890","1.0840","82%"):
             self.assertNotIn(text,self.html)

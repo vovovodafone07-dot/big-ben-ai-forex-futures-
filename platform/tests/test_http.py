@@ -326,9 +326,9 @@ class WebhookHTTPTests(unittest.TestCase):
 
     def test_real_news_verification_is_scoped_and_durably_once_per_day(self):
         article={'id':'official-fixture','source':'Federal Reserve','feed_fresh':True,'feed_state':'CONNECTED',
-                 'published_at':datetime.now(timezone.utc).isoformat(),'url':'https://www.federalreserve.gov/newsevents/pressreleases/example.htm'}
+                 'time':(datetime.now(timezone.utc)+timedelta(minutes=10)).isoformat(),'title':'CPI'}
         key={'X-BigBen-News-Proof':'n'*40}
-        with patch.dict(os.environ,{'BIGBEN_NEWS_PROOF_TOKEN':'n'*40,'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._news,'snapshot',return_value={'news':[article]}),patch.object(app,'send_transport_card',return_value={'الحالة':'قبله Telegram','معرف_الرسالة':903}) as send:
+        with patch.dict(os.environ,{'BIGBEN_NEWS_PROOF_TOKEN':'n'*40,'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._news,'snapshot',return_value={'calendar':[article]}),patch.object(app,'send_transport_card',return_value={'الحالة':'قبله Telegram','معرف_الرسالة':903}) as send:
             self.assertEqual(self.request('POST','/v1/verification/news-delivery',{})[0],401)
             code,body=self.request('POST','/v1/verification/news-delivery',{},extra_headers=key)
             self.assertEqual(code,200);self.assertEqual(body['معرف_الرسالة'],903)

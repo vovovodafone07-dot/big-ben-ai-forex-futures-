@@ -94,6 +94,17 @@ class BotTests(unittest.TestCase):
   self.assertIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
   plan['source_age_seconds']=631
   self.assertNotIn('987654',bot.important_news_analysis(plan['symbol'],snapshot,plan,NOW))
+ def test_past_news_blocked_at_exact_time_boundary_and_proof_route_source(self):
+  base={'id':'future','time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI','title_ar':'خبر حالي'}
+  past=dict(base,id='past',time=(NOW-timedelta(seconds=1)).isoformat(),title_ar='خبر منته')
+  future=dict(base,id='next',time=(NOW+timedelta(minutes=10)).isoformat())
+  snapshot={'calendar':[past,base,future],'news':[{'published_at':(NOW-timedelta(days=1)).isoformat()}]}
+  self.assertEqual([e['id'] for _,e in bot.today_events(snapshot,NOW)],['future','next'])
+  self.assertNotIn('خبر منته',bot.digest(snapshot,NOW))
+  self.assertNotIn('خبر منته',bot.important_news_analysis('FOREXCOM:XAUUSD',snapshot,{},NOW))
+  self.assertIsNone(bot.verified_news_bulletin({'calendar':[past],'news':snapshot['news']},NOW))
+  self.assertEqual(bot.verified_news_bulletin(snapshot,NOW)['source_id'],'future')
+
  def test_digest_local_date_freshness_and_missing_numbers(self):
   event={'time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI'}
   snapshot={'calendar':[event,dict(event,time=(NOW+timedelta(days=1)).isoformat()),dict(event,feed_fresh=False)]}

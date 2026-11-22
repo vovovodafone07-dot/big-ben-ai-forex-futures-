@@ -1313,7 +1313,9 @@ def process_bot_update(update):
    reply["text"]=_telegram_interactive.signal_briefing(plan,_connected_market.gate(plan))
    if requested.get('read_only'):
     if _instant_telegram.eligible(plan):reply['text']=_instant_telegram.analysis_message(plan)
-   elif plan.get("status")=="READY":trigger_instant_telegram(plan)
+   elif plan.get("status")=="READY":
+    dispatch=trigger_instant_telegram(plan)
+    print("جلب_صفقة_البوت الرمز="+plan["symbol"]+" الحالة="+str(dispatch.get("status"))+" البصمة="+str(dispatch.get("fingerprint", "محفوظة_أو_غير_مؤهلة")),flush=True)
   delivery=send_bot_payload(reply)
   with history_connection() as c:
    m="%s" if postgres_enabled() else "?"
@@ -1347,7 +1349,7 @@ def deliver_bot_news(snapshot,now):
    messages.append(("digest:"+chat+":"+local.date().isoformat(),_telegram_interactive.digest(snapshot,now)))
   for when,event in _telegram_interactive.today_events(snapshot,now):
    minutes=(when-now.astimezone(_telegram_interactive.ZONE)).total_seconds()/60
-   if -1<=minutes<=10:
+   if 0<=minutes<=10:
     key="news:"+chat+":"+str(event.get("id") or when.isoformat())
     messages.append((key,"🔔 تنبيه خبر اقتصادي\n"+str(event.get("title_ar") or "إصدار اقتصادي مجدول")+" — "+when.strftime("%H:%M")+" بتوقيت عُمان\nقد ترتفع التقلبات؛ لا يُستنتج اتجاه الصفقة من الموعد وحده."))
   for key,message in messages:
@@ -1719,15 +1721,15 @@ class Handler(BaseHTTPRequestHandler):
    try:
     with history_connection() as db:
      bulletin=_telegram_interactive.verified_news_bulletin(_news.snapshot(db,now),now)
-     if not bulletin:return self.reply(409,{'الحالة':'لا يوجد بيان رسمي حديث موثق؛ لم يُختلق خبر'})
-     key='news-proof:'+owner+':'+now.astimezone(_telegram_interactive.ZONE).date().isoformat()
+     if not bulletin:return self.reply(409,{'الحالة':'لا يوجد خبر حالي أو قادم موثق؛ حُجبت الأخبار الماضية'})
+     key='news-proof:'+owner+':'+bulletin['source_id']
      claimed=_telegram_interactive.claim(db,key,postgres_enabled(),now)
      if not claimed:
       m='%s' if postgres_enabled() else '?'
       row=db.execute('SELECT status FROM telegram_bot_receipts WHERE id='+m,(key,)).fetchone()
       return self.reply(200,{'مكرر':True,'الإيصال':json.loads(row[0]) if row and row[0].startswith('{') else 'حجز سابق؛ لا إعادة تلقائية'})
     receipt=send_transport_card(bulletin['text'])
-    receipt.update({'معرف_المصدر':bulletin['source_id'],'تاريخ_النشر':bulletin['published_at'],'نوع_الإثبات':'نشرة مصدر رسمي مستقلة؛ لا تثبت صفقة أو اتجاه سعر'})
+    receipt.update({'معرف_المصدر':bulletin['source_id'],'تاريخ_النشر':bulletin['published_at'],'نوع_الإثبات':'حدث اقتصادي حالي أو قادم؛ سيناريوهات مشروطة مستقلة'})
     with history_connection() as db:
      m='%s' if postgres_enabled() else '?'
      db.execute('UPDATE telegram_bot_receipts SET status='+m+' WHERE id='+m,(json.dumps(receipt,ensure_ascii=False),key))

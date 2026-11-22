@@ -130,7 +130,7 @@ def news_scenarios(snapshot,now=None):
         try:when=_stamp(item["time"])
         except (ValueError,TypeError,KeyError):continue
         minutes=(when-now).total_seconds()/60
-        if not -15<=minutes<=30:continue
+        if not 0<=minutes<=30:continue
         title=str(item.get("title",""))[:140]
         lower=title.lower()
         classification=("تضخم" if "cpi" in lower or "consumer price" in lower else
@@ -152,6 +152,7 @@ def news_scenarios(snapshot,now=None):
 
 def news_message(event,now=None):
     if event.get("kind")!="news":raise ValueError("wrong_kind")
+    if _stamp(event["source_time"])<(now or datetime.now(timezone.utc)):raise ValueError("expired_news")
     # Macro sign heuristics apply to inflation surprises, not to every Fed event.
     if event.get("classification")=="تضخم":
         scenarios=("• إذا فاق التضخم التوقع الموثق: قد يدعم الدولار ويضغط على الذهب والناسداك 🔴، مع احتمال استجابة معاكسة بحسب عوائد السندات والسياق.\n"

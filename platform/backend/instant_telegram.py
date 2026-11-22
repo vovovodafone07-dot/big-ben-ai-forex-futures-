@@ -96,21 +96,27 @@ def trade_only_message(plan, now=None):
     if not eligible(plan) or plan.get("status")!="READY":
         raise ValueError("trade_needs_verified_ready_status")
     now=now or datetime.now(timezone.utc)
-    side="🔵 شراء" if plan["technical_direction"]=="BUY" else "🔴 بيع"
-    symbol=_esc(plan["symbol"].split(":",1)[1])
-    c=plan.get("confirmation") or {}
-    body=[side+" | "+symbol+" — "+("سكالب" if plan["mode"]=="scalp" else "سوينغ")+" ("+_esc({"crypto":"سوق فوري","forex":"فوركس","futures":"عقود آجلة","cfd":"عقود فروقات"}.get((plan.get("instrument") or {}).get("asset_class"),"سوق موثق"))+")",
-          "━━━━━━━━━━━━━━━━━━",
-          "🎯 الدخول: "+_f(plan["entry"]),
-          "🛑 وقف الخسارة: "+_f(plan["sl"]),
-          "✅ الأهداف:"]
-    for i,t in enumerate(plan["targets"],1):body.append("• الهدف "+str(i)+" (TP"+str(i)+"): "+_f(t["price"])+(' — '+_esc(t['liquidity_type']) if t.get('liquidity_type') else ''))
-    body+=["📋 شروط الدخول:",
-            "• تأكيد إغلاق "+("ساعة" if plan["mode"]=="swing" else "خمس دقائق")+" عند "+_f(c.get("level",plan["entry"])),
-            "• إبطال الفكرة عند تجاوز وقف الخسارة",
-            "⏱️ الوقت: "+now.astimezone(ZoneInfo("Asia/Muscat")).strftime("%Y-%m-%d %H:%M:%S")+" مسقط",
-            "⚠️ خطة بحثية، ليست تنفيذاً حقيقياً."]
-    return "\n".join(body)
+    buy=plan['technical_direction']=='BUY'
+    side='شراء' if buy else 'بيع';marker='🔵' if buy else '🔴'
+    symbol=_esc(plan['symbol'].split(':',1)[1])
+    asset=_esc({'crypto':'سوق فوري','forex':'فوركس','futures':'عقود آجلة','cfd':'عقود فروقات'}.get((plan.get('instrument') or {}).get('asset_class'),'سوق موثق'))
+    body=[marker+' <b>توصية '+side+' | '+symbol+' ('+asset+') — '+('سكالب' if plan['mode']=='scalp' else 'سوينغ')+'</b>',
+          '━━━━━━━━━━━━━━━━━━','📌 الاتجاه: '+side+' '+marker,
+          '🎯 منطقة / سعر الدخول: '+_f(plan['entry']),
+          '🛑 وقف الخسارة (SL): '+_f(plan['sl']),'',
+          '🎯 الأهداف (مستويات سعرية مقاسة عند توفر دليلها):']
+    for i,t in enumerate(plan['targets']):
+        label=t.get('liquidity_type') or 'دليل القياس غير متاح في السجل'
+        body.append(['1️⃣','2️⃣','3️⃣'][i]+' الهدف '+['الأول','الثاني','الثالث'][i]+' (TP'+str(i+1)+'): '+_f(t['price'])+' — '+_esc(label))
+    checks=(plan.get('quality_filter') or {}).get('checks') or {}
+    technical=[name for name in ('اتجاه متوافق','سحب سيولة واضح','كسر هيكل بزخم','إعادة اختبار فجوة سعرية') if checks.get(name) is True]
+    body+=['','📋 مرتكزات الدقة:']+['• '+name for name in technical]
+    c=plan.get('confirmation') or {}
+    body+=['• تأكيد إغلاق '+('ساعة' if plan['mode']=='swing' else 'خمس دقائق')+' عند '+_f(c.get('level',plan['entry'])),
+           '• وقف الخسارة يمثل مستوى إبطال الفكرة؛ لا يُحرّك تلقائياً لدى وسيط.',
+           '⏱️ الوقت (بتوقيت عُمان): '+now.astimezone(ZoneInfo('Asia/Muscat')).strftime('%Y-%m-%d %H:%M:%S'),
+           'خطة بحثية؛ لا تنفيذ صفقات حقيقية.']
+    return '\n'.join(body)
 
 def message(plan, now=None):
     if not eligible(plan):
@@ -187,7 +193,7 @@ def analysis_message(plan, now=None):
     scenario=("استمرار الصعود نحو الأهداف المحددة ما دام وقف الخسارة محفوظاً" if plan["technical_direction"]=="BUY" else
               "استمرار الهبوط نحو الأهداف المحددة ما دام وقف الخسارة محفوظاً")
     return "\n".join([
-      "📈 تحليل فني | "+_esc(plan["symbol"]),"━━━━━━━━━━━━━━━━━━",
+      "📈 تحديث تحليل فني: "+_esc(plan["symbol"]),"━━━━━━━━━━━━━━━━━━",
       "🧭 الاتجاه العام: "+bias,"💧 السيولة: "+sweep,
       "📍 منطقة الدخول المعتمدة: "+zone_text,"🎯 السيناريو المتوقع: "+scenario,
       "📋 التأكيد: "+("متحقق بإغلاق فريم الدخول" if (plan.get("confirmation") or {}).get("confirmed") else "مشروط؛ لم يتأكد الدخول"),

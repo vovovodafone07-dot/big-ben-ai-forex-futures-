@@ -253,7 +253,7 @@ def scan_arabic_market_once(now=None):
  """
  now=now or datetime.now(timezone.utc)
  with history_connection() as db:
-  from_market=tuple(item["symbol"] for item in _connected_market.connected(db,now,postgres_enabled()))[:100]
+  from_market=tuple(item["symbol"] for item in owner_connected_assets(db,now))[:100]
  results={"checked_at":now.isoformat(),"symbols":{},"events":0,"news":0}
  for symbol in from_market:
   try:
@@ -445,6 +445,7 @@ def deliver_native_companion(plan,trade_chat):
  chat=telegram_destination("analysis")
  if notifications_muted(chat):return
  with history_connection() as c:
+  if plan.get("symbol") not in owner_watchlist(c):return
   key=_instant_telegram.claim_companion(c,plan,trade_chat,chat,postgres_enabled())
  if not key:return
  try:
@@ -461,6 +462,8 @@ def trigger_instant_telegram(plan):
  """
  if plan.get('status')!='READY' or not _instant_telegram.eligible(plan):
   return {"status":"not_eligible"}
+ with history_connection() as c:
+  if plan.get("symbol") not in owner_watchlist(c):return {"status":"not_tracked"}
  market=_connected_market.gate(plan)
  if not market["open"]:
   return {"status":"market_closed","reason":market["reason"]}
@@ -1029,15 +1032,23 @@ def send_telegram_message(message,category="analysis"):
    return "sent" if response.status==200 else "failed"
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
-def tracked_asset_catalog(db,connected=None):
- if connected is None:connected=_connected_market.connected(db,postgres=postgres_enabled())
+def owner_watchlist(db):
+ """Only explicit platform selections and the authorized TV list snapshot."""
  watched=list(_destinations.read(db).get("watchlist",[]))
- watched.extend(row[0] for row in db.execute("SELECT DISTINCT symbol FROM events LIMIT 1000").fetchall())
  try:
   configured=json.loads(os.getenv("BIGBEN_TRACKED_SYMBOLS_JSON","[]"))
   if isinstance(configured,list):watched.extend(configured[:1000])
  except (ValueError,TypeError):pass
- return _tradingview_dynamic_sync.tracked_catalog(db,watched,connected,postgres_enabled())
+ return {s for s in watched if isinstance(s,str) and _tradingview_dynamic_sync.SYMBOL_RE.fullmatch(s)}
+
+def owner_connected_assets(db,now=None):
+ watched=owner_watchlist(db)
+ return [a for a in _connected_market.connected(db,now,postgres_enabled()) if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True]
+
+def tracked_asset_catalog(db,connected=None):
+ if connected is None:return owner_connected_assets(db)
+ watched=owner_watchlist(db)
+ return [a for a in connected if a['symbol'] in watched and a.get('connected') is True and a.get('fresh') is True]
 
 def send_bot_payload(payload):
  token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
@@ -1124,7 +1135,7 @@ def process_bot_update(update):
  try:
   allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
   with history_connection() as c:
-   assets=_connected_market.connected(c,postgres=postgres_enabled())
+   assets=owner_connected_assets(c)
    catalog=tracked_asset_catalog(c,assets)
    news=_news.snapshot(c);trades=_native_trade_journal.recent(c)
    reply=_telegram_interactive.handle(c,update,allowed_users=allowed,connected=lambda:assets,
@@ -1160,8 +1171,8 @@ def process_bot_update(update):
 
 def deliver_bot_news(snapshot,now):
  local=now.astimezone(_telegram_interactive.ZONE)
- try:hour=int(os.getenv("BIGBEN_NEWS_DIGEST_HOUR","7"))
- except ValueError:hour=7
+ try:hour=int(os.getenv("BIGBEN_NEWS_DIGEST_HOUR","5"))
+ except ValueError:hour=5
  with history_connection() as c:
   chats=c.execute("SELECT chat FROM telegram_bot_state WHERE news_enabled=1").fetchall()
  allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
@@ -1346,18 +1357,16 @@ class Handler(BaseHTTPRequestHandler):
   if path in ("/api/connected-symbols","/v1/connected-symbols"):
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    try:
-    with history_connection() as db:symbols=_connected_market.connected(db,postgres=postgres_enabled())
+    with history_connection() as db:symbols=owner_connected_assets(db)
     return self.reply(200,{"symbols":symbols,"count":len(symbols),
        "futures_note":"لا تُعرض العقود الآجلة حتى يكتمل اتصال مصدر شموع مرخص مطابق للعقد",
        "source_policy":"رموز بيانات مؤكدة فقط، وليس مجرد قائمة مراقبة"})
    except Exception:return self.reply(503,{"error":"connected_symbols_unavailable"})
   if path=="/api/instruments":
    try:
-    with history_connection() as c:preferences=_destinations.read(c)
-    observed={r[0] for r in list_events(5000,"all")}
-    catalog=_instruments.catalog(observed,preferences["watchlist"])
-    selected=[item for item in catalog if item["symbol"] in set(preferences["watchlist"])]
-    return self.reply(200,{"instruments":catalog,"selected_instruments":selected,"watchlist":preferences["watchlist"],"arbitrary_qualified_symbols":True,"alert_coverage_not_implied":True})
+    with history_connection() as c:allowed={a['symbol'] for a in owner_connected_assets(c)}
+    catalog=[i for i in _instruments.catalog(allowed,[]) if i['symbol'] in allowed]
+    return self.reply(200,{"instruments":catalog,"selected_instruments":catalog,"watchlist":sorted(allowed),"arbitrary_qualified_symbols":False,"alert_coverage_not_implied":True})
    except Exception:return self.reply(503,{"error":"catalog_unavailable"})
   if path=="/api/destinations":
    try:

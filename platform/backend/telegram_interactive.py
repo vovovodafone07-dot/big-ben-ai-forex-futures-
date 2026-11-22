@@ -112,3 +112,35 @@ def handle(db,update,*,allowed_users,connected,news,journal,postgres=False,now=N
         active=[e for e in journal() if e.get('state') not in ('الهدف الثالث تحقق','وقف الخسارة تحقق','نتيجة غير محسومة')]
         text='🎯 متابعة الصفقات البحثية النشطة\n'+ ('\n'.join(str(e['symbol'])+' — '+str(e['state']) for e in active[:20]) or 'لا توجد صفقات نشطة مسجلة.')
     return {'chat_id':chat_id,'text':text,'reply_markup':markup,'callback_id':callback.get('id'),'analysis_request':request}
+
+def configure_webhook(token,secret,base_url,allowed_users,opener=None):
+    """Register only an unused webhook or this exact endpoint; preserve another receiver."""
+    import urllib.request
+    from urllib.parse import urlsplit
+    if not token or len(secret)<32 or not allowed_users:return 'غير مهيأ'
+    parsed=urlsplit(base_url)
+    if parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ('','/'):
+        return 'عنوان استقبال غير صالح'
+    endpoint=base_url.rstrip('/')+'/v1/telegram/updates'
+    opener=opener or urllib.request.urlopen
+    def call(method,payload=None):
+        request=urllib.request.Request('https://api.telegram.org/bot'+token+'/'+method,
+            data=json.dumps(payload).encode() if payload is not None else None,
+            headers={'Content-Type':'application/json'})
+        with opener(request,timeout=8) as response:
+            if response.status!=200:raise ValueError('response')
+            data=response.read(65537)
+            if len(data)>65536:raise ValueError('oversized')
+            result=json.loads(data)
+            if result.get('ok') is not True:raise ValueError('rejected')
+            return result.get('result')
+    try:
+        info=call('getWebhookInfo')
+        if not isinstance(info,dict):return 'تعذر التحقق'
+        if info.get('url') not in ('',endpoint):return 'يوجد مستقبل آخر؛ لم يجر تغييره'
+        result=call('setWebhook',{'url':endpoint,'secret_token':secret,
+              'allowed_updates':['message','callback_query'],'drop_pending_updates':False})
+        if result is not True:return 'تعذر التسجيل'
+        verified=call('getWebhookInfo')
+        return 'تم تسجيل المستقبل' if isinstance(verified,dict) and verified.get('url')==endpoint else 'تعذر تأكيد التسجيل'
+    except Exception:return 'تعذر اتصال Telegram'

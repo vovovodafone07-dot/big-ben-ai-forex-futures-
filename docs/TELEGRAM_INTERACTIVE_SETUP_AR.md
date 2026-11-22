@@ -14,7 +14,7 @@
 2. أضف إلى إعدادات الخادم `BIGBEN_TELEGRAM_ALLOWED_USER_IDS` كقائمة معرّفات المستخدمين الرقمية المصرح بها، وليس أسماء الحسابات أو معرّف مجموعة.
 3. ضع `BIGBEN_TELEGRAM_WEBHOOK_SECRET` في مخزن أسرار الخادم بقيمة عشوائية مستقلة لا تقل عن 32 محرفاً. لا تضعها في Git أو الرسائل أو عنوان الرابط.
 4. افحص `getWebhookInfo` للبوت الحالي أولاً. لا تستبدل Webhook آخر مستخدم قبل تحديد وظيفته والمحافظة عليه.
-5. سجل `setWebhook` لعنوان HTTPS الخاص بالمنصة مع `/v1/telegram/updates`، ومرر السر في `secret_token`، و`allowed_updates` بالقيم `message` و`callback_query`، واحتفظ بالتحديثات القديمة (`drop_pending_updates=false`). لا ترسل التوكن إلى أي خدمة أخرى.
+5. يمكن تفعيل `BIGBEN_TELEGRAM_INTERACTIVE_ENABLED=1` ليستخدم الخادم التوكن الموجود ويسجل المستقبل عند الإقلاع، بعد فحص عدم وجود مستقبل مختلف، ويحتفظ بالتحديثات القديمة. يحتاج `RENDER_EXTERNAL_URL` الصحيح ونجاح اتصال Telegram. أو سجل `setWebhook` لعنوان HTTPS الخاص بالمنصة مع `/v1/telegram/updates`، ومرر السر في `secret_token`، و`allowed_updates` بالقيم `message` و`callback_query`، واحتفظ بالتحديثات القديمة (`drop_pending_updates=false`). لا ترسل التوكن إلى أي خدمة أخرى.
 6. ابدأ محادثة خاصة مع البوت وأرسل `/start` ثم اختبر الأزرار دون إرسال صفقة اصطناعية. نجاح نشر الكود لا يعني أن هذه الخطوات نُفذت.
 7. موعد النشرة قابل للتعديل عبر `BIGBEN_NEWS_DIGEST_HOUR` بين 0 و23 بتوقيت عُمان.
 

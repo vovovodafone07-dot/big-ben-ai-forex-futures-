@@ -69,3 +69,28 @@ class PrecisionTests(unittest.TestCase):
   rows=[(t,200-o,200-low,200-high,200-c) for t,o,high,low,c in self.bars()]
   self.assertTrue(precision.inspect(rows,'SELL','BEARISH',2,.25)['confirmed'])
 if __name__=='__main__':unittest.main()
+
+class RegistrationTests(unittest.TestCase):
+ def opener(self,results,calls):
+  class Response:
+   status=200
+   def __init__(self,result):self.result=result
+   def __enter__(self):return self
+   def __exit__(self,*args):pass
+   def read(self,n):
+    import json
+    return json.dumps({'ok':True,'result':self.result}).encode()
+  def open_request(req,timeout):
+   import json
+   calls.append(json.loads(req.data) if req.data else None)
+   return Response(results.pop(0))
+  return open_request
+ def test_registration_preserves_other_receiver(self):
+  calls=[]
+  state=bot.configure_webhook('fixture','s'*40,'https://example.onrender.com',{'123'},self.opener([{'url':'https://existing.example/receiver'}],calls))
+  self.assertIn('لم يجر تغييره',state);self.assertEqual(len(calls),1)
+ def test_registration_verifies_url_and_preserves_pending_updates(self):
+  endpoint='https://example.onrender.com/v1/telegram/updates';calls=[]
+  state=bot.configure_webhook('fixture','s'*40,'https://example.onrender.com',{'123'},self.opener([{'url':''},True,{'url':endpoint}],calls))
+  self.assertEqual(state,'تم تسجيل المستقبل');self.assertFalse(calls[1]['drop_pending_updates'])
+  self.assertEqual(calls[1]['secret_token'],'s'*40)

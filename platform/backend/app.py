@@ -1003,6 +1003,13 @@ def send_bot_payload(payload):
   with urllib.request.urlopen(request,timeout=8) as response:return "sent" if response.status==200 else "uncertain"
  except Exception:return "uncertain"
 
+def configure_interactive_bot():
+ if os.getenv("BIGBEN_TELEGRAM_INTERACTIVE_ENABLED","0")!="1":return
+ allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
+ result=_telegram_interactive.configure_webhook(os.getenv("TELEGRAM_BOT_TOKEN","").strip(),
+     os.getenv("BIGBEN_TELEGRAM_WEBHOOK_SECRET",""),os.getenv("RENDER_EXTERNAL_URL","").strip(),allowed)
+ print("تهيئة_البوت الحالة="+result,flush=True)
+
 def process_bot_update(update):
  try:
   allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
@@ -1516,6 +1523,7 @@ if __name__=="__main__":
  threading.Thread(target=check_market_connection,daemon=True).start()
  threading.Thread(target=crypto_startup_probe,daemon=True).start()
  threading.Thread(target=audit_telegram_connection,daemon=True).start()
+ threading.Thread(target=configure_interactive_bot,daemon=True).start()
  if os.getenv("BIGBEN_AGENT_WATCHDOG_ENABLED","1")=="1":
   threading.Thread(target=agent_watchdog,daemon=True).start()
  threading.Thread(target=history_worker,daemon=True).start()

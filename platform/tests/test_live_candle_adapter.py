@@ -75,14 +75,14 @@ class AdapterTests(unittest.TestCase):
         for bad in [dict(payload,symbols=[]),dict(payload,symbols=['NQ']),dict(payload,revision=0),dict(payload,symbols=['OANDA:EURUSD'])]:
             with self.assertRaises(ValueError):w.sync(self.db,bad)
         self.assertEqual(w.members(self.db),{SYMBOL})
-    def test_only_new_authenticated_alerts_extend_snapshot_not_old_history(self):
+    def test_alerts_do_not_expand_watchlist_without_a_new_authorized_snapshot(self):
         s.record_symbol(self.db,{'symbol':'OANDA:EURUSD'},authenticated=True,now=NOW-timedelta(days=2))
         w.sync(self.db,dict(schema='bigben.watchlist.v1',revision=1,watchlist_id='207266246',symbols=[SYMBOL]),now=NOW)
         self.assertNotIn('OANDA:EURUSD',w.members(self.db))
         s.record_symbol(self.db,{'symbol':'OANDA:USDJPY'},authenticated=True,now=NOW+timedelta(seconds=2))
-        self.assertEqual(w.members(self.db),{SYMBOL,'OANDA:USDJPY'})
-        w.sync(self.db,dict(schema='bigben.watchlist.v1',revision=2,watchlist_id='207266246',symbols=[SYMBOL]),now=NOW+timedelta(seconds=3))
         self.assertEqual(w.members(self.db),{SYMBOL})
+        w.sync(self.db,dict(schema='bigben.watchlist.v1',revision=2,watchlist_id='207266246',symbols=[SYMBOL,'OANDA:USDJPY']),now=NOW+timedelta(seconds=3))
+        self.assertEqual(w.members(self.db),{SYMBOL,'OANDA:USDJPY'})
     def test_weekend_open_is_dst_aware_not_stale_quote_override(self):
         self.assertTrue(g.forex_weekly_closed(NOW))
         self.assertEqual(g.next_forex_open(NOW),'2026-11-23T02:00:00+04:00')

@@ -332,9 +332,10 @@ class WebhookHTTPTests(unittest.TestCase):
         event=self.payload();event['symbol']='EUREX:FDAX1!'
         self.request('POST','/v1/tradingview/events',event)
         status,result=self.request('GET','/api/instruments',auth=self.auth)
-        self.assertEqual(status,200);self.assertGreater(len(result['instruments']),50)
-        instrument=next(i for i in result['instruments'] if i['symbol']=='EUREX:FDAX1!')
-        self.assertTrue(instrument['observed']);self.assertEqual(instrument['asset_class'],'futures')
+        self.assertEqual(status,200);self.assertEqual(result['instruments'],[])
+        self.assertFalse(result['arbitrary_qualified_symbols'])
+        with app.history_connection() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM events WHERE symbol='EUREX:FDAX1!'").fetchone()[0],1)
 
     def test_trade_stream_has_forex_names_and_formatted_share_text(self):
         self.request('POST','/v1/tradingview/events',self.payload('BUY'))

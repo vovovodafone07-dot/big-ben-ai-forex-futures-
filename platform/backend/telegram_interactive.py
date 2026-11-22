@@ -52,7 +52,7 @@ def today_events(snapshot,now):
 
 def digest(snapshot,now=None):
     now=now or datetime.now(timezone.utc)
-    lines=['📰 نشرة الأخبار اليومية والنظرة العامة | التاريخ: '+now.astimezone(ZONE).date().isoformat(), '━━━━━━━━━━━━━━━━━━']
+    lines=['📰 نشرة الأخبار اليومية والاتجاهات | التاريخ: '+now.astimezone(ZONE).date().isoformat()+' (05:00 ص بتوقيت عُمان)', '━━━━━━━━━━━━━━━━━━']
     events=today_events(snapshot,now)
     lines.append('🧭 النظرة العامة: '+('توجد إصدارات مجدولة؛ قد ترتفع التقلبات حول مواعيدها، ولا يُحسم اتجاه اليوم منها وحدها.' if events else 'لا يمكن تقييم هدوء اليوم أو تقلبه دون تقويم حديث موثق.'))
     if not events:lines.append('لا تتوفر قائمة موثقة ومحدثة لأخبار اليوم؛ هذا لا يعني خلو اليوم من الأخبار.')
@@ -66,7 +66,14 @@ def digest(snapshot,now=None):
     lines.append('الأوقات بتوقيت عُمان. السيناريوهات احتمالية، ولا تُنشئ صفقة.')
     text='\n'.join(lines)
     if len(text)>3900:
-        return '\n'.join(lines[:2])+ '\nعدد الأخبار يتجاوز حجم رسالة واحدة؛ افتح التقويم في المنصة للاطلاع على القائمة كاملة.\nلم تُرسل قائمة مبتورة على أنها كاملة.'
+        compact=lines[:3]+['قائمة مختصرة لكل أحداث اليوم المتاحة من المصدر؛ لا تغطي بالضرورة كل أخبار العالم.']
+        for dt,e in events:
+            kind=str(e.get('classification') or e.get('title','')).upper()
+            direction='أعلى: 🔴 ذهب؛ أقل: 🔵 ذهب' if any(k in kind for k in ('CPI','CONSUMER PRICE','NFP','EMPLOYMENT')) else '🔵/🔴: يحتاج تأكيداً'
+            compact.append(dt.strftime('%H:%M')+' '+str(e.get('title_ar') or 'إصدار اقتصادي')[:24]+' | توقع '+str(e.get('consensus') if e.get('consensus') is not None else 'غير موثق')[:12]+' | سابق '+str(e.get('previous') if e.get('previous') is not None else 'غير موثق')[:12]+' | '+direction)
+        compact.append('بتوقيت عُمان؛ السيناريوهات تتطلب تأكيد السعر والمكونات وليست صفقات.')
+        result='\n'.join(compact)
+        return result if len(result)<=4096 else '\n'.join(lines[:3])+'\nيتجاوز التقويم حد رسالة Telegram؛ افتح التقويم للاطلاع على القائمة كاملة.'
     return text
 
 def important_news_analysis(symbol,snapshot,plan,now=None):
@@ -190,7 +197,7 @@ def handle(db,update,*,allowed_users,connected,news,journal,tracked=None,postgre
             request={'symbol':selected,'mode':mode}
             text='جار فحص البيانات وشروط الدخول.'
     elif action=='news':
-        text='إعدادات الأخبار';markup=keyboard([[('⏰ '+('إيقاف' if enabled else 'تفعيل')+' تنبيه الأخبار','news:off' if enabled else 'news:on')],[('📰 نشرة اليوم الصباحية','digest')],[('🧪 اختبار سيناريو خبر','scenario')],[('القائمة الرئيسية','home')]])
+        text='إعدادات الأخبار';markup=keyboard([[('⏰ '+('إيقاف' if enabled else 'تفعيل')+' تنبيه الأخبار','news:off' if enabled else 'news:on')],[('📰 نشرة اليوم (5:00 ص بتوقيت عُمان)','digest')],[('🧪 اختبار سيناريو خبر','scenario')],[('القائمة الرئيسية','home')]])
     elif action in ('news:on','news:off'):
         db.execute('UPDATE telegram_bot_state SET news_enabled='+m+' WHERE chat='+m,(int(action=='news:on'),chat_id))
         text='تم تفعيل تنبيهات الأخبار والنشرة الصباحية.' if action=='news:on' else 'تم إيقاف التنبيهات الإضافية لهذا الحساب.'

@@ -31,7 +31,7 @@ class ImmediateThread:
 class DeliveryWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
-        self.env=patch.dict(os.environ,{'DATABASE_URL':'','TELEGRAM_BOT_TOKEN':'offline-fixture','BIGBEN_NATIVE_TELEGRAM_ENABLED':'1'})
+        self.env=patch.dict(os.environ,{'DATABASE_URL':'','TELEGRAM_BOT_TOKEN':'offline-fixture','BIGBEN_NATIVE_TELEGRAM_ENABLED':'1','BIGBEN_TRACKED_SYMBOLS_JSON':'["BITSTAMP:BTCUSD","COMEX_MINI:MGCZ26"]'})
         self.env.start()
         self.db_patch=patch.object(app,'DB',Path(self.temp.name)/'fixture.sqlite3');self.db_patch.start()
         app.init()
@@ -111,8 +111,32 @@ class DeliveryWorkflowTests(unittest.TestCase):
             self.assertEqual(send.call_count,1)
             self.assertIn('2026-11-22',send.call_args.args[0])
 
+    def test_digest_five_muscat_boundary_and_daily_reopen(self):
+        with patch.dict(os.environ,{'BIGBEN_NEWS_DIGEST_HOUR':'5'}),patch.object(app,'telegram_destination',return_value='12345678'),patch.object(app,'send_telegram_message',return_value='sent') as send:
+            app.deliver_bot_news({},datetime(2026,11,22,0,59,tzinfo=timezone.utc));send.assert_not_called()
+            app.deliver_bot_news({},datetime(2026,11,22,1,0,tzinfo=timezone.utc));self.assertEqual(send.call_count,1)
+            app.init()
+            app.deliver_bot_news({},datetime(2026,11,22,1,1,tzinfo=timezone.utc));self.assertEqual(send.call_count,1)
+            self.assertIn('05:00',send.call_args.args[0])
+
+    def test_watchlist_connection_intersection_not_history_or_provider_defaults(self):
+        assets=[{'symbol':s,'connected':True,'fresh':True} for s in ('BITSTAMP:BTCUSD','BITSTAMP:BTCEUR','FOREXCOM:XAUUSD')]
+        with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'["FOREXCOM:XAUUSD"]'}),patch.object(app._connected_market,'connected',return_value=assets):
+            with app.history_connection() as db:
+                self.assertEqual([a['symbol'] for a in app.owner_connected_assets(db)],['FOREXCOM:XAUUSD'])
+                app._destinations.save(db,{'watchlist':['BITSTAMP:BTCUSD']})
+                self.assertEqual({a['symbol'] for a in app.owner_connected_assets(db)},{'FOREXCOM:XAUUSD','BITSTAMP:BTCUSD'})
+                app._destinations.save(db,{'watchlist':[]})
+                self.assertEqual([a['symbol'] for a in app.tracked_asset_catalog(db,assets)],['FOREXCOM:XAUUSD'])
+                self.assertEqual(app.tracked_asset_catalog(db,[dict(a,fresh=False) for a in assets]),[])
+                self.assertEqual(app.tracked_asset_catalog(db,[dict(a,connected=False) for a in assets]),[])
+        with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'[]'}):
+            with app.history_connection() as db:self.assertEqual(app.owner_watchlist(db),set())
+            with patch.object(telegram,'send') as send:
+                self.assertEqual(app.trigger_instant_telegram(plan())['status'],'not_tracked');send.assert_not_called()
+
     def test_news_callback_uses_platform_engine_without_trade_dispatch(self):
-        asset={'symbol':'COMEX_MINI:MGCZ26','asset_class':'futures'}
+        asset={'symbol':'COMEX_MINI:MGCZ26','asset_class':'futures','connected':True,'fresh':True}
         update={'update_id':902,'callback_query':{'from':{'id':12345678},'message':{'chat':{'id':12345678,'type':'private'}},'data':'news_pick:'+app._telegram_interactive.token(asset['symbol'])}}
         with patch.dict(os.environ,{'BIGBEN_TELEGRAM_ALLOWED_USER_IDS':'12345678'}),patch.object(app._connected_market,'connected',return_value=[asset]),patch.object(app,'tracked_asset_catalog',return_value=[]),patch.object(app._news,'snapshot',return_value={}),patch.object(app,'analyze_instant_native',return_value={'symbol':asset['symbol'],'status':'DATA_UNAVAILABLE'}) as engine,patch.object(app,'trigger_instant_telegram') as trade,patch.object(app,'send_bot_payload',return_value='sent') as send:
             app.process_bot_update(update)

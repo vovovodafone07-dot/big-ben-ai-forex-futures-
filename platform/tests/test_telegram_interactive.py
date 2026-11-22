@@ -101,6 +101,13 @@ class BotTests(unittest.TestCase):
   self.assertIn('ليس توصية',bot.scenario('CPI'))
   self.assertIn('البطالة',bot.scenario('NFP'))
 
+ def test_long_digest_keeps_all_available_events_in_one_message(self):
+  events=[{'time':NOW.isoformat(),'feed_fresh':True,'feed_state':'CONNECTED','title':'CPI','title_ar':'خبر '+str(i)+' '+('تفصيل '*30),'consensus':None,'previous':None} for i in range(30)]
+  text=bot.digest({'calendar':events},NOW)
+  self.assertLessEqual(len(text),4096)
+  self.assertEqual(text.count('توقع غير موثق'),30)
+  self.assertIn('05:00',text)
+
 class PrecisionTests(unittest.TestCase):
  def bars(self):
   rows=[(NOW+timedelta(minutes=5*i),100,102,98,100) for i in range(30)]

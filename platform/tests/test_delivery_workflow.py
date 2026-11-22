@@ -69,6 +69,9 @@ class DeliveryWorkflowTests(unittest.TestCase):
     def test_unconfirmed_ready_is_not_a_trade(self):
         p=plan();p['confirmation']['confirmed']=False
         self.assertFalse(telegram.eligible(p))
+        p=plan();p['status']='CONDITIONAL'
+        with patch.object(telegram,'send') as send:
+            self.assertEqual(app.trigger_instant_telegram(p)['status'],'not_eligible');send.assert_not_called()
 
     def test_muted_destination_keeps_analysis_running_without_dispatch(self):
         with app.history_connection() as db:

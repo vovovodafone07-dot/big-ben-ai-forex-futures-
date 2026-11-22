@@ -459,7 +459,7 @@ def trigger_instant_telegram(plan):
  Does not block Analyze while Telegram's network responds. DB claim guarantees
  parallel browser refreshes cannot dispatch the same signal twice.
  """
- if not _instant_telegram.eligible(plan):
+ if plan.get('status')!='READY' or not _instant_telegram.eligible(plan):
   return {"status":"not_eligible"}
  market=_connected_market.gate(plan)
  if not market["open"]:

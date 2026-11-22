@@ -49,6 +49,20 @@ class DeliveryWorkflowTests(unittest.TestCase):
             self.assertEqual(db.execute("SELECT COUNT(*) FROM native_telegram_alerts WHERE delivery='sent'").fetchone()[0],2)
             self.assertEqual(len(journal.recent(db)),1)
 
+    def test_authenticated_chart_source_delivers_two_cards_without_external_vendor_and_deduplicates(self):
+        p=plan();p.update(provider='TradingView Webhook',asset_class='crypto')
+        p['source_provenance']=dict(provider=p['provider'],symbol=p['symbol'],
+            source_identity_verified=True,last_candle=p['source_time'],last_received_at=NOW.isoformat())
+        captured=[]
+        def send(*args,**kw):captured.append(kw.get('category','trade'));return 'sent'
+        with patch.object(app,'telegram_destination',return_value='12345678'),patch.object(telegram,'send',side_effect=send),patch.object(app.threading,'Thread',ImmediateThread),patch.object(app._live_candle_adapter,'fetch') as external:
+            self.assertEqual(app.trigger_instant_telegram(p)['status'],'sending')
+            self.assertEqual(app.trigger_instant_telegram(p)['status'],'duplicate')
+            external.assert_not_called()
+        self.assertEqual(captured,['trade','analysis'])
+        text=telegram.trade_only_message(p)
+        self.assertNotIn('الأخبار',text);self.assertNotIn('CPI',text)
+
     def test_100_concurrent_claims_and_reopen_have_one_winner(self):
         def claim(_):
             with app.history_connection() as db:return telegram.claim(db,plan(),'12345678')
@@ -79,7 +93,7 @@ class DeliveryWorkflowTests(unittest.TestCase):
         def picker(*args):
             self.assertEqual(fetch.call_count,1)
             return []
-        with patch.object(app,'bitstamp_native_candles',return_value=([],meta)) as fetch,patch.object(app,'owner_connected_assets',side_effect=picker),patch.object(app,'deliver_bot_news'):
+        with patch.object(app,'bitstamp_native_candles',return_value=([],meta)) as fetch,patch.object(app,'refresh_tracked_candles_once'),patch.object(app,'owner_connected_assets',side_effect=picker),patch.object(app,'deliver_bot_news'):
             app.scan_arabic_market_once(NOW)
         fetch.assert_called_once_with('BITSTAMP:BTCUSD',NOW)
 
@@ -148,11 +162,11 @@ class DeliveryWorkflowTests(unittest.TestCase):
             with app.history_connection() as db:
                 self.assertEqual([a['symbol'] for a in app.owner_connected_assets(db)],['FOREXCOM:XAUUSD'])
                 app._destinations.save(db,{'watchlist':['BITSTAMP:BTCUSD']})
-                self.assertEqual({a['symbol'] for a in app.owner_connected_assets(db)},{'FOREXCOM:XAUUSD','BITSTAMP:BTCUSD'})
+                self.assertEqual({a['symbol'] for a in app.owner_connected_assets(db)},{'FOREXCOM:XAUUSD'})
                 app._destinations.save(db,{'watchlist':[]})
                 self.assertEqual([a['symbol'] for a in app.tracked_asset_catalog(db,assets)],['FOREXCOM:XAUUSD'])
-                self.assertEqual(app.tracked_asset_catalog(db,[dict(a,fresh=False) for a in assets]),[])
-                self.assertEqual(app.tracked_asset_catalog(db,[dict(a,connected=False) for a in assets]),[])
+                self.assertFalse(app.tracked_asset_catalog(db,[dict(a,fresh=False) for a in assets])[0]['actionable'])
+                self.assertFalse(app.tracked_asset_catalog(db,[dict(a,connected=False) for a in assets])[0]['actionable'])
         with patch.dict(os.environ,{'BIGBEN_TRACKED_SYMBOLS_JSON':'[]'}):
             with app.history_connection() as db:self.assertEqual(app.owner_watchlist(db),set())
             with patch.object(telegram,'send') as send:

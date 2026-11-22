@@ -142,10 +142,10 @@ class DeliveryWorkflowTests(unittest.TestCase):
         later=NOW+timedelta(minutes=5)
         with app.history_connection() as db:
             journal.store(db,p,now=NOW)
-            transitions=journal.follow(db,p['symbol'],[bar],now=later)
+            transitions=journal.follow(db,p['symbol'],[bar],now=later,provider=p['provider'])
             self.assertEqual([e['state'] for e in transitions],['الهدف الأول تحقق','الهدف الثاني تحقق','الهدف الثالث تحقق'])
         with app.history_connection() as db:
-            self.assertEqual(journal.follow(db,p['symbol'],[bar],now=later),[])
+            self.assertEqual(journal.follow(db,p['symbol'],[bar],now=later,provider=p['provider']),[])
             events=journal.claim_notifications(db)
             self.assertEqual([e['state'] for e in events],[e['state'] for e in transitions])
         with app.history_connection() as db:self.assertEqual(journal.claim_notifications(db),[])
@@ -154,7 +154,7 @@ class DeliveryWorkflowTests(unittest.TestCase):
         p=plan()
         with app.history_connection() as db:
             journal.store(db,p,now=NOW)
-            events=journal.follow(db,p['symbol'],[(NOW.isoformat(),100,135,85,105)],now=NOW+timedelta(minutes=5))
+            events=journal.follow(db,p['symbol'],[(NOW.isoformat(),100,135,85,105)],now=NOW+timedelta(minutes=5),provider=p['provider'])
             self.assertEqual([e['state'] for e in events],['نتيجة غير محسومة'])
 
     def test_morning_digest_is_durable_once_per_destination_and_day(self):

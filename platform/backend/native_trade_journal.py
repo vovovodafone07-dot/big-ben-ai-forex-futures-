@@ -51,15 +51,19 @@ def _dt(x):
     if d.tzinfo is None:raise ValueError("missing timezone")
     return d.astimezone(timezone.utc)
 
-def follow(db,symbol,rows,postgres=False,now=None):
+def follow(db,symbol,rows,postgres=False,now=None,*,provider):
     now=now or datetime.now(timezone.utc)
     m="%s" if postgres else "?"
-    records=db.execute("SELECT id,side,entry,sl,targets_json,announced_candle,state,last_bar,tp_count FROM native_trade_journal WHERE symbol="+m+
+    records=db.execute("SELECT id,side,entry,sl,targets_json,announced_candle,state,last_bar,tp_count,announced_at,evidence_json FROM native_trade_journal WHERE symbol="+m+
                         " AND state NOT IN ('الهدف الثالث تحقق','وقف الخسارة تحقق','نتيجة غير محسومة') ORDER BY announced_at DESC LIMIT 30",(symbol,)).fetchall()
     events=[]
-    for ident,side,entry,sl,raw,announced,state,last_seen,previous in records:
-        try:targets=[float(x) for x in json.loads(raw)];start=_dt(last_seen or announced)
-        except (ValueError,TypeError):continue
+    for ident,side,entry,sl,raw,announced,state,last_seen,previous,published,evidence in records:
+        try:
+            if not provider or json.loads(evidence).get("source")!=provider:continue
+            targets=[float(x) for x in json.loads(raw)]
+            start=max(_dt(announced),_dt(last_seen or announced))
+            published_at=_dt(published)
+        except (ValueError,TypeError,AttributeError):continue
         for rawbar in sorted(rows,key=lambda r:str(r[0] if not isinstance(r,dict) else r["time"])):
             prior_state=state
             try:
@@ -67,7 +71,7 @@ def follow(db,symbol,rows,postgres=False,now=None):
                 stamp=_dt(stamp);high,low,close=map(float,(high,low,close))
             except (TypeError,ValueError,KeyError):continue
             age=(now-stamp).total_seconds()
-            if stamp<=start or age<300 or not math.isfinite(high+low+close):continue
+            if stamp<=start or stamp<published_at or age<300 or not math.isfinite(high+low+close):continue
             entered=state!="مراقبة دخول افتراضي"
             touched_entry=low<=entry<=high
             if not entered and not touched_entry:continue

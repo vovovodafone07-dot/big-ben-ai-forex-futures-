@@ -259,19 +259,22 @@ def scan_arabic_market_once(now=None):
     notification="🟢 استئناف بيانات السوق | "+symbol+"\n━━━━━━━━━━━━━━━━━━\nعادت شموع مغلقة حديثة من المصدر المطابق.\nهذا تحديث اتصال؛ لا يثبت افتتاح جلسة البورصة أو وجود صفقة."
     send_telegram_message(notification,category="market")
    if analysis["status"]=="DATA_UNAVAILABLE":continue
-   if analysis.get('provider')==_tradingview_candles.PROVIDER:
+   provider=analysis.get('provider')
+   if provider==_tradingview_candles.PROVIDER:
     with history_connection() as db:rows,_=_tradingview_candles.read(db,symbol,postgres_enabled())
-   elif symbol.startswith("BITSTAMP:"):
+   elif provider=="Bitstamp" and symbol.startswith("BITSTAMP:"):
     rows,_=bitstamp_native_candles(symbol,now)
-   else:
+   elif provider=="Twelve Data" and re.fullmatch(r"OANDA:[A-Z]{6}",symbol):
     base=symbol.split(":",1)[1]
     pair=base[:3]+"/"+base[3:]
     mark="%s" if postgres_enabled() else "?"
     with history_connection() as db:
      rows=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+mark+" ORDER BY time DESC LIMIT 1000",(pair,)).fetchall()
+   else:
+    continue
    stage='متابعة سجل الصفقة'
    with history_connection() as db:
-    movements=_native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now)
+    _native_trade_journal.follow(db,symbol,rows,postgres_enabled(),now,provider=provider)
    stage='كشف الحدث الفني'
    for event in _arabic_event_engine.technical_events(symbol,rows,now):
     status=send_arabic_market_event(event)
@@ -609,6 +612,11 @@ def stored_pattern_audits(now):
    grouped={}
    for provider,*bar in rows:grouped.setdefault(provider,[]).append(bar)
    candidates=[_pattern_audit.inspect(symbol,provider,bars,now) for provider,bars in grouped.items()]
+   if re.fullmatch(r'OANDA:[A-Z]{6}',symbol):
+    base=symbol.split(':',1)[1]
+    pair=base[:3]+'/'+base[3:]
+    bars=db.execute("SELECT time,open,high,low,close FROM market_candles WHERE provider='Twelve Data' AND symbol="+m+" ORDER BY time DESC LIMIT 1500",(pair,)).fetchall()
+    if bars:candidates.append(_pattern_audit.inspect(symbol,'Twelve Data',bars,now))
    chosen=max(candidates,key=lambda a:(a['fresh'],a['candles']>=30,a['source_time'] or '',a['candles'])) if candidates else _pattern_audit.inspect(symbol,'لم يصل سجل شموع',[],now)
    audits.append(chosen)
  return audits

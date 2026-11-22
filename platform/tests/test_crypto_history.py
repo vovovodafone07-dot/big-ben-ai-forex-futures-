@@ -22,6 +22,14 @@ def data(symbol="BTC/USD",count=1000):
     return {"data":{"pair":symbol,"ohlc":[{"timestamp":str(t0+i*300),"open":str(100+i),"high":str(101+i),"low":str(99+i),"close":str(100+i)} for i in range(count)]}}
 
 class CryptoHistoryTests(unittest.TestCase):
+    def test_valid_but_stale_response_is_not_connected(self):
+        bars,meta=crypto.fetch_m5('BITSTAMP:BTCUSD',NOW,lambda req,timeout:Reply(data()))
+        self.assertEqual(meta['state'],'STALE');self.assertFalse(meta['fresh'])
+        d=data(count=2)
+        d['data']['ohlc'][-1]['timestamp']=str(int((NOW-timedelta(minutes=5)).timestamp()))
+        _,meta=crypto.fetch_m5('BITSTAMP:BTCUSD',NOW,lambda req,timeout:Reply(d))
+        self.assertEqual(meta['state'],'CONNECTED');self.assertEqual(meta['source_age_seconds'],300)
+        self.assertFalse(meta['realtime_verified'])
     def test_parse_bitstamp_real_symbol_and_closed_bars(self):
         urls=[]
         def open_fixture(req,timeout):urls.append(req.full_url);return Reply(data())

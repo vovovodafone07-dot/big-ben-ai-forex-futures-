@@ -423,8 +423,8 @@ const starting=(localStorage.getItem('bigben-desk-symbol')||document.getElementB
   fresh:i.status!=='DATA_UNAVAILABLE',decision:ready?side:i.status,decision_reason_code:i.reason_code,
   independent_setup:{state:ready?'CANDIDATE_RESEARCH_ONLY':i.status,candidate:levels,bias:i.bias},
   selected_trade:levels,full_trade:levels,scalp:levels,source_time:i.source_time,
-  strategy_version:i.version,mode_note:i.disclaimer||i.reason_code,
-  reasons:[i.reason_code||'NO_REASON',i.news?.state||'NEWS_NOT_VERIFIED',
+  strategy_version:i.version,mode_note:i.status_ar||'تحليل بحثي؛ لم يثبت التنفيذ أو الربح',
+  reasons:[i.status_ar||'بيانات الأصل أو شروط التحليل غير مكتملة',({NEWS_CAUTION:'خبر قريب يمنع الدخول',EVENT_UNRATED:'يوجد حدث اقتصادي يحتاج مراجعة',NO_VERIFIED_EVENT:'لا يوجد حدث قريب في التقويم المتاح',NOT_VERIFIED:'تعذر توثيق تقويم الأخبار'}[i.news?.state]||'تعذر توثيق الأخبار'),
     'السيناريو مشروط ببيانات موثقة؛ لا تنفيذ أوامر'],
   checks:[],news:[],news_scenarios:[],agent_tasks:[],
   ai:{state:'not_requested',reason:'instant_native'},instant:i
@@ -663,7 +663,7 @@ session();setInterval(session,15000);
                 DATA_UNAVAILABLE:'بيانات غير متاحة'};
   const box=$('ref-signal-card');if(box)box.dataset.decision=valid?(status==='READY'?(dir==='BUY'?'buy':'sell'):status==='NEWS_CAUTION'?'caution':dir==='BUY'?'conditional-buy':'conditional-sell'):'unavailable';
   put('ref-signal-title',valid?(dir==='BUY'?'↗ شراء BUY':'↘ بيع SELL')+' · '+labels[status]:(labels[status]||'بيانات غير متاحة'));
-  put('ref-signal-reason',(v.mode==='swing'?'SWING · H1':'SCALP · M5')+' · '+(v.reason_code||'سبب غير متاح'));
+  put('ref-signal-reason',(v.mode==='swing'?'سوينغ · ساعة':'سكالب · خمس دقائق')+' · '+(v.status_ar||labels[status]||'تعذر التحقق من الشروط'));
   put('ref-entry',valid?safeNumber(v.entry):'—');
   put('ref-sl',valid?safeNumber(v.sl):'—');
   put('ref-tp',valid?safeNumber(v.targets[0].price):'—');
@@ -677,12 +677,12 @@ session();setInterval(session,15000);
   put('desk-independent-levels',valid?'سعر التأكيد: '+safeNumber(v.confirmation?.level)
     +' · الإبطال: '+safeNumber(v.sl)+' · الأهداف: '+v.targets.map(t=>t.name+' '+safeNumber(t.price)).join('، ')
     :'مطلوب مصدر OHLC مطابق وحديث قبل حساب Entry أو SL أو الأهداف.');
-  put('ref-check-trend','الاتجاه · '+(v.bias||'غير مثبت'));
+  put('ref-check-trend','الاتجاه · '+({BULLISH:'صاعد',BEARISH:'هابط',RANGING:'عرضي'}[v.bias]||'غير مثبت'));
   put('ref-check-momentum','التذبذب · '+(v.indicators?.ATR_M5??'غير محسوب'));
   put('ref-check-confirmation','التأكيد · '+(v.confirmation?.confirmed?'متحقق':'مشروط'));
-  put('ref-check-liquidity','السيولة · '+(v.evidence?.LIQUIDITY_SWEEP||'غير مقاسة'));
-  put('ref-signal-quality-label','جودة الإعداد: غير معايرة');
-  const notes=v.news?.state||'NOT_VERIFIED';
+  put('ref-check-liquidity','السيولة · '+({LOW:'سحب سيولة قاع',HIGH:'سحب سيولة قمة',NOT_DETECTED:'غير مؤكدة'}[v.evidence?.LIQUIDITY_SWEEP]||'غير مقاسة'));
+  put('ref-signal-quality-label',Object.entries(v.quality_filter?.checks||{}).map(([name,ok])=>(ok?'✅ ':'❌ ')+name).join(' · ')||'جودة الإعداد: غير معايرة');
+  const notes={NEWS_CAUTION:'خبر قريب يمنع الدخول',EVENT_UNRATED:'حدث يحتاج مراجعة',NO_VERIFIED_EVENT:'لا يوجد حدث قريب في التقويم المتاح',NOT_VERIFIED:'التقويم غير موثق'}[v.news?.state]||'التقويم غير موثق';
   put('ref-signal-quality-help','الأخبار: '+notes+' · الاحتمال غير معاير');
   if(v.extra?.preflight){
    const details=v.extra.preflight;

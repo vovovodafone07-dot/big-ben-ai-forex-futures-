@@ -7,8 +7,9 @@ LEGACY_TABLES=('events','schema_migrations','market_candles','market_history_che
         'ai_daily_budget','ai_reviews','analysis_runs','notification_preferences',
         'notification_deliveries','job_runs','daily_reports','strategy_drafts',
         'analysis_notes','research_runs','agent_runs','pine_replay_runs')
-TABLES=LEGACY_TABLES+('native_telegram_alerts','native_trade_journal','native_market_open_state',
+V2_TABLES=LEGACY_TABLES+('native_telegram_alerts','native_trade_journal','native_market_open_state',
                      'tradingview_discovered_symbols','native_management_outbox')
+TABLES=V2_TABLES+('telegram_bot_state','telegram_bot_receipts')
 MAX_BYTES=32*1024*1024
 MAX_ROWS=100000
 
@@ -34,7 +35,7 @@ def snapshot(c,postgres=False):
                 rows.append(value)
         data={'columns':columns,'rows':rows}
         tables[name]={**data,'sha256':hashlib.sha256(canonical(data)).hexdigest()}
-    bundle={'schema':'bigben.application-backup.v2','created_at':datetime.now(timezone.utc).isoformat(),
+    bundle={'schema':'bigben.application-backup.v3','created_at':datetime.now(timezone.utc).isoformat(),
             'tables':tables,'row_count':total,'complete':True,
             'excluded':['environment secrets','broker credentials','job leases','Render infrastructure and database roles'],
             'restore_scope':'application rows into a new local database; not a PostgreSQL infrastructure backup'}
@@ -43,10 +44,10 @@ def snapshot(c,postgres=False):
 
 
 def verify(bundle):
-    if not isinstance(bundle,dict) or bundle.get('schema') not in ('bigben.application-backup.v1','bigben.application-backup.v2') or bundle.get('complete') is not True:
+    if not isinstance(bundle,dict) or bundle.get('schema') not in ('bigben.application-backup.v1','bigben.application-backup.v2','bigben.application-backup.v3') or bundle.get('complete') is not True:
         raise ValueError('backup_schema')
     tables=bundle.get('tables')
-    expected=TABLES if bundle['schema'].endswith('.v2') else LEGACY_TABLES
+    expected=TABLES if bundle['schema'].endswith('.v3') else V2_TABLES if bundle['schema'].endswith('.v2') else LEGACY_TABLES
     if not isinstance(tables,dict) or set(tables)!=set(expected):raise ValueError('backup_tables')
     total=0
     for name,data in tables.items():

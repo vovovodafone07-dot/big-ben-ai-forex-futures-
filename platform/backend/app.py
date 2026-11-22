@@ -27,7 +27,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -103,6 +103,7 @@ def init():
    _native_trade_journal.migrate(c)
    _connected_market.migrate(c)
    _tradingview_dynamic_sync.migrate(c)
+   _telegram_interactive.migrate(c)
  else:
   DB.parent.mkdir(parents=True,exist_ok=True)
   with sqlite_connection() as c:
@@ -123,6 +124,7 @@ def init():
    _native_trade_journal.migrate(c)
    _connected_market.migrate(c)
    _tradingview_dynamic_sync.migrate(c)
+   _telegram_interactive.migrate(c)
 def history_connection():
  return pg_connect() if postgres_enabled() else sqlite_connection()
 
@@ -292,7 +294,9 @@ def scan_arabic_market_once(now=None):
  try:
   with history_connection() as db:
    news=_news.snapshot(db,now)
+  deliver_bot_news(news,now)
   for event in _arabic_event_engine.news_scenarios(news,now):
+   if event.get("event_type")!="RELEASED":continue
    delivery=send_arabic_market_event(event)
    if delivery=="sent":results["news"]+=1
  except Exception:print("arabic_scanner news=failed",flush=True)
@@ -990,6 +994,82 @@ def send_telegram_message(message,category="analysis"):
    return "sent" if response.status==200 else "failed"
  except (urllib.error.URLError,TimeoutError,ValueError):
   return "failed"
+def send_bot_payload(payload):
+ token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+ if not token:return "not_configured"
+ data={k:v for k,v in payload.items() if k in ("chat_id","text","reply_markup")}
+ request=urllib.request.Request("https://api.telegram.org/bot"+token+"/sendMessage",data=json.dumps(data,ensure_ascii=False).encode(),headers={"Content-Type":"application/json"},method="POST")
+ try:
+  with urllib.request.urlopen(request,timeout=8) as response:return "sent" if response.status==200 else "uncertain"
+ except Exception:return "uncertain"
+
+def process_bot_update(update):
+ try:
+  allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
+  with history_connection() as c:
+   assets=_connected_market.connected(c,postgres=postgres_enabled())
+   news=_news.snapshot(c);trades=_native_trade_journal.recent(c)
+   reply=_telegram_interactive.handle(c,update,allowed_users=allowed,connected=lambda:assets,
+       news=lambda:news,journal=lambda:trades,postgres=postgres_enabled())
+  if not reply:return
+  callback=reply.get("callback_id")
+  if callback:
+   token=os.getenv("TELEGRAM_BOT_TOKEN","").strip()
+   try:
+    req=urllib.request.Request("https://api.telegram.org/bot"+token+"/answerCallbackQuery",data=json.dumps({"callback_query_id":callback}).encode(),headers={"Content-Type":"application/json"},method="POST")
+    with urllib.request.urlopen(req,timeout=3):pass
+   except Exception:pass
+  requested=reply.get("analysis_request")
+  if requested:
+   plan=analyze_instant_native(requested["symbol"],requested["mode"])
+   labels={"READY":"اكتملت الشروط الفنية؛ تخضع الصفقة لفحص السوق ومنع التكرار","CONDITIONAL":"شروط الدخول غير مكتملة","NEWS_CAUTION":"الدخول محظور قرب خبر مؤثر","DATA_UNAVAILABLE":"بيانات الأصل غير متوفرة أو غير موثقة"}
+   reply["text"]="📈 تحليل "+requested["symbol"]+" — "+("سكالب" if requested["mode"]=="scalp" else "سوينغ")+"\n"+labels.get(plan.get("status"),"تعذر التحقق من التحليل")
+   checks=(plan.get("quality_filter") or {}).get("checks",{})
+   if checks:reply["text"]+="\n"+"\n".join(("✅ " if value else "❌ ")+name for name,value in checks.items())
+   if plan.get("status")=="READY":trigger_instant_telegram(plan)
+  delivery=send_bot_payload(reply)
+  with history_connection() as c:
+   m="%s" if postgres_enabled() else "?"
+   c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(delivery,"update:"+str(update["update_id"])))
+ except PermissionError:print("البوت_التفاعلي حالة=حساب_غير_مصرح",flush=True)
+ except Exception:print("البوت_التفاعلي حالة=تعذر_معالجة_الطلب",flush=True)
+
+def deliver_bot_news(snapshot,now):
+ local=now.astimezone(_telegram_interactive.ZONE)
+ try:hour=int(os.getenv("BIGBEN_NEWS_DIGEST_HOUR","7"))
+ except ValueError:hour=7
+ with history_connection() as c:
+  chats=c.execute("SELECT chat FROM telegram_bot_state WHERE news_enabled=1").fetchall()
+ allowed=set(filter(None,os.getenv("BIGBEN_TELEGRAM_ALLOWED_USER_IDS","").replace(" ","").split(",")))
+ destination=""
+ if local.hour>=max(0,min(23,hour)):
+  destination=telegram_destination("news")
+  if destination:
+   key="digest:default:"+hashlib.sha256(destination.encode()).hexdigest()[:16]+":"+local.date().isoformat()
+   with history_connection() as c:claimed=_telegram_interactive.claim(c,key,postgres_enabled(),now)
+   if claimed:
+    status=send_telegram_message(_telegram_interactive.digest(snapshot,now),category="news")
+    with history_connection() as c:
+     m="%s" if postgres_enabled() else "?"
+     c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(status,key))
+ for (chat,) in chats:
+  if chat not in allowed:continue
+  messages=[]
+  if local.hour>=max(0,min(23,hour)) and chat!=destination:
+   messages.append(("digest:"+chat+":"+local.date().isoformat(),_telegram_interactive.digest(snapshot,now)))
+  for when,event in _telegram_interactive.today_events(snapshot,now):
+   minutes=(when-now.astimezone(_telegram_interactive.ZONE)).total_seconds()/60
+   if -1<=minutes<=10:
+    key="news:"+chat+":"+str(event.get("id") or when.isoformat())
+    messages.append((key,"🔔 تنبيه خبر اقتصادي\n"+str(event.get("title_ar") or "إصدار اقتصادي مجدول")+" — "+when.strftime("%H:%M")+" بتوقيت عُمان\nقد ترتفع التقلبات؛ لا يُستنتج اتجاه الصفقة من الموعد وحده."))
+  for key,message in messages:
+   with history_connection() as c:claimed=_telegram_interactive.claim(c,key,postgres_enabled(),now)
+   if not claimed:continue
+   status=send_bot_payload({"chat_id":chat,"text":message})
+   with history_connection() as c:
+    m="%s" if postgres_enabled() else "?"
+    c.execute("UPDATE telegram_bot_receipts SET status="+m+" WHERE id="+m,(status,key))
+
 def dashboard_authenticated(headers):
  password=os.getenv("BIGBEN_DASHBOARD_PASSWORD","")
  if len(password)<20:return False
@@ -1318,6 +1398,19 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self' wss://ws.bitstamp.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=="/v1/telegram/updates":
+   secret=os.getenv("BIGBEN_TELEGRAM_WEBHOOK_SECRET","")
+   if len(secret)<32:return self.reply(503,{"message":"لم يهيأ استقبال البوت بعد"})
+   if not secure_equal(self.headers.get("X-Telegram-Bot-Api-Secret-Token",""),secret):return self.reply(401,{"message":"طلب غير مصرح"})
+   try:
+    size=int(self.headers.get("Content-Length","0"))
+    if not 0<size<=32768:return self.reply(413,{"message":"حجم الطلب غير مقبول"})
+    update=json.loads(self.rfile.read(size))
+    if not isinstance(update,dict) or type(update.get("update_id")) is not int:raise ValueError()
+   except (ValueError,UnicodeDecodeError):return self.reply(400,{"message":"طلب غير صالح"})
+   self.reply(202,{"message":"استلم طلب التفاعل"})
+   threading.Thread(target=process_bot_update,args=(update,),daemon=True).start()
+   return
   if urlsplit(self.path).path in ("/api/workspace/drafts","/api/workspace/notes"):
    if not dashboard_authenticated(self.headers):return self.reply(401,{"error":"unauthorized"})
    if self.headers.get("Content-Type","").split(";",1)[0]!="application/json":return self.reply(415,{"error":"json_content_type_required"})

@@ -21,7 +21,7 @@ def status(now=None):
     # General FX weekly window: Sunday 22:00 UTC through Friday 22:00 UTC.
     weekday, seconds = now.weekday(), now.hour * 3600 + now.minute * 60 + now.second
     weekly_open = ((0 <= weekday <= 3) or
-                   (weekday in (4, 5) and seconds < 22 * 3600) or
+                   (weekday == 4 and seconds < 22 * 3600) or
                    (weekday == 6 and seconds >= 22 * 3600))
     if weekly_open:
         next_close = now.replace(hour=22, minute=0, second=0, microsecond=0)
@@ -47,3 +47,4 @@ def status(now=None):
         "next_daily_rollover_utc": daily_rollover.isoformat(),
         "next_daily_rollover_muscat": daily_rollover.astimezone(MUSCAT).isoformat(),
     }
+

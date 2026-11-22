@@ -8,6 +8,11 @@ from datetime import datetime,timezone
 from zoneinfo import ZoneInfo
 
 def migrate(db):
+    db.execute("""CREATE TABLE IF NOT EXISTS native_management_outbox (
+      event_id TEXT PRIMARY KEY, payload TEXT NOT NULL,
+      delivery TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      ordinal INTEGER NOT NULL DEFAULT 0
+    )""")
     db.execute("""CREATE TABLE IF NOT EXISTS native_trade_journal (
       id TEXT PRIMARY KEY, symbol TEXT NOT NULL, mode TEXT NOT NULL,
       side TEXT NOT NULL, entry REAL NOT NULL, sl REAL NOT NULL,
@@ -56,6 +61,7 @@ def follow(db,symbol,rows,postgres=False,now=None):
         try:targets=[float(x) for x in json.loads(raw)];start=_dt(last_seen or announced)
         except (ValueError,TypeError):continue
         for rawbar in sorted(rows,key=lambda r:str(r[0] if not isinstance(r,dict) else r["time"])):
+            prior_state=state
             try:
                 stamp,op,high,low,close=rawbar[:5] if not isinstance(rawbar,dict) else (rawbar["time"],rawbar["open"],rawbar["high"],rawbar["low"],rawbar["close"])
                 stamp=_dt(stamp);high,low,close=map(float,(high,low,close))
@@ -78,15 +84,46 @@ def follow(db,symbol,rows,postgres=False,now=None):
                 label="الهدف "+["الأول","الثاني","الثالث"][hit-1]+" تحقق"
             else:
                 label=state
-            if label!=state or (state=="مراقبة دخول افتراضي" and touched_entry):
-                events.append({"kind":"management","id":ident,"symbol":symbol,"state":label,
+            labels=[]
+            if not stop_hit and hit>previous:
+                labels=["الهدف "+["الأول","الثاني","الثالث"][i]+" تحقق" for i in range(previous,hit)]
+            elif label!=prior_state:labels=[label]
+            updated=db.execute("UPDATE native_trade_journal SET state="+m+",last_bar="+m+",tp_count="+m+",updated_at="+m+
+                " WHERE id="+m+" AND state="+m+" AND (last_bar="+m+" OR (last_bar IS NULL AND "+m+" IS NULL))",
+                (label,stamp.isoformat(),hit,now.isoformat(),ident,prior_state,last_seen,last_seen))
+            if updated.rowcount!=1:break
+            for transition in labels:
+                event={"kind":"management","id":ident,"symbol":symbol,"state":transition,
                     "close":close,"source_time":stamp.isoformat(),
-                    "note":"متابعة افتراضية من شموع مغلقة لا تثبت تعبئة حقيقية، وقد تُحسم أحداث داخل الشمعة بصعوبة"})
+                    "note":"رصد من شمعة مغلقة؛ ترتيب الأحداث داخل الشمعة غير مؤكد ولا يثبت تنفيذ وسيط"}
+                event_id=hashlib.sha256((ident+":"+transition).encode()).hexdigest()
+                event["event_id"]=event_id
+                ordinal={"الهدف الأول تحقق":1,"الهدف الثاني تحقق":2,"الهدف الثالث تحقق":3}.get(transition,0)
+                db.execute("INSERT INTO native_management_outbox(event_id,payload,delivery,created_at,updated_at,ordinal) VALUES ("+
+                    ",".join([m]*6)+") ON CONFLICT(event_id) DO NOTHING",
+                    (event_id,json.dumps(event,ensure_ascii=False),"pending",now.isoformat(),now.isoformat(),ordinal))
+                events.append(event)
             state=label;previous=hit;start=stamp
-            db.execute("UPDATE native_trade_journal SET state="+m+",last_bar="+m+",tp_count="+m+",updated_at="+m+
-                " WHERE id="+m,(state,stamp.isoformat(),previous,now.isoformat(),ident))
+            last_seen=stamp.isoformat()
             if label in ("الهدف الثالث تحقق","وقف الخسارة تحقق","نتيجة غير محسومة"):break
     return events
+
+def claim_notifications(db,postgres=False,limit=100):
+    """Persist a claim before network IO; uncertain sends need reconciliation, not retries."""
+    m="%s" if postgres else "?"
+    rows=db.execute("SELECT event_id,payload FROM native_management_outbox WHERE delivery='pending' ORDER BY created_at,ordinal,event_id LIMIT "+str(max(1,min(100,int(limit))))).fetchall()
+    claimed=[]
+    for ident,payload in rows:
+        result=db.execute("UPDATE native_management_outbox SET delivery='sending',updated_at="+m+
+            " WHERE event_id="+m+" AND delivery='pending'",(datetime.now(timezone.utc).isoformat(),ident))
+        if result.rowcount==1:claimed.append(json.loads(payload))
+    return claimed
+
+def finish_notification(db,event_id,delivery,postgres=False):
+    if delivery not in ('sent','failed','uncertain','not_configured'):raise ValueError('invalid_delivery')
+    m="%s" if postgres else "?"
+    db.execute("UPDATE native_management_outbox SET delivery="+m+",updated_at="+m+
+        " WHERE event_id="+m+" AND delivery='sending'",(delivery,datetime.now(timezone.utc).isoformat(),event_id))
 
 def management_message(e,now=None):
     now=(now or datetime.now(timezone.utc)).astimezone(ZoneInfo("Asia/Muscat"))

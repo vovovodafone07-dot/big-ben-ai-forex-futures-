@@ -23,3 +23,5 @@ for number,code in enumerate(parser.code,1):
     subprocess.run([os.getenv("NODE_BINARY","node"),"--check","--input-type=commonjs"],input=code.encode("utf-8"),check=True,timeout=15)
 print("Checked "+str(len(parser.code))+" inline JavaScript blocks")
 subprocess.run([os.getenv("NODE_BINARY","node"),str(Path(__file__).with_name("test_symbol_selection.cjs"))],check=True,timeout=15)
+
+subprocess.run([os.getenv("NODE_BINARY","node"),str(Path(__file__).with_name("test_saved_signal.cjs"))],check=True,timeout=15)

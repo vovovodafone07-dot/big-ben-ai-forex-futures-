@@ -30,7 +30,7 @@ _hspec.loader.exec_module(_history)
 _rspec=importlib.util.spec_from_file_location("bigben_research",Path(__file__).resolve().parents[2]/"research"/"orchestrator.py")
 _research=importlib.util.module_from_spec(_rspec)
 _rspec.loader.exec_module(_research)
-for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture","live_candle_adapter","tv_watchlist","tradingview_candles"):
+for _extra in ("news","desk","ai_provider","instruments","destinations","whatsapp","smt_research","workspace","operations","backup","market_sessions","market_pulses","event_pipeline","analysis_opportunities","native_chart_analysis","crypto_history","instant_engine","futures_preflight","instant_telegram","arabic_event_engine","connected_market","native_trade_journal","tradingview_dynamic_sync","connected_symbols_v2","telegram_interactive","bridge_validation","transport_fixture","live_candle_adapter","tv_watchlist","tradingview_candles","pattern_audit"):
  _spec=importlib.util.spec_from_file_location("bigben_"+_extra,Path(__file__).with_name(_extra+".py"))
  _module=importlib.util.module_from_spec(_spec)
  _spec.loader.exec_module(_module)
@@ -598,6 +598,20 @@ def trigger_instant_telegram(plan):
   except Exception:pass
   return {"status":"failed"}
  return {"status":"sending","fingerprint":key}
+
+def stored_pattern_audits(now):
+ """Read only stored, watchlist-scoped, unmixed candle histories."""
+ audits=[]
+ with history_connection() as db:
+  m='%s' if postgres_enabled() else '?'
+  for symbol in sorted(owner_watchlist(db)):
+   rows=db.execute('SELECT provider,time,open,high,low,close FROM market_candles WHERE symbol='+m+' ORDER BY time DESC LIMIT 1500',(symbol,)).fetchall()
+   grouped={}
+   for provider,*bar in rows:grouped.setdefault(provider,[]).append(bar)
+   candidates=[_pattern_audit.inspect(symbol,provider,bars,now) for provider,bars in grouped.items()]
+   chosen=max(candidates,key=lambda a:(a['fresh'],a['candles']>=30,a['source_time'] or '',a['candles'])) if candidates else _pattern_audit.inspect(symbol,'لم يصل سجل شموع',[],now)
+   audits.append(chosen)
+ return audits
 
 def analyze_native_chart(symbol,mode):
  """Standalone platform decisions from provider candles. Never load TV webhook trades."""
@@ -1666,7 +1680,7 @@ class Handler(BaseHTTPRequestHandler):
     result=research_report()
     return self.reply(200,{"agent":"Big Ben reliability + research","mode":"alerts_only","checked_at":now.isoformat(),
       "services":{"storage":storage_kind(),"twelve_data_key_configured":bool(twelve_data_key()),"telegram_configured":bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))},
-      "tracked_symbols":list(latest.values()),"research":{"status":result["status"],"observed_outcomes":result["observed_outcomes"],"signals_examined":result["signals_examined"]},
+      "pattern_audits":stored_pattern_audits(now),"tracked_symbols":list(latest.values()),"research":{"status":result["status"],"observed_outcomes":result["observed_outcomes"],"signals_examined":result["signals_examined"]},
       "capabilities":["Monitor TradingView heartbeat freshness","Audit historical signal observations","Report missing provider configuration"],
       "not_enabled":["Automatic Pine editing","Automatic strategy retraining","Broker order execution"]})
    except Exception:return self.reply(503,{"error":"agent_status_unavailable"})

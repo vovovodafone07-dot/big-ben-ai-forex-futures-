@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync(require('node:path').join(__dirname,'../platform/index.html'),'utf8');
+const source=html.match(/<script id="saved-signal-display">([\s\S]*?)<\/script>/)[1];
+const ctx=vm.createContext({window:{},Date,Number,Math});vm.runInContext(source,ctx);
+const select=ctx.window.BigBenSavedSignal.latest;
+const past=new Date(Date.now()-86400000).toISOString();
+const old={symbol:'TEST:X',event:'SELL',time:past,entry:100,sl:105,tp:90};
+assert.equal(select([old]).entry,100);assert.equal(select([old]).rr,2);
+assert.equal(select([{...old,event:'HEARTBEAT'}]),null);
+assert.equal(select([{...old,sl:95}]),null);
+assert.equal(select([{...old,time:new Date(Date.now()+60000).toISOString()}]),null);
+assert.equal(select([{...old,entry:null}]),null);
+const newer={...old,event_id:'native',time:new Date(Date.now()-60000).toISOString(),targets:[90,85,80]};
+assert.equal(select([old,newer]).event_id,'native');assert.equal(select([newer]).targets[2],80);
+assert.equal(select([old]).targets,undefined,'never manufacture three targets from the original single target');
+assert.ok(!html.includes('overview-feed" data-page="signals"'));
+console.log('Passed archived level geometry, RR, ordering, missing targets and duplicate section checks.');

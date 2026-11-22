@@ -102,6 +102,17 @@ class WebhookHTTPTests(unittest.TestCase):
         self.assertEqual(len(result['agent_tasks']),3);self.assertFalse(result['uses_tradingview_signals']);self.assertEqual(result['analysis_origin'],'platform_native')
         self.assertEqual(self.request('POST','/api/analyze',{'symbol':'FAKE'},auth=self.auth)[0],400)
 
+    def test_explicit_ai_review_calls_specialists_without_dispatch(self):
+        payload = {"symbol": "OANDA:EURUSD", "ai": True}
+        with patch.object(app, "owner_watchlist", return_value={"OANDA:EURUSD"}), \
+             patch.object(app, "analyze_instrument", return_value={"ai": {"state": "CONNECTED"}}) as analyze, \
+             patch.object(app, "trigger_instant_telegram") as telegram:
+            self.assertEqual(self.request("POST", "/api/analyze", payload)[0], 401)
+            status, data = self.request("POST", "/api/analyze", payload, auth=self.auth)
+            self.assertEqual((status, data["review"]["state"]), (200, "CONNECTED"))
+            analyze.assert_called_once_with("OANDA:EURUSD", include_ai=True)
+            telegram.assert_not_called()
+
     def test_native_telegram_only_sends_from_authenticated_v2_plan(self):
         with patch.object(app,"trigger_instant_telegram",return_value={"status":"not_eligible"}) as dispatch:
             code,_=self.request("POST","/api/instant/analyze",{"symbol":"BTCUSD","mode":"scalp"})

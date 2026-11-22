@@ -1922,6 +1922,11 @@ class Handler(BaseHTTPRequestHandler):
    try:
     mode=request.get("mode","scalp")
     if mode not in ("scalp","swing"):return self.reply(400,{"error":"unsupported_analysis_mode"})
+    if request.get("ai") is True:
+     with history_connection() as db:
+      if symbol not in owner_watchlist(db):return self.reply(400,{"error":"symbol_not_tracked"})
+     review=analyze_instrument(symbol,include_ai=True)["ai"]
+     return self.reply(200,{"symbol":symbol,"review":review})
     result=analyze_native_chart(symbol,mode)
     return self.reply(200,result)
    except Exception:return self.reply(503,{"error":"analysis_unavailable"})

@@ -449,6 +449,22 @@ def analyze_instant_native(symbol,mode):
  rows=[]
  check_meta={}
  with history_connection() as db:tv_rows,tv_meta=_tradingview_candles.read(db,symbol,postgres_enabled())
+ # A newly connected chart must not suppress an already verified venue feed.
+ # Keep complete histories separate; never splice different candle sources.
+ if _tradingview_candles.fresh(tv_meta,now) and len(tv_rows)<300 and symbol in _connected_market.SUPPORTED_CRYPTO:
+  try:
+   venue_rows,venue_meta=bitstamp_native_candles(symbol,now)
+   stamp=datetime.fromisoformat(str(venue_meta.get('last_candle','')).replace('Z','+00:00'))
+   if (len(venue_rows)>=300 and venue_meta.get('symbol')==symbol and venue_meta.get('provider')=='Bitstamp'
+       and venue_meta.get('state')=='CONNECTED' and 300<=(now-stamp).total_seconds()<=630):
+    with history_connection() as db:news=_news.snapshot(db,now)
+    out=_instant_engine.evaluate(symbol,venue_rows,mode=mode,asset_class=asset,provider='Bitstamp',tick_size=.01,
+          now=now,news=news,source_identity_verified=True,realtime_verified=False)
+    out.update(instrument=instrument,generated_at=now.isoformat(),scalp_ready=out['status']=='READY' and mode=='scalp',
+               source_notice='تحليل سجل Bitstamp المستقل أثناء تراكم سجل شارت TradingView',
+               chart_candles_received=len(tv_rows))
+    return out
+  except (_crypto_history.CryptoHistoryError,ValueError,TypeError):pass
  if _tradingview_candles.fresh(tv_meta,now):
   with history_connection() as db:news=_news.snapshot(db,now)
   out=_instant_engine.evaluate(symbol,tv_rows,mode=mode,asset_class=asset,
@@ -724,7 +740,9 @@ def process_chart_candle(symbol):
   for mode in ('scalp','swing'):
    plan=analyze_instant_native(symbol,mode)
    result=trigger_instant_telegram(plan)
-   print('معالجة_شمعة_الشارت الرمز='+symbol+' النمط='+mode+' الحالة='+str(result.get('status','غير متاحة')),flush=True)
+   print('معالجة_شمعة_الشارت الرمز='+symbol+' النمط='+mode+' الحالة='+str(result.get('status','غير متاحة'))+
+         ' المصدر='+str(plan.get('provider') or 'غير متاح')+' سبب_التحليل='+str(plan.get('reason_code') or plan.get('status_ar') or 'تقييم فني')+
+         ' شموع_الشارت='+str(plan.get('chart_candles_received','غير محدد')),flush=True)
  except Exception:print('معالجة_شمعة_الشارت الحالة=تعذر_الفحص',flush=True)
 
 def bbb_recovery_worker():
@@ -1692,6 +1710,29 @@ class Handler(BaseHTTPRequestHandler):
   for k,v in {"Content-Type":"text/html; charset=utf-8","Content-Length":str(len(body)),"Cache-Control":"no-store","X-Frame-Options":"DENY","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; style-src 'self' 'unsafe-inline' https://*.tradingview.com; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; frame-src https://*.tradingview.com; img-src 'self' data: https://*.tradingview.com; connect-src 'self' wss://ws.bitstamp.net; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}.items():self.send_header(k,v)
   self.end_headers();self.wfile.write(body)
  def do_POST(self):
+  if urlsplit(self.path).path=='/v1/verification/news-delivery':
+   secret=os.getenv('BIGBEN_NEWS_PROOF_TOKEN','')
+   if len(secret)<32 or not secure_equal(self.headers.get('X-BigBen-News-Proof',''),secret):return self.reply(401,{'الحالة':'طلب غير مصرح'})
+   owner=os.getenv('BIGBEN_TELEGRAM_ALLOWED_USER_IDS','').split(',')[0].strip()
+   if notifications_muted(owner):return self.reply(409,{'الحالة':'الإشعارات مكتومة؛ لم تُرسل الرسالة'})
+   now=datetime.now(timezone.utc)
+   try:
+    with history_connection() as db:
+     bulletin=_telegram_interactive.verified_news_bulletin(_news.snapshot(db,now),now)
+     if not bulletin:return self.reply(409,{'الحالة':'لا يوجد بيان رسمي حديث موثق؛ لم يُختلق خبر'})
+     key='news-proof:'+owner+':'+now.astimezone(_telegram_interactive.ZONE).date().isoformat()
+     claimed=_telegram_interactive.claim(db,key,postgres_enabled(),now)
+     if not claimed:
+      m='%s' if postgres_enabled() else '?'
+      row=db.execute('SELECT status FROM telegram_bot_receipts WHERE id='+m,(key,)).fetchone()
+      return self.reply(200,{'مكرر':True,'الإيصال':json.loads(row[0]) if row and row[0].startswith('{') else 'حجز سابق؛ لا إعادة تلقائية'})
+    receipt=send_transport_card(bulletin['text'])
+    receipt.update({'معرف_المصدر':bulletin['source_id'],'تاريخ_النشر':bulletin['published_at'],'نوع_الإثبات':'نشرة مصدر رسمي مستقلة؛ لا تثبت صفقة أو اتجاه سعر'})
+    with history_connection() as db:
+     m='%s' if postgres_enabled() else '?'
+     db.execute('UPDATE telegram_bot_receipts SET status='+m+' WHERE id='+m,(json.dumps(receipt,ensure_ascii=False),key))
+    return self.reply(200,receipt)
+   except Exception:return self.reply(503,{'الحالة':'تعذر إكمال التحقق؛ لا إعادة تلقائية لتسليم غير مؤكد'})
   if urlsplit(self.path).path=="/v1/tradingview/candles":
    secret=os.getenv('BIGBEN_WEBHOOK_TOKEN','')
    if len(secret)<32:return self.reply(503,{'رسالة':'مستقبل الشموع غير مهيأ'})

@@ -100,7 +100,7 @@ def trade_only_message(plan, now=None):
     side='شراء' if buy else 'بيع';marker='🔵' if buy else '🔴'
     symbol=_esc(plan['symbol'].split(':',1)[1])
     asset=_esc({'crypto':'سوق فوري','forex':'فوركس','futures':'عقود آجلة','cfd':'عقود فروقات'}.get((plan.get('instrument') or {}).get('asset_class'),'سوق موثق'))
-    body=[marker+' <b>توصية '+side+' | '+symbol+' ('+asset+') — '+('سكالب' if plan['mode']=='scalp' else 'سوينغ')+'</b>',
+    body=[marker+' <b>توصية '+side+' | '+symbol+' ('+asset+') — '+('سكالب' if plan['mode']=='scalp' else 'سوينغ')+' [لايف — شموع مغلقة]</b>',
           '━━━━━━━━━━━━━━━━━━','📌 الاتجاه: '+side+' '+marker,
           '🎯 منطقة / سعر الدخول: '+_f(plan['entry']),
           '🛑 وقف الخسارة (SL): '+_f(plan['sl']),'',

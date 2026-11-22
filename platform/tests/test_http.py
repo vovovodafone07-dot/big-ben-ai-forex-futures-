@@ -69,6 +69,21 @@ class WebhookHTTPTests(unittest.TestCase):
             result.update(entry=100, sl=102, tp=94, rr=3)
         return result
 
+    def test_audit_token_reads_only_dedicated_state_endpoint(self):
+        with patch.dict(os.environ,{'BIGBEN_AUDIT_TOKEN':'a'*40}):
+            for path,expected in (('/v1/audit/state',200),('/api/events',401)):
+                conn=http.client.HTTPConnection('127.0.0.1',self.server.server_port,timeout=3)
+                conn.request('GET',path,headers={'X-BigBen-Audit-Token':'a'*40})
+                response=conn.getresponse();raw=response.read();body=json.loads(raw) if raw else {};conn.close()
+                self.assertEqual(response.status,expected)
+                self.assertNotIn('a'*40,json.dumps(body))
+
+    def test_scoped_audit_and_bbb_require_their_own_credentials(self):
+        with patch.dict(os.environ,{'BIGBEN_AUDIT_TOKEN':'a'*40,'BIGBEN_BBB_WEBHOOK_TOKEN':'b'*40}):
+            self.assertEqual(self.request('GET','/v1/audit/state',auth=self.auth)[0],401)
+            self.assertEqual(self.request('POST','/v1/tradingview/bbb',{'schema':'bigben.bbb.v1','token':'wrong'},auth=self.auth)[0],401)
+        self.assertEqual(self.request('POST','/v1/tradingview/transport-test',{},auth=self.auth)[0],503)
+
     def test_telegram_updates_require_independent_secret(self):
         with patch.dict(os.environ, {"BIGBEN_TELEGRAM_WEBHOOK_SECRET": ""}):
             self.assertEqual(self.request('POST','/v1/telegram/updates',{'update_id':1},auth=self.auth)[0],503)
